@@ -67,7 +67,7 @@ async function getImageAndAddYoloAnnotations() {
 				logger.info(`starting darknet on file ${file.id} frameside ${file.frame_side_id} at ${x}x${y}`);
 				try {
 					const resultTxt = await (new Promise((resolve, reject) => {
-						exec(`/app/darknet/darknet detector test /app/darknet/cfg/coco.data /app/yolo-v3/model.cfg /app/yolo-v3/model.weights -i 0 -thresh 0.01 -ext_output -dont_show ${partialFilePath} -out /app/tmp/result.json`,
+						exec(`/app/darknet/darknet detector test /app/darknet/cfg/coco.data /app/models-yolo-v3/model.cfg /app/models-yolo-v3/model.weights -i 0 -thresh 0.01 -ext_output -dont_show ${partialFilePath} -out /app/tmp/result.json`,
 							{
 								cwd: '/app/darknet/'
 							}, function (error, stdout, stderr) {

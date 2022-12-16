@@ -7,7 +7,7 @@ deploy-clean:
 	ssh root@gratheon.com 'rm -rf /www/image-splitter/app/*;'
 
 deploy-copy:
-	rsync -av -e ssh restart.sh .version ./yolo-v3 ./app ./darknet ./config package.json package-lock.json root@gratheon.com:/www/image-splitter/
+	rsync -av -e ssh restart.sh .version ./models-yolo-v3 ./app ./darknet ./config package.json package-lock.json root@gratheon.com:/www/image-splitter/
 
 rsync -av -e ssh Dockerfile package.json package-lock.json root@gratheon.com:/www/image-splitter/
 deploy-run:

@@ -7,6 +7,9 @@ localhost:17000
 
 ### Development
 ```
+git clone git@github.com:Gratheon/models-yolo-v3.git
+
+nvm use
 npm install
 npm install --arch=x64 --platform=linuxmusl --libc=musl sharp
 
@@ -23,6 +26,6 @@ cd darknet && make
 ```
 
 #### Mac
-./darknet.mac detector test cfg/coco.data  ../yolo-v3/model.cfg ../yolo-v3/model.weights -i 0 -thresh 0.01 -ext_output ../out/IMG_2822_1_2.JPG
+./darknet.mac detector test cfg/coco.data  ../models-yolo-v3/model.cfg ../models-yolo-v3/model.weights -i 0 -thresh 0.01 -ext_output ../out/IMG_2822_1_2.JPG
 
 -out result.json
