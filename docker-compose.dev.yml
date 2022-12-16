@@ -8,7 +8,7 @@ services:
       - ENV_ID=dev
     tty: true
     ports:
-      - 17000:17000
+      - 8800:8800
     volumes:
       - .:/app/
     restart: always

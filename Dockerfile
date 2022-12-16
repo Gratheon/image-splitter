@@ -17,7 +17,7 @@ WORKDIR /app
 RUN apt-get install -y make build-essential
 COPY darknet /app/darknet
 
-EXPOSE 17000
+EXPOSE 8800
 
 COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json

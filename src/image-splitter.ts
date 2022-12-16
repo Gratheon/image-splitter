@@ -115,9 +115,9 @@ async function startApolloServer(app, typeDefs, resolvers) {
 
     await registerSchema(schema, version);
     const relPath = await startApolloServer(app, schema, resolvers);
-    await app.listen(17000, "0.0.0.0");
+    await app.listen(8800, "0.0.0.0");
 
-    logger.info(`Server ready at http://localhost:17000${relPath}`);
+    logger.info(`Server ready at http://localhost:8800${relPath}`);
   } catch (e) {
     console.error(e);
   }

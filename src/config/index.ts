@@ -1,6 +1,9 @@
+import dev from './config.dev';
+import prod from './config.prod';
+
 const config = {
-	dev: require('./config.dev'),
-	prod: require('./config.prod'),
+	dev,
+	prod
 };
 
 const mode = process.env.ENV_ID === 'dev' ? 'dev' : 'prod';

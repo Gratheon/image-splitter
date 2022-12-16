@@ -3,7 +3,7 @@ Main image processng microservice.
 Uses darknet and custom trained yoloV3 model for inference
 
 ### URLs
-localhost:17000
+localhost:8800
 
 ### Development
 ```
