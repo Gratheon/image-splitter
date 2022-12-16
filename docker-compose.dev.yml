@@ -1,0 +1,19 @@
+version: '3.9'
+services:
+  image-splitter:
+    build: .
+    command:
+      ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
+    environment:
+      - ENV_ID=dev
+    tty: true
+    ports:
+      - 17000:17000
+    volumes:
+      - .:/app/
+    restart: always
+    network_mode: bridge
+    networks:
+      - gratheon
+networks:
+  gratheon:
