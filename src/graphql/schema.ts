@@ -13,7 +13,7 @@ type Query {
 type Mutation {
     uploadFrameSide(file: Upload!): File
     addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
-		filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
+	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 }
 
 input FilesUpdateInput{
