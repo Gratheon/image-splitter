@@ -14,6 +14,7 @@ export default {
 			LIMIT 1`
     );
 
+    console.log({result});
     const file = result[0];
 
     if (!file) {
@@ -28,9 +29,8 @@ export default {
   updateDetections: async function (detections, fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel 
-			SET detectedObjects=? 
-			WHERE file_id=? AND frame_side_id=?`,
-      [JSON.stringify(detections), fileId, frameSideId]
+			SET detectedObjects=${JSON.stringify(detections)}
+			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
     );
     return true;
   },
