@@ -66,7 +66,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
       let signature = req.request.raw.headers["internal-router-signature"];
 
       // signature sent by router so that it cannot be faked
-      if (signature === "a239vmwoeifworg") {
+      if (signature === config.routerSignature) {
         uid = req.request.raw.headers["internal-userid"];
       }
 
@@ -106,7 +106,6 @@ async function startApolloServer(app, typeDefs, resolvers) {
   darknetWorker();
 
   const app = fastify({
-    //@ts-ignore
     logger,
   });
 
