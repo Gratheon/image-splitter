@@ -26,6 +26,22 @@ async function downloadFile(url, localPath) {
 	});
 }
 
+type DetectedObject = {
+	n: String, // class
+	x: number
+	y: number
+	w: number
+	h: number
+	c: number // confidence
+}
+
+type CutPosition = {
+	width: number
+	height: number
+	left: number
+	top: number
+}
+
 async function getImageAndAddYoloAnnotations() {
 	const file = await fileModel.getFirstUnprocessedFile();
 
@@ -41,7 +57,7 @@ async function getImageAndAddYoloAnnotations() {
 
 		let width, height, partialFilePath;
 
-		const results = {};
+		let results: DetectedObject[] = [];
 
 		if (file.width === null || file.height === null) {
 			const image = await sharp(file.localFilePath)
@@ -58,19 +74,21 @@ async function getImageAndAddYoloAnnotations() {
 				height = Math.floor(file.height / 3)
 				partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
 
-				await sharp(file.localFilePath).extract({
+				const cutPosition: CutPosition = {
 					width,
 					height,
 					left: x * width,
 					top: y * height
-				}).jpeg({ mozjpeg: true }).toFile(partialFilePath)
+				};
 
-				logger.info(`starting darknet on file ${file.file_id} frameside ${file.frame_side_id} at ${x}x${y}`);
+				await sharp(file.localFilePath).extract(cutPosition).jpeg({ mozjpeg: true }).toFile(partialFilePath)
+
+				logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
 				try {
-					const resultTxt = await (new Promise((resolve, reject) => {
-						exec(`/app/darknet/darknet detector test /app/darknet/cfg/coco.data /app/models-yolo-v3/model.cfg /app/models-yolo-v3/model.weights -i 0 -thresh 0.01 -ext_output -dont_show ${partialFilePath} -out /app/tmp/result.json`,
+					await (new Promise((resolve, reject) => {
+						exec(`python3 detect.py --weights weights/best.pt --device cpu --source ${partialFilePath} --save-txt --save-conf`,
 							{
-								cwd: '/app/darknet/'
+								cwd: '/app/models-yolov5'
 							}, function (error, stdout, stderr) {
 								if (error) {
 									reject(stderr)
@@ -79,7 +97,26 @@ async function getImageAndAddYoloAnnotations() {
 								}
 							})
 					}));
-					results[`${x}${y}`] = JSON.parse(fs.readFileSync('/app/tmp/result.json', { encoding: 'utf8', flag: 'r' }));
+
+					results =  [
+						...results,
+						...parseYoloText(fs.readFileSync('/app/models-yolov5/runs/detect/exp/result.txt', { encoding: 'utf8', flag: 'r' }), cutPosition)
+					]
+					
+					console.log('results ', results);
+
+					await (new Promise((resolve, reject) => {
+						exec(`rm -rf runs`,
+							{
+								cwd: '/app/models-yolov5'
+							}, function (error, stdout, stderr) {
+								if (error) {
+									reject(stderr)
+								} else {
+									resolve(stdout)
+								}
+							})
+					}));
 
 					await fileModel.updateDetections(
 						results,
@@ -106,3 +143,26 @@ async function getImageAndAddYoloAnnotations() {
 export default function init() {
 	getImageAndAddYoloAnnotations();
 };
+
+export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedObject[]{
+
+	const result:DetectedObject[] = [];
+	const lines = txt.split("\n");
+
+	for(let line of lines){
+		if(line.length<5) continue;
+
+		const [n, x, y, w, h, c] = line.split(' ');
+		console.log({cutPosition, line});
+		result.push({
+			n,
+			x: (Number(x)*cutPosition.width + cutPosition.left) / (3*cutPosition.width),
+			y: (Number(y)*cutPosition.height + cutPosition.top) / (3*cutPosition.height),
+			w: Number(w)/3,
+			h: Number(h)/3,
+			c: Number(c)
+		})
+	}
+
+	return result;
+}

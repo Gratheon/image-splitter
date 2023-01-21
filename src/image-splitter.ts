@@ -19,7 +19,6 @@ import { registerSchema } from "./graphql/schema-registry";
 import config from "./config/index";
 import {logger} from "./logger";
 import './sentry';
-import fileModel from './models/file';
 
 function fastifyAppClosePlugin(app) {
   return {

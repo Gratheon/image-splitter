@@ -14,15 +14,14 @@ RUN npm --version
 
 # ensure all directories exist
 WORKDIR /app
-RUN apt-get install -y make build-essential
-COPY darknet /app/darknet
 
 EXPOSE 8800
 
 COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json
-RUN apt-get install -y musl
-RUN cd /app/darknet && make
-# RUN cd /app && npm install && npm install --arch=x64 --platform=linuxmusl --libc=musl sharp
+COPY models-yolov5/requirements.txt /app/models-yolov5/requirements.txt
+
+RUN apt-get install -y python3 pip ffmpeg libsm6 libxext6
+RUN cd /app/models-yolov5 && pip install -r requirements.txt
 
 CMD ["node", "/app/app/image-splitter.js"]
