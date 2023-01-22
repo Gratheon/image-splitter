@@ -1,5 +1,5 @@
 cd /www/image-splitter/
-docker-compose down
+COMPOSE_PROJECT_NAME=gratheon docker-compose down
 
 sudo -H -u www bash -c 'cd /www/image-splitter/ && nvm use && npm i' 
 COMPOSE_PROJECT_NAME=gratheon docker-compose up -d --build
