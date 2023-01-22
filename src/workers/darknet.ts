@@ -3,8 +3,12 @@ import fs from 'fs';
 import https from 'https';
 import { exec } from 'child_process';
 import {logger} from '../logger';
+import util from 'util';
 
 import fileModel from '../models/file';
+
+const asyncExec = util.promisify(exec);
+
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -85,6 +89,11 @@ async function getImageAndAddYoloAnnotations() {
 
 				logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
 				try {
+					// cleanup
+					const {stdout, stderr} = await asyncExec(`rm -rf /app/models-yolov5/runs`)
+					console.log({stdout, stderr});
+
+					
 					await (new Promise((resolve, reject) => {
 						exec(`python3 detect.py --weights weights/bees.pt --device cpu --source ${partialFilePath} --save-txt --save-conf`,
 							{
@@ -98,26 +107,23 @@ async function getImageAndAddYoloAnnotations() {
 							})
 					}));
 
-					results =  [
-						...results,
-						...parseYoloText(fs.readFileSync('/app/models-yolov5/runs/detect/exp/result.txt', { encoding: 'utf8', flag: 'r' }), cutPosition)
-					]
+					let txtResult =''
+
+					if(fs.existsSync('/app/models-yolov5/runs/detect/exp/result.txt')){
+						try {
+							txtResult =  fs.readFileSync('/app/models-yolov5/runs/detect/exp/result.txt', { encoding: 'utf8', flag: 'r' })
+						} catch(e){
+							console.log(e);
+						}
+
+						results =  [
+							...results,
+							...parseYoloText(txtResult, cutPosition)
+						]
+					}
 					
 					console.log('results ', results);
-
-					await (new Promise((resolve, reject) => {
-						exec(`rm -rf runs`,
-							{
-								cwd: '/app/models-yolov5'
-							}, function (error, stdout, stderr) {
-								if (error) {
-									reject(stderr)
-								} else {
-									resolve(stdout)
-								}
-							})
-					}));
-
+					
 					await fileModel.updateDetections(
 						results,
 						file.file_id,
