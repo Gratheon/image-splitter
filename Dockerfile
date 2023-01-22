@@ -21,7 +21,9 @@ COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json
 COPY models-yolov5/requirements.txt /app/models-yolov5/requirements.txt
 
-RUN apt-get install -y python3 pip ffmpeg libsm6 libxext6
+RUN apt-get update
+RUN apt-get install -y python3 pip
+RUN apt-get install -y ffmpeg libsm6 libxext6
 RUN cd /app/models-yolov5 && pip install -r requirements.txt
 
 CMD ["node", "/app/app/image-splitter.js"]
