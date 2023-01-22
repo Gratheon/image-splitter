@@ -86,7 +86,7 @@ async function getImageAndAddYoloAnnotations() {
 				logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
 				try {
 					await (new Promise((resolve, reject) => {
-						exec(`python3 detect.py --weights weights/best.pt --device cpu --source ${partialFilePath} --save-txt --save-conf`,
+						exec(`python3 detect.py --weights weights/bees.pt --device cpu --source ${partialFilePath} --save-txt --save-conf`,
 							{
 								cwd: '/app/models-yolov5'
 							}, function (error, stdout, stderr) {
@@ -156,13 +156,18 @@ export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedOb
 		console.log({cutPosition, line});
 		result.push({
 			n,
-			x: (Number(x)*cutPosition.width + cutPosition.left) / (3*cutPosition.width),
-			y: (Number(y)*cutPosition.height + cutPosition.top) / (3*cutPosition.height),
-			w: Number(w)/3,
-			h: Number(h)/3,
-			c: Number(c)
+			x: roundToDecimal((Number(x)*cutPosition.width + cutPosition.left) / (3*cutPosition.width),5),
+			y: roundToDecimal((Number(y)*cutPosition.height + cutPosition.top) / (3*cutPosition.height),5),
+			w: roundToDecimal(Number(w)/3,4),
+			h: roundToDecimal(Number(h)/3,4),
+			c: roundToDecimal(Number(c),2)
 		})
 	}
 
 	return result;
+}
+
+function roundToDecimal(num: number, decimalPlaces: number): number {
+    const multiplier = Math.pow(10, decimalPlaces);
+    return Math.round(num * multiplier) / multiplier;
 }
