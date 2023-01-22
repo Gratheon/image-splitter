@@ -37,6 +37,12 @@ export const resolvers = {
 			return fileModel.getByFrameSideId(id, ctx.uid)
 		}
 	},
+
+	FrameSideFile:{
+		counts: async (parent, _, ctx) => {
+			return frameSideFileModel.countDetectedObjects(parent.detectedObjects)
+		},
+	},
 	Mutation: {
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);

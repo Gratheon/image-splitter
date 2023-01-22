@@ -28,4 +28,37 @@ export default {
 			detectedObjects: rel.detectedObjects
 		};
 	},
+
+	countDetectedObjects: async function(detectedObjects): Promise<DetectedObjectCount[]> {
+		let result: DetectedObjectCount[] = [];
+		let map = new Map();
+		let typeMap = {
+			'0': 'BEE_WORKER',
+			'1': 'BEE_DRONE',
+			'2': 'BEE_WORKER',
+			'3': 'BEE_QUEEN'
+		}
+
+		for(let o of detectedObjects){
+			const exValue = map.get(o.n);
+			map.set(
+				o.n,
+				exValue ? exValue + 1 : 1
+			)
+		}
+
+		for(let r of map){
+			result.push({
+				type: typeMap[r[0]], 
+				count: r[1]
+			});
+		}
+
+		return result;
+	},
 };
+
+type DetectedObjectCount = {
+	count: number
+	type: string
+}

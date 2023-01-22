@@ -5,14 +5,14 @@ scalar Upload
 scalar ID
 
 type Query {
-    file(id:ID!): File
-    hiveFiles(hiveId:ID!): [FrameSideFile]
-		hiveFrameSideFile(frameSideId:ID!): FrameSideFile
+	file(id:ID!): File
+	hiveFiles(hiveId:ID!): [FrameSideFile]
+	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 }
 
 type Mutation {
-  uploadFrameSide(file: Upload!): File
-  addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
+	uploadFrameSide(file: Upload!): File
+	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 }
 
@@ -28,20 +28,36 @@ type FrameSideFile {
 	hiveId: ID
 	strokeHistory: JSON
 	detectedObjects: JSON
+
+	counts: [DetectedObjectCount]
+}
+
+enum DetectedObjectType {
+	"""n=0"""
+	BEE_WORKER
+	"""n=1"""
+	BEE_DRONE
+	"""n=3"""
+	BEE_QUEEN
+}
+
+type DetectedObjectCount{
+	type: DetectedObjectType
+	count: Int
 }
 
 type File{
-    id: ID!
-    url: String
+	id: ID!
+	url: String
 }
 
 extend type FrameSide @key(fields: "id") {
-  id: ID @external
-  file: File
+	id: ID @external
+	file: File
 }
 
 extend type Hive @key(fields: "id") {
-  id: ID! @external
-  files: [FrameSideFile]
+	id: ID! @external
+	files: [FrameSideFile]
 }
 `;
