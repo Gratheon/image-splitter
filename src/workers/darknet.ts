@@ -76,10 +76,13 @@ async function getImageAndAddYoloAnnotations() {
 		}, file.file_id);
 	}
 
-	for (let x = 0; x < 3; x++) {
-		for (let y = 0; y < 3; y++) {
-			width = Math.floor(file.width / 3)
-			height = Math.floor(file.height / 3)
+	let splitCountX = Math.round(file.width / 1440)
+	let splitCountY = Math.round(file.height / 1080)
+
+	for (let x = 0; x < splitCountX; x++) {
+		for (let y = 0; y < splitCountY; y++) {
+			width = Math.floor(file.width / splitCountX)
+			height = Math.floor(file.height / splitCountY)
 			partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
 
 			const cutPosition: CutPosition = {
@@ -116,7 +119,7 @@ async function getImageAndAddYoloAnnotations() {
 				const res = await response.json();
 				results = [
 					...results,
-					...parseYoloText(res.result, cutPosition),
+					...parseYoloText(res.result, cutPosition, splitCountX, splitCountY),
 				];
 
 				logger.info('results ', results);
@@ -146,7 +149,7 @@ export default function init() {
 	getImageAndAddYoloAnnotations();
 };
 
-export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedObject[] {
+export function parseYoloText(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
 
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
@@ -158,10 +161,10 @@ export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedOb
 		console.log({ cutPosition, line });
 		result.push({
 			n,
-			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (3 * cutPosition.width), 5),
-			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (3 * cutPosition.height), 5),
-			w: roundToDecimal(Number(w) / 3, 4),
-			h: roundToDecimal(Number(h) / 3, 4),
+			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
+			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
+			w: roundToDecimal(Number(w) / splitCountX, 4),
+			h: roundToDecimal(Number(h) / splitCountY, 4),
 			c: roundToDecimal(Number(c), 2)
 		})
 	}
