@@ -1,7 +1,8 @@
 version: '3.9'
 services:
   image-splitter:
-    build: .
+    build: 
+      dockerfile: ./Dockerfile.dev
     command:
       ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
     environment:

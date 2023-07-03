@@ -14,7 +14,6 @@ export default {
 			LIMIT 1`
     );
 
-    console.log({result});
     const file = result[0];
 
     if (!file) {

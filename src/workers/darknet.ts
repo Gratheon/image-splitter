@@ -1,13 +1,10 @@
-import sharp from 'sharp';
+import Jimp from 'jimp';
 import fs from 'fs';
 import https from 'https';
-import { exec } from 'child_process';
-import {logger} from '../logger';
-import util from 'util';
+import FormData from 'form-data';
 
+import { logger } from '../logger';
 import fileModel from '../models/file';
-
-const asyncExec = util.promisify(exec);
 
 
 async function downloadFile(url, localPath) {
@@ -49,100 +46,99 @@ type CutPosition = {
 async function getImageAndAddYoloAnnotations() {
 	const file = await fileModel.getFirstUnprocessedFile();
 
-	if (file) {
-		logger.info('starting processing file');
-		logger.info({file});
-
-		if (!fs.existsSync(file.localFilePath)) {
-			await downloadFile(file.url, file.localFilePath);
-		}
-
-		await fileModel.startDetection(file.file_id, file.frame_side_id);
-
-		let width, height, partialFilePath;
-
-		let results: DetectedObject[] = [];
-
-		if (file.width === null || file.height === null) {
-			const image = await sharp(file.localFilePath)
-			const metadata = await image.metadata()
-			file.width = metadata.width;
-			file.height = metadata.height;
-
-			await fileModel.updateDimentions(metadata, file.file_id);
-		}
-
-		for (let x = 0; x < 3; x++) {
-			for (let y = 0; y < 3; y++) {
-				width = Math.floor(file.width / 3)
-				height = Math.floor(file.height / 3)
-				partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
-
-				const cutPosition: CutPosition = {
-					width,
-					height,
-					left: x * width,
-					top: y * height
-				};
-
-				await sharp(file.localFilePath).extract(cutPosition).jpeg({ mozjpeg: true }).toFile(partialFilePath)
-
-				logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
-				try {
-					// cleanup
-					const {stdout, stderr} = await asyncExec(`rm -rf /app/models-yolov5/runs`)
-					console.log({stdout, stderr});
-
-					
-					await (new Promise((resolve, reject) => {
-						exec(`python3 detect.py --weights weights/bees.pt --device cpu --source ${partialFilePath} --save-txt --save-conf`,
-							{
-								cwd: '/app/models-yolov5'
-							}, function (error, stdout, stderr) {
-								if (error) {
-									reject(stderr)
-								} else {
-									resolve(stdout)
-								}
-							})
-					}));
-
-					let txtResult =''
-
-					if(fs.existsSync('/app/models-yolov5/runs/detect/exp/result.txt')){
-						try {
-							txtResult =  fs.readFileSync('/app/models-yolov5/runs/detect/exp/result.txt', { encoding: 'utf8', flag: 'r' })
-						} catch(e){
-							console.log(e);
-						}
-
-						results =  [
-							...results,
-							...parseYoloText(txtResult, cutPosition)
-						]
-					}
-					
-					console.log('results ', results);
-					
-					await fileModel.updateDetections(
-						results,
-						file.file_id,
-						file.frame_side_id
-					)
-
-					fs.unlinkSync(partialFilePath);
-				}
-				catch (e) {
-					console.error(e);
-				}
-			}
-		}
-
-		await fileModel.endDetection(file.file_id, file.frame_side_id);
-		fs.unlinkSync(file.localFilePath);
+	if (file == null) {
+		setTimeout(getImageAndAddYoloAnnotations, 5000);
+		logger.info('empty queue, 5s..');
+		return
 	}
 
-	setTimeout(getImageAndAddYoloAnnotations, 10000);
+	logger.info('starting processing file');
+	logger.info({ file });
+
+	if (!fs.existsSync(file.localFilePath)) {
+		await downloadFile(file.url, file.localFilePath);
+	}
+
+	await fileModel.startDetection(file.file_id, file.frame_side_id);
+
+	let width, height, partialFilePath;
+
+	let results: DetectedObject[] = [];
+
+	if (file.width === null || file.height === null) {
+		const image = await Jimp.read(file.localFilePath)
+		file.width = image.bitmap.width;
+		file.height = image.bitmap.height;
+
+		await fileModel.updateDimentions({
+			width: file.width,
+			height: file.height,
+		}, file.file_id);
+	}
+
+	for (let x = 0; x < 3; x++) {
+		for (let y = 0; y < 3; y++) {
+			width = Math.floor(file.width / 3)
+			height = Math.floor(file.height / 3)
+			partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
+
+			const cutPosition: CutPosition = {
+				width,
+				height,
+				left: x * width,
+				top: y * height
+			};
+
+			let j1 = await Jimp.read(file.localFilePath)
+			let j2 = j1.crop(
+				cutPosition.left,
+				cutPosition.top,
+				cutPosition.width,
+				cutPosition.height,
+			)
+			await j2.writeAsync(partialFilePath)
+
+			logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
+			try {
+				const fileContents = fs.readFileSync(partialFilePath);
+				const formData = new FormData();
+				formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
+
+				const response = await fetch('http://models-yolov5:8700/', {
+					method: 'POST',
+					body: formData,
+				});
+
+				if (!response.ok) {
+					throw new Error(`HTTP request failed with status ${response.status}`);
+				}
+
+				const res = await response.json();
+				results = [
+					...results,
+					...parseYoloText(res.result, cutPosition),
+				];
+
+				logger.info('results ', results);
+
+				await fileModel.updateDetections(
+					results,
+					file.file_id,
+					file.frame_side_id
+				)
+
+				fs.unlinkSync(partialFilePath);
+			}
+			catch (e) {
+				console.error(e);
+			}
+		}
+	}
+
+	await fileModel.endDetection(file.file_id, file.frame_side_id);
+	fs.unlinkSync(file.localFilePath);
+
+	setTimeout(getImageAndAddYoloAnnotations, 500);
 }
 
 
@@ -150,23 +146,23 @@ export default function init() {
 	getImageAndAddYoloAnnotations();
 };
 
-export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedObject[]{
+export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedObject[] {
 
-	const result:DetectedObject[] = [];
+	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 
-	for(let line of lines){
-		if(line.length<5) continue;
+	for (let line of lines) {
+		if (line.length < 5) continue;
 
 		const [n, x, y, w, h, c] = line.split(' ');
-		console.log({cutPosition, line});
+		console.log({ cutPosition, line });
 		result.push({
 			n,
-			x: roundToDecimal((Number(x)*cutPosition.width + cutPosition.left) / (3*cutPosition.width),5),
-			y: roundToDecimal((Number(y)*cutPosition.height + cutPosition.top) / (3*cutPosition.height),5),
-			w: roundToDecimal(Number(w)/3,4),
-			h: roundToDecimal(Number(h)/3,4),
-			c: roundToDecimal(Number(c),2)
+			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (3 * cutPosition.width), 5),
+			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (3 * cutPosition.height), 5),
+			w: roundToDecimal(Number(w) / 3, 4),
+			h: roundToDecimal(Number(h) / 3, 4),
+			c: roundToDecimal(Number(c), 2)
 		})
 	}
 
@@ -174,6 +170,6 @@ export function parseYoloText(txt: string, cutPosition: CutPosition): DetectedOb
 }
 
 function roundToDecimal(num: number, decimalPlaces: number): number {
-    const multiplier = Math.pow(10, decimalPlaces);
-    return Math.round(num * multiplier) / multiplier;
+	const multiplier = Math.pow(10, decimalPlaces);
+	return Math.round(num * multiplier) / multiplier;
 }
