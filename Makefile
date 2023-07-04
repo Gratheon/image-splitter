@@ -10,7 +10,7 @@ deploy-clean:
 	ssh root@gratheon.com 'rm -rf /www/image-splitter/app/*;'
 
 deploy-copy:
-	rsync -av -e ssh Dockerfile package.json package-lock.json restart.sh .version ./models-yolov5 ./app ./src root@gratheon.com:/www/image-splitter/
+	rsync -av -e ssh Dockerfile package.json package-lock.json restart.sh .version ./app ./src root@gratheon.com:/www/image-splitter/
 
 deploy-run:
 	ssh root@gratheon.com 'chmod +x /www/image-splitter/restart.sh'

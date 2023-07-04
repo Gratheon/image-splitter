@@ -5,7 +5,7 @@ import FormData from 'form-data';
 
 import { logger } from '../logger';
 import fileModel from '../models/file';
-
+import config from '../config'
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -107,7 +107,7 @@ async function getImageAndAddYoloAnnotations() {
 				const formData = new FormData();
 				formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
 
-				const response = await fetch('http://models-yolov5:8700/', {
+				const response = await fetch(config.yolo_v5_url, {
 					method: 'POST',
 					body: formData,
 				});
