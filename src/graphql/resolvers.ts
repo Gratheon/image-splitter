@@ -39,6 +39,16 @@ export const resolvers = {
 	},
 
 	FrameSideFile:{
+		estimatedDetectionTimeSec: async(parent, _, ctx) => {
+			let jobs = await frameSideFileModel.countPendingJobs()
+			if (jobs == 0) {
+				return 0;
+			}
+
+			let timeSec = await frameSideFileModel.getAvgProcessingTime()
+			
+			return jobs * timeSec
+		},
 		counts: async (parent, _, ctx) => {
 			return frameSideFileModel.countDetectedObjects(parent.detectedObjects)
 		},

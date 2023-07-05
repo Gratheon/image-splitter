@@ -28,6 +28,7 @@ type FrameSideFile {
 	hiveId: ID
 	strokeHistory: JSON
 	detectedObjects: JSON
+	estimatedDetectionTimeSec: Float
 
 	counts: [DetectedObjectCount]
 }

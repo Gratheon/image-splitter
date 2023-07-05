@@ -5,6 +5,36 @@ import { storage } from "./storage";
 import fileModel from './file';
 
 export default {
+	getAvgProcessingTime: async function(){
+		const result = await storage().query(
+		sql`SELECT AVG(process_end_time-process_start_time) as time FROM (
+			SELECT * FROM files_frame_side_rel WHERE process_start_time IS NOT NULL ORDER BY frame_side_id DESC LIMIT 10
+			) t2`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return 0;
+		}
+
+		return rel.time
+	},
+
+	countPendingJobs: async function(){
+		const result = await storage().query(
+			sql`SELECT COUNT(*) cnt FROM files_frame_side_rel WHERE process_start_time IS NULL`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return 0; //lets say it takes 1 sec on avg
+		}
+
+		return rel.cnt;
+	},
+
 	getByFrameSideId: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detectedObjects, t2.width, t2.height, t2.id as fileId
