@@ -113,6 +113,13 @@ async function getImageAndAddYoloAnnotations() {
 				});
 
 				if (!response.ok) {
+					await fileModel.updateDetections(
+						results,
+						file.file_id,
+						file.frame_side_id
+					)
+
+					fs.unlinkSync(partialFilePath);
 					throw new Error(`HTTP request failed with status ${response.status}`);
 				}
 
@@ -133,7 +140,7 @@ async function getImageAndAddYoloAnnotations() {
 				fs.unlinkSync(partialFilePath);
 			}
 			catch (e) {
-				console.error(e);
+				logger.error(e);
 			}
 		}
 	}

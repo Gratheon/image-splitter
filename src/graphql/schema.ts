@@ -12,7 +12,7 @@ type Query {
 
 type Mutation {
 	uploadFrameSide(file: Upload!): File
-	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
+	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): AddFileToFrameSideResult
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 }
 
@@ -20,6 +20,10 @@ input FilesUpdateInput{
 	frameSideId: ID!
 	fileId: ID!
 	strokeHistory: JSON!
+}
+
+type AddFileToFrameSideResult{
+	estimatedDetectionTimeSec: Float
 }
 
 type FrameSideFile {

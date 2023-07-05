@@ -39,7 +39,7 @@ export const resolvers = {
 	},
 
 	FrameSideFile:{
-		estimatedDetectionTimeSec: async(parent, _, ctx) => {
+		estimatedDetectionTimeSec: async() => {
 			let jobs = await frameSideFileModel.countPendingJobs()
 			if (jobs == 0) {
 				return 0;
@@ -57,7 +57,9 @@ export const resolvers = {
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);
 			await fileModel.addHiveRelation(fileId, hiveId, uid);
-			return true;
+			return ({
+				estimatedDetectionTimeSec: await resolvers.FrameSideFile.estimatedDetectionTimeSec()
+			})
 		},
 		uploadFrameSide: async (_, { file }, { uid }) => {
 			try {
