@@ -10,7 +10,7 @@
 
 interface FilesFrameSideRel {
   added_time: ((string | Date)) | null
-  detectedObjects: (unknown) | null
+  detectedBees: (unknown) | null
   file_id: number
   frame_side_id: number
   process_end_time: ((string | Date)) | null
@@ -22,7 +22,7 @@ export default FilesFrameSideRel;
 
 interface FilesFrameSideRel_InsertParameters {
   added_time?: ((string | Date)) | null
-  detectedObjects?: (unknown) | null
+  detectedBees?: (unknown) | null
   file_id: number
   frame_side_id: number
   process_end_time?: ((string | Date)) | null

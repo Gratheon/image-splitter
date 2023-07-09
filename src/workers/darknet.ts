@@ -36,6 +36,14 @@ type DetectedObject = {
 	c: number // confidence
 }
 
+type DetectedFrameResource = [
+	number, // class: ["Capped", "Eggs", "Honey", "Larves", "Nectar", "Other", "Pollen"]
+	number, // x
+	number, // y
+	number, // radius
+	number // probability
+]
+
 type CutPosition = {
 	width: number
 	height: number
@@ -43,11 +51,11 @@ type CutPosition = {
 	top: number
 }
 
-async function getImageAndAddYoloAnnotations() {
+async function analyzeImage() {
 	const file = await fileModel.getFirstUnprocessedFile();
 
 	if (file == null) {
-		setTimeout(getImageAndAddYoloAnnotations, 5000);
+		setTimeout(analyzeImage, 5000);
 		logger.info('empty queue, 5s..');
 		return
 	}
@@ -55,26 +63,74 @@ async function getImageAndAddYoloAnnotations() {
 	logger.info('starting processing file');
 	logger.info({ file });
 
-	if (!fs.existsSync(file.localFilePath)) {
-		await downloadFile(file.url, file.localFilePath);
+	try {
+		if (!fs.existsSync(file.localFilePath)) {
+			await downloadFile(file.url, file.localFilePath);
+		}
+
+		await fileModel.startDetection(file.file_id, file.frame_side_id);
+
+		if (file.width === null || file.height === null) {
+			const image = await Jimp.read(file.localFilePath)
+			file.width = image.bitmap.width;
+			file.height = image.bitmap.height;
+
+			await fileModel.updateDimentions({
+				width: file.width,
+				height: file.height,
+			}, file.file_id);
+		}
+
+		await Promise.all([
+			detectBees(file),
+			detectFrameResources(file),
+		])
+
+		await fileModel.endDetection(file.file_id, file.frame_side_id);
+		fs.unlinkSync(file.localFilePath);
+	}
+	catch (e) {
+		logger.error(e)
 	}
 
-	await fileModel.startDetection(file.file_id, file.frame_side_id);
+	setTimeout(analyzeImage, 500);
+}
 
+async function detectFrameResources(file) {
+	logger.info(`detectFrameResources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
+	try {
+		const fileContents = fs.readFileSync(file.localFilePath);
+		const formData = new FormData();
+		formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
+
+		const response = await fetch(config.models_frame_resources_url, {
+			method: 'POST',
+			body: formData,
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP request failed with status ${response.status}`);
+		}
+
+		const res = await response.json();
+
+		logger.info("Received response", res)
+
+		await fileModel.updateDetectedResources(
+			convertDetectedResourcesStorageFormat(res, file.width, file.height),
+			file.file_id,
+			file.frame_side_id
+		)
+	}
+	catch (e) {
+		logger.error(e);
+	}
+}
+
+async function detectBees(file) {
 	let width, height, partialFilePath;
 
 	let results: DetectedObject[] = [];
-
-	if (file.width === null || file.height === null) {
-		const image = await Jimp.read(file.localFilePath)
-		file.width = image.bitmap.width;
-		file.height = image.bitmap.height;
-
-		await fileModel.updateDimentions({
-			width: file.width,
-			height: file.height,
-		}, file.file_id);
-	}
 
 	let splitCountX = Math.round(file.width / 1440)
 	let splitCountY = Math.round(file.height / 1080)
@@ -113,7 +169,7 @@ async function getImageAndAddYoloAnnotations() {
 				});
 
 				if (!response.ok) {
-					await fileModel.updateDetections(
+					await fileModel.updateDetectedBees(
 						results,
 						file.file_id,
 						file.frame_side_id
@@ -126,12 +182,10 @@ async function getImageAndAddYoloAnnotations() {
 				const res = await response.json();
 				results = [
 					...results,
-					...parseYoloText(res.result, cutPosition, splitCountX, splitCountY),
+					...convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY),
 				];
 
-				logger.info('results ', results);
-
-				await fileModel.updateDetections(
+				await fileModel.updateDetectedBees(
 					results,
 					file.file_id,
 					file.frame_side_id
@@ -144,20 +198,14 @@ async function getImageAndAddYoloAnnotations() {
 			}
 		}
 	}
-
-	await fileModel.endDetection(file.file_id, file.frame_side_id);
-	fs.unlinkSync(file.localFilePath);
-
-	setTimeout(getImageAndAddYoloAnnotations, 500);
 }
 
 
 export default function init() {
-	getImageAndAddYoloAnnotations();
+	analyzeImage();
 };
 
-export function parseYoloText(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
-
+export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 
@@ -165,7 +213,6 @@ export function parseYoloText(txt: string, cutPosition: CutPosition, splitCountX
 		if (line.length < 5) continue;
 
 		const [n, x, y, w, h, c] = line.split(' ');
-		console.log({ cutPosition, line });
 		result.push({
 			n,
 			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
@@ -174,6 +221,22 @@ export function parseYoloText(txt: string, cutPosition: CutPosition, splitCountX
 			h: roundToDecimal(Number(h) / splitCountY, 4),
 			c: roundToDecimal(Number(c), 2)
 		})
+	}
+
+	return result;
+}
+
+export function convertDetectedResourcesStorageFormat(detectedResources, width, height): DetectedFrameResource[] {
+	const result: DetectedFrameResource[] = [];
+
+	for (let line of detectedResources) {
+		result.push([
+			line[3], //class			
+			roundToDecimal(line[0] / width, 4),
+			roundToDecimal(line[1] / height, 4),
+			roundToDecimal(line[2] / width, 4), //radius
+			Math.ceil(line[5] * 100), // probability
+		])
 	}
 
 	return result;

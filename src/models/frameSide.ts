@@ -37,7 +37,8 @@ export default {
 
 	getByFrameSideId: async function (frameSideId, uid) {
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detectedObjects, t2.width, t2.height, t2.id as fileId
+			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, 
+			t2.width, t2.height, t2.id as fileId
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
@@ -55,11 +56,12 @@ export default {
 			frameSideId,
 			strokeHistory: rel.strokeHistory,
 			file: await fileModel.getById(rel.fileId, uid),
-			detectedObjects: rel.detectedObjects
+			detectedBees: rel.detected_bees,
+			detectedFrameResources: rel.detected_frame_resources
 		};
 	},
 
-	countDetectedObjects: async function(detectedObjects): Promise<DetectedObjectCount[]> {
+	countDetectedBees: async function(detectedBees): Promise<DetectedObjectCount[]> {
 		let result: DetectedObjectCount[] = [];
 		let map = new Map();
 		let typeMap = {
@@ -69,7 +71,7 @@ export default {
 			'3': 'BEE_QUEEN'
 		}
 
-		for(let o of detectedObjects){
+		for(let o of detectedBees){
 			const exValue = map.get(o.n);
 			map.set(
 				o.n,

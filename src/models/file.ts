@@ -25,10 +25,18 @@ export default {
 
     return file;
   },
-  updateDetections: async function (detections, fileId, frameSideId) {
+  updateDetectedBees: async function (detections, fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel 
-			SET detectedObjects=${JSON.stringify(detections)}
+			SET detected_bees=${JSON.stringify(detections)}
+			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+    );
+    return true;
+  },
+  updateDetectedResources: async function (detections, fileId, frameSideId) {
+    await storage().query(
+      sql`UPDATE files_frame_side_rel 
+			SET detected_frame_resources=${JSON.stringify(detections)}
 			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
     );
     return true;
@@ -50,7 +58,7 @@ export default {
   },
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detectedObjects, t2.width, t2.height
+      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t2.width, t2.height
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			WHERE t1.frame_side_id = ${id}

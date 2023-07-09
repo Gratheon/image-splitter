@@ -31,7 +31,8 @@ type FrameSideFile {
 	frameSideId: ID
 	hiveId: ID
 	strokeHistory: JSON
-	detectedObjects: JSON
+	detectedBees: JSON
+	detectedFrameResources: JSON
 	estimatedDetectionTimeSec: Float
 
 	counts: [DetectedObjectCount]

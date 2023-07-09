@@ -28,7 +28,7 @@ export default DatabaseSchema;
  * in a JSON column.
  */
 function serializeValue(t: string, c: string, v: unknown): unknown {
-  if (t === "files_frame_side_rel" && (c === "detectedObjects" || c === "strokeHistory")) {
+  if (t === "files_frame_side_rel" && (c === "detectedBees" || c === "strokeHistory")) {
     return JSON.stringify(v);
   }
   return v;

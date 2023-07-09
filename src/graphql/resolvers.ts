@@ -50,7 +50,7 @@ export const resolvers = {
 			return jobs * timeSec
 		},
 		counts: async (parent, _, ctx) => {
-			return frameSideFileModel.countDetectedObjects(parent.detectedObjects)
+			return frameSideFileModel.countDetectedBees(parent.detected_bees)
 		},
 	},
 	Mutation: {
