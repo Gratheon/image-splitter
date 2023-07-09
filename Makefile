@@ -1,6 +1,6 @@
 start:
 	mkdir -p tmp
-	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml up -d --build
+	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml up --build
 stop:
 	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml down
 run:
@@ -10,7 +10,7 @@ deploy-clean:
 	ssh root@gratheon.com 'rm -rf /www/image-splitter/app/*;'
 
 deploy-copy:
-	rsync -av -e ssh Dockerfile package.json package-lock.json restart.sh .version ./app ./src root@gratheon.com:/www/image-splitter/
+	rsync -av -e ssh ./migrations Dockerfile package.json package-lock.json restart.sh .version ./app ./src root@gratheon.com:/www/image-splitter/
 
 deploy-run:
 	ssh root@gratheon.com 'chmod +x /www/image-splitter/restart.sh'
@@ -21,5 +21,3 @@ deploy:
 	# make deploy-clean
 	make deploy-copy
 	make deploy-run
-
-.PHONY: deploy
