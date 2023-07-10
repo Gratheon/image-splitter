@@ -5,7 +5,8 @@ import FormData from 'form-data';
 
 import { logger } from '../logger';
 import fileModel from '../models/file';
-import config from '../config'
+import config from '../config';
+import { publisher, generateChannelName } from '../redisPubSub'
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -116,10 +117,23 @@ async function detectFrameResources(file) {
 
 		logger.info("Received response", res)
 
+		const delta = convertDetectedResourcesStorageFormat(res, file.width, file.height)
 		await fileModel.updateDetectedResources(
-			convertDetectedResourcesStorageFormat(res, file.width, file.height),
+			delta,
 			file.file_id,
 			file.frame_side_id
+		)
+
+		publisher.publish(
+			generateChannelName(
+				file.user_id,
+				'frame_side',
+				file.frame_side_id,
+				'frame_resources_detected'
+			), 
+			JSON.stringify({
+				delta
+			})
 		)
 	}
 	catch (e) {
@@ -180,9 +194,11 @@ async function detectBees(file) {
 				}
 
 				const res = await response.json();
+				const delta = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY)
+
 				results = [
 					...results,
-					...convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY),
+					...delta,
 				];
 
 				await fileModel.updateDetectedBees(
@@ -192,6 +208,18 @@ async function detectBees(file) {
 				)
 
 				fs.unlinkSync(partialFilePath);
+
+				publisher.publish(
+					generateChannelName(
+						file.user_id,
+						'frame_side',
+						file.frame_side_id,
+						'bees_partially_detected'
+					), 
+					JSON.stringify({
+						delta
+					})
+				)
 			}
 			catch (e) {
 				logger.error(e);
