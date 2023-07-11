@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 export const subscriber = new Redis({
 	port: 6379,
-	host: process.env.NATIVE === "1" ? "127.0.0.1" : "redis",
+	host: process.env.ENV_ID === "prod" ? "127.0.0.1" : "redis",
 	username: "default",
 	password: "pass",
 	showFriendlyErrorStack: true,
@@ -17,7 +17,7 @@ export const subscriber = new Redis({
 
 export const publisher = new Redis({
 	port: 6379,
-	host: process.env.NATIVE === "1" ? "127.0.0.1" : "redis",
+	host: process.env.ENV_ID === "prod" ? "127.0.0.1" : "redis",
 	username: "default",
 	password: "pass",
 })
