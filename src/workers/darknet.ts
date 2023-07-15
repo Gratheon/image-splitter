@@ -124,13 +124,16 @@ async function detectFrameResources(file) {
 			file.frame_side_id
 		)
 
-		publisher.publish(
-			generateChannelName(
-				file.user_id,
-				'frame_side',
-				file.frame_side_id,
-				'frame_resources_detected'
-			), 
+		const ch = generateChannelName(
+			file.user_id,
+			'frame_side',
+			file.frame_side_id,
+			'frame_resources_detected'
+		);
+
+		logger.info("Publishing to redis channel", ch)
+		await publisher.publish(
+			ch, 
 			JSON.stringify({
 				delta
 			})

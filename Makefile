@@ -5,12 +5,13 @@ stop:
 	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml down
 run:
 	npm run dev
-
+test:
+	
 deploy-clean:
 	ssh root@gratheon.com 'rm -rf /www/image-splitter/app/*;'
 
 deploy-copy:
-	rsync -av -e ssh ./migrations Dockerfile package.json package-lock.json restart.sh .version ./app ./src root@gratheon.com:/www/image-splitter/
+	rsync -av -e ssh ./migrations docker-compose.yml Dockerfile package.json package-lock.json restart.sh .version ./src root@gratheon.com:/www/image-splitter/
 
 deploy-run:
 	ssh root@gratheon.com 'chmod +x /www/image-splitter/restart.sh'

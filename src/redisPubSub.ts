@@ -20,6 +20,14 @@ export const publisher = new Redis({
 	host: process.env.ENV_ID === "prod" ? "127.0.0.1" : "redis",
 	username: "default",
 	password: "pass",
+	showFriendlyErrorStack: true,
+	db: 0,
+
+	enableReadyCheck: true,
+	autoResubscribe: true,
+	retryStrategy: (times) => {
+		return Math.min(times * 500, 5000);
+	},
 })
 
 export function generateChannelName(uid, ...keys) {
