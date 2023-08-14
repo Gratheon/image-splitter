@@ -1,6 +1,6 @@
 import { sql } from "@databases/mysql";
 
-import { files, files_frame_side_rel, files_hive_rel, storage } from "./storage";
+import { storage } from "./storage";
 import config from "../config/index";
 
 export default {
