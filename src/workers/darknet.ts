@@ -56,8 +56,8 @@ async function analyzeImage() {
 	const file = await fileModel.getFirstUnprocessedFile();
 
 	if (file == null) {
-		setTimeout(analyzeImage, 5000);
-		logger.info('empty queue, 5s..');
+		setTimeout(analyzeImage, 10000);
+		logger.info('empty queue, 10s..');
 		return
 	}
 

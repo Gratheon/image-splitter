@@ -1,17 +1,18 @@
 version: '3.9'
 services:
   image-splitter:
-    build: 
-      dockerfile: ./Dockerfile.dev
-    command:
-      ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
+    image: local/image-splitter
+    # build: 
+    #   dockerfile: ./Dockerfile.dev
+    # command:
+    #   ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
     environment:
       - ENV_ID=dev
     tty: true
     ports:
       - 8800:8800
-    volumes:
-      - .:/app/
+    # volumes:
+    #   - .:/app/
     restart: always
     network_mode: bridge
     networks:
