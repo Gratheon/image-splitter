@@ -1,6 +1,6 @@
 # gratheon / image-splitter
 Main image processng microservice.
-Uses darknet and custom trained yoloV3 model for inference
+Uses custom yoloV5 model for inference
 
 ### URLs
 localhost:8800
