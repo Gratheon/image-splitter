@@ -1,4 +1,4 @@
-import test from './config.test';
+import test from './config.default';
 
 const config = {
 	test
