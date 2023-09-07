@@ -8,8 +8,8 @@ let mode = process.env.ENV_ID;
 if(!process.env.ENV_ID) {
 	mode = 'test'
 } else {
-	config['dev'] = import('./config.dev');
-	config['prod'] = import('./config.prod');
+	config['dev'] = require('./config.dev');
+	config['prod'] = require('./config.prod');
 }
 
 export default config[mode];
