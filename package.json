@@ -33,7 +33,7 @@
   },
   "scripts": {
     "build": "tsc -p ./src/config/tsconfig.json",
-    "test": "./node_modules/.bin/jest --config ./test/unit/jest.coverage.json",
+    "test": "./node_modules/.bin/jest --config ./test/unit/jest.coverage.json --detectOpenHandles --forceExit",
     "start": "NATIVE=1 ENV_ID=dev ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess \"node ./app/image-splitter.js\"",
     "generate-db-schema": "npx @databases/mysql-schema-cli --database mysql://root:test@localhost:60003/ --schemaName image-splitter --directory app/models/__generated__"
   },
