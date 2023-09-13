@@ -240,9 +240,6 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 
-	if(true) {
-		lines = 500/0
-	}
 	for (let line of lines) {
 		if (line.length < 5) continue;
 
