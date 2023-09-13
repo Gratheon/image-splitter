@@ -3,7 +3,7 @@ on: [pull_request]
 jobs:
   clarifai-pr:
     runs-on: ubuntu-latest
-    name: AI PR review
+    name: Clarifai review
     permissions:
       pull-requests: write
     steps:
