@@ -12,10 +12,9 @@ async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
 		try {
 			const file = fs.createWriteStream(localPath);
-			const request = https.get(url, function (response) {
+			https.get(url, function (response) {
 				response.pipe(file);
 
-				// after download completed close filestream
 				file.on("finish", () => {
 					file.close();
 					logger.info("Download Completed");
@@ -265,8 +264,8 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 			line[3], //class			
 			roundToDecimal(line[0] / width, 4),
 			roundToDecimal(line[1] / height, 4),
-			roundToDecimal(line[2] / width, 4), //radius
-			Math.ceil(line[5] * 100), // probability
+			roundToDecimal(line[2] / width, 4),
+			Math.ceil(line[5] * 100),
 		])
 	}
 
