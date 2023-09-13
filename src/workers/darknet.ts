@@ -15,7 +15,6 @@ async function downloadFile(url, localPath) {
 			https.get(url, function (response) {
 				response.pipe(file);
 
-				// after download completed close filestream
 				file.on("finish", () => {
 					file.close();
 					logger.info("Download Completed");
