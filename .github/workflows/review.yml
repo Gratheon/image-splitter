@@ -4,6 +4,8 @@ jobs:
   clarifai-pr:
     runs-on: ubuntu-latest
     name: AI PR review
+    permissions:
+      pull-requests: write
     steps:
       - name: Review pull request code with clarifai.com
         uses: tot-ra/clarifai-PR@main
