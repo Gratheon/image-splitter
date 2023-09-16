@@ -1,15 +1,23 @@
-import test from './config.default';
+import config from "./config.default";
 
-const config = {
-	test
-};
-
-let mode = process.env.ENV_ID;
-if(!process.env.ENV_ID) {
-	mode = 'test'
-} else {
-	config['dev'] = require('./config.dev');
-	config['prod'] = require('./config.prod');
+function loadConfig<T>(filePath: string): T | undefined {
+  try {
+    return require(filePath).default;
+  } catch (error) {
+    console.error(`Failed to load config '${filePath}':`, error);
+    return undefined;
+  }
 }
 
-export default config[mode];
+const env = process.env.ENV_ID || "default";
+const customConfig = loadConfig<typeof config>(`./config.${env}`);
+
+const currentConfig = { ...config, ...customConfig };
+
+export function get<T extends keyof typeof config>(
+  key: T
+): typeof config[T] {
+  return currentConfig[key];
+}
+
+export default currentConfig;

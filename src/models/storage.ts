@@ -22,16 +22,13 @@ export function storage() {
 }
 
 export async function initStorage(logger) {
-  const conn = createConnectionPool(
-    `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
-  );
+  const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
+  const conn = createConnectionPool(dsn);
 
-  await conn.query(sql`
-  CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-`);
+  await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
 
   db = createConnectionPool({
-    connectionString: `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/${config.mysql.database}`,
+    connectionString: `${dsn}${config.mysql.database}`,
     onQueryError: (_query, { text }, err) => {
       logger.error(
         `DB error ${text} - ${err.message}`

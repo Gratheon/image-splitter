@@ -5,6 +5,7 @@ WORKDIR /app
 EXPOSE 8800
 
 COPY . /app/
+
 RUN npm install
 RUN npm run build
 
