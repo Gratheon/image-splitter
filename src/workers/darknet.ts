@@ -97,12 +97,15 @@ async function analyzeImage() {
 }
 
 async function detectFrameResources(file) {
-	logger.info(`detectFrameResources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
+	logger.info(`Detecting frame resources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
 	try {
+		logger.info(`Reading tmp file ${file.localFilePath}`)
+
 		const fileContents = fs.readFileSync(file.localFilePath);
 		const formData = new FormData();
 		formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
 
+		logger.info("Making request to " + config.models_frame_resources_url)
 		const response = await fetch(config.models_frame_resources_url, {
 			method: 'POST',
 			body: formData,
@@ -112,11 +115,15 @@ async function detectFrameResources(file) {
 			throw new Error(`HTTP request failed with status ${response.status}`);
 		}
 
+		logger.info(`Received frame resource ok response`)
 		const res = await response.json();
 
-		logger.info("Received response", res)
+		logger.info("Parsed frame resource response as JSON")
 
+		logger.info("Converting frame resource response to more compact form")
 		const delta = convertDetectedResourcesStorageFormat(res, file.width, file.height)
+
+		logger.info("Saving frame resource response to DB")
 		await fileModel.updateDetectedResources(
 			delta,
 			file.file_id,
@@ -130,7 +137,7 @@ async function detectFrameResources(file) {
 			'frame_resources_detected'
 		);
 
-		logger.info("Publishing to redis channel", ch)
+		logger.info("Publishing frame resources to redis channel", ch)
 		await publisher.publish(
 			ch, 
 			JSON.stringify({
@@ -139,7 +146,7 @@ async function detectFrameResources(file) {
 		)
 	}
 	catch (e) {
-		logger.error(e);
+		logger.error("Frame resource detection failed", e);
 	}
 }
 
@@ -151,6 +158,7 @@ async function detectBees(file) {
 	let splitCountX = Math.round(file.width / 1440)
 	let splitCountY = Math.round(file.height / 1080)
 
+	logger.info(`Detecting bees in file id ${file.file_id}, frameside ${file.frame_side_id}. Will cut image in parts for better precision`);
 	for (let x = 0; x < splitCountX; x++) {
 		for (let y = 0; y < splitCountY; y++) {
 			width = Math.floor(file.width / splitCountX)
@@ -173,29 +181,36 @@ async function detectBees(file) {
 			)
 			await j2.writeAsync(partialFilePath)
 
-			logger.info(`analyzing file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`);
+			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
 			try {
 				const fileContents = fs.readFileSync(partialFilePath);
 				const formData = new FormData();
 				formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
 
+				logger.info('Making request to ' + config.yolo_v5_url)
 				const response = await fetch(config.yolo_v5_url, {
 					method: 'POST',
 					body: formData,
 				});
+				logger.info('received response from yolo v5 model')
 
 				if (!response.ok) {
+					logger.info('Response is not ok', response)
 					await fileModel.updateDetectedBees(
 						results,
 						file.file_id,
 						file.frame_side_id
 					)
 
+					logger.info('Removing temp file')
 					fs.unlinkSync(partialFilePath);
 					throw new Error(`HTTP request failed with status ${response.status}`);
 				}
 
 				const res = await response.json();
+				logger.info('Parsed response from yolo v5 model to JSON', res)
+
+				logger.info('Converting JSON to more compact format')
 				const delta = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY)
 
 				results = [
@@ -203,14 +218,17 @@ async function detectBees(file) {
 					...delta,
 				];
 
+				logger.info('Updating DB with found compact stats')
 				await fileModel.updateDetectedBees(
 					results,
 					file.file_id,
 					file.frame_side_id
 				)
 
+				logger.info('Removing temp file')
 				fs.unlinkSync(partialFilePath);
 
+				logger.info('Publishing results to redis')
 				publisher.publish(
 					generateChannelName(
 						file.user_id,
@@ -224,7 +242,7 @@ async function detectBees(file) {
 				)
 			}
 			catch (e) {
-				logger.error(e);
+				logger.error(`Failed to process file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`,e);
 			}
 		}
 	}
