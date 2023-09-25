@@ -65,9 +65,12 @@ async function analyzeImage() {
 
 	try {
 		if (!fs.existsSync(file.localFilePath)) {
+			logger.info(`downloading ${file.url} -> ${file.localFilePath}`);
 			await downloadFile(file.url, file.localFilePath);
+			logger.info(`download complete ${file.url} -> ${file.localFilePath}`);
 		}
 
+		logger.info(`updating DB to start detection for fileid ${file.file_id}`);
 		await fileModel.startDetection(file.file_id, file.frame_side_id);
 
 		if (file.width === null || file.height === null) {
@@ -75,17 +78,20 @@ async function analyzeImage() {
 			file.width = image.bitmap.width;
 			file.height = image.bitmap.height;
 
+			logger.info(`updating DB of file dimensions ${file.file_id}`);
 			await fileModel.updateDimentions({
 				width: file.width,
 				height: file.height,
 			}, file.file_id);
 		}
 
+		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
 		await Promise.all([
 			detectBees(file),
 			detectFrameResources(file),
 		])
 
+		logger.info(`detections complete for ${file.file_id}`);
 		await fileModel.endDetection(file.file_id, file.frame_side_id);
 		fs.unlinkSync(file.localFilePath);
 	}
@@ -106,6 +112,7 @@ async function detectFrameResources(file) {
 		formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
 
 		logger.info("Making request to " + config.models_frame_resources_url)
+		logger.info("fileContents length is " + fileContents.length)
 		const response = await fetch(config.models_frame_resources_url, {
 			method: 'POST',
 			body: formData,
@@ -139,14 +146,15 @@ async function detectFrameResources(file) {
 
 		logger.info("Publishing frame resources to redis channel", ch)
 		await publisher.publish(
-			ch, 
+			ch,
 			JSON.stringify({
 				delta
 			})
 		)
 	}
 	catch (e) {
-		logger.error("Frame resource detection failed", e);
+		logger.error("Frame resource detection failed");
+		console.error(e);
 	}
 }
 
@@ -172,6 +180,7 @@ async function detectBees(file) {
 				top: y * height
 			};
 
+			logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
 			let j1 = await Jimp.read(file.localFilePath)
 			let j2 = j1.crop(
 				cutPosition.left,
@@ -179,6 +188,8 @@ async function detectBees(file) {
 				cutPosition.width,
 				cutPosition.height,
 			)
+
+			logger.info(`Writing cut to ${partialFilePath}`);
 			await j2.writeAsync(partialFilePath)
 
 			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
@@ -235,14 +246,16 @@ async function detectBees(file) {
 						'frame_side',
 						file.frame_side_id,
 						'bees_partially_detected'
-					), 
+					),
 					JSON.stringify({
 						delta
 					})
 				)
 			}
+
 			catch (e) {
-				logger.error(`Failed to process file id ${file.file_id}, frameside ${file.frame_side_id} at ${x}x${y}`,e);
+				logger.error("detectBees failed");
+				console.error(e);
 			}
 		}
 	}
