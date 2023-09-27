@@ -1,12 +1,10 @@
-FROM node:20-alpine
+FROM node:16-alpine
 
 WORKDIR /app
 
 EXPOSE 8800
 
+# expect things to be already built
 COPY . /app/
-
-RUN npm install -g npm@10.1.0
-RUN npm install && npm run build
 
 CMD node ./app/image-splitter.js
