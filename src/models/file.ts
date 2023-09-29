@@ -3,10 +3,10 @@ import { sql } from "@databases/mysql";
 import { storage } from "./storage";
 import config from "../config/index";
 
-export default {
+const fileModel = {
   getFirstUnprocessedFile: async function () {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id
+      sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			WHERE t1.process_start_time IS NULL
@@ -20,11 +20,20 @@ export default {
       return null;
     }
 
-    file.url = `${config.files_base_url}${file.user_id}/${file.filename}`;
+    file.url = fileModel.getUrl(file);
     file.localFilePath = `tmp/${file.user_id}_${file.filename}`;
 
     return file;
   },
+
+  getUrl(file) {
+    if (file.url_version == 1) {
+      return `${config.files_base_url}${file.user_id}/${file.filename}`
+    } else {
+      return `${config.files_base_url}${file.user_id}/${file.hash}/original${file.ext ? "." + file.ext : ''}`
+    }
+  },
+
   updateDetectedBees: async function (detections, fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel 
@@ -58,7 +67,7 @@ export default {
   },
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t2.width, t2.height
+      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t2.width, t2.height, t2.url_version, t2.ext
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			WHERE t1.frame_side_id = ${id}
@@ -75,12 +84,13 @@ export default {
     return {
       __typename: "File",
       id,
-      url: `${config.files_base_url}${file.user_id}/${file.filename}`,
+      url: fileModel.getUrl(file),
     };
   },
+
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
-      sql`SELECT t2.id, t2.user_id, t2.filename, t3.frame_side_id, t3.strokeHistory
+      sql`SELECT t2.id, t2.user_id, t2.filename, t3.frame_side_id, t3.strokeHistory, t2.url_version, t2.hash, t2.ext
 				FROM files t2
 				INNER JOIN files_frame_side_rel t3 ON t3.file_id = t2.id
 				WHERE t2.id IN (
@@ -104,7 +114,7 @@ export default {
         file: {
           __typename: "File",
           ...file,
-          url: `${config.files_base_url}${file.user_id}/${file.filename}`,
+          url: fileModel.getUrl(file),
         },
       });
     }
@@ -114,7 +124,7 @@ export default {
 
   getById: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT id, user_id, filename 
+      sql`SELECT id, user_id, filename, hash, url_version, ext
 			FROM files
 			WHERE id=${id} and user_id=${uid}
 			LIMIT 1`
@@ -124,15 +134,27 @@ export default {
     return {
       __typename: "File",
       id,
-      url: `${config.files_base_url}${file.user_id}/${file.filename}`,
+      url: fileModel.getUrl(file),
     };
   },
 
-  insert: async function (user_id, filename, hash, width, height) {
+  getFileExtension: function (filename) {
+    if (filename) {
+      const parts = filename.split(".");
+      if (parts.length > 1) {
+        // Take the text after the last dot as the extension
+        const lastPart = parts.pop();
+        return lastPart.toLowerCase();
+      }
+    }
+    return ""; // Return an empty string for invalid or extension-less filenames.
+  },
+
+  insert: async function (user_id, filename, ext, hash, width, height) {
     // @ts-ignore
     return (await storage().query(sql`
-    INSERT INTO files (user_id, filename, hash, ext, width, height) 
-    VALUES (${user_id}, ${filename}, ${hash}, ${filename.split(".").pop()}, ${width}, ${height});
+    INSERT INTO files (user_id, filename, hash, ext, width, height, url_version) 
+    VALUES (${user_id}, ${filename}, ${hash}, ${ext}, ${width}, ${height}, 2);
     SELECT LAST_INSERT_ID() as id;
     `))[0].id;
   },
@@ -159,11 +181,14 @@ export default {
   },
 
   addFrameRelation: async function (file_id, frame_side_id, user_id) {
-      // @ts-ignore
-      return (await storage().query(sql`
+    // @ts-ignore
+    return (await storage().query(sql`
       INSERT INTO files_frame_side_rel (file_id, frame_side_id, user_id) 
       VALUES (${file_id}, ${frame_side_id}, ${user_id});
       SELECT LAST_INSERT_ID() as id;
       `))[0].id;
-  },
+  }
 };
+
+
+export default fileModel;

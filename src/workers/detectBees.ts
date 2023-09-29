@@ -1,9 +1,9 @@
-import Jimp from 'jimp';
 import fs from 'fs';
 import FormData from 'form-data';
 
 import { logger } from '../logger';
 import fileModel from '../models/file';
+import * as imageModel from '../models/image';
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
@@ -32,16 +32,7 @@ export async function detectBees(file) {
 			};
 
 			logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
-			let j1 = await Jimp.read(file.localFilePath);
-			let j2 = j1.crop(
-				cutPosition.left,
-				cutPosition.top,
-				cutPosition.width,
-				cutPosition.height
-			);
-
-			logger.info(`Writing cut to ${partialFilePath}`);
-			await j2.writeAsync(partialFilePath);
+			imageModel.cutImage(file, cutPosition, partialFilePath)
 
 			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
 			try {

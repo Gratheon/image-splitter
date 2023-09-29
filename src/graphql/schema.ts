@@ -3,6 +3,7 @@ scalar JSON
 scalar DateTime
 scalar Upload
 scalar ID
+scalar URL
 
 type Query {
 	file(id:ID!): File
@@ -54,7 +55,14 @@ type DetectedObjectCount{
 
 type File{
 	id: ID!
-	url: String
+	url: URL!
+	resizes: [FileResize]
+}
+
+type FileResize {
+	id: ID!
+	max_dimension_px: Int!
+	url: URL!
 }
 
 extend type FrameSide @key(fields: "id") {

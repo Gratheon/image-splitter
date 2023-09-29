@@ -3,11 +3,12 @@ import crypto from 'crypto';
 
 import { GraphQLUpload } from 'graphql-upload';
 import { finished } from 'stream/promises';
-import sizeOf from 'image-size';
 
-import {logger} from '../logger';
+import { logger } from '../logger';
 import upload from '../models/s3';
 import fileModel from '../models/file';
+import fileResizeModel from '../models/fileResize';
+import * as imageModel from '../models/image';
 import frameSideFileModel from '../models/frameSide';
 
 export const resolvers = {
@@ -31,6 +32,9 @@ export const resolvers = {
 		__resolveReference: async ({ id }, ctx) => {
 			return fileModel.getById(id, ctx.uid)
 		},
+		resizes: async({ id }, ctx)=>{
+			fileResizeModel.getResizes(id, ctx.uid)
+		}
 	},
 	FrameSide: {
 		file: async ({ id }, __, ctx) => {
@@ -38,15 +42,15 @@ export const resolvers = {
 		}
 	},
 
-	FrameSideFile:{
-		estimatedDetectionTimeSec: async() => {
+	FrameSideFile: {
+		estimatedDetectionTimeSec: async () => {
 			let jobs = await frameSideFileModel.countPendingJobs()
 			if (jobs == 0) {
 				return 0;
 			}
 
 			let timeSec = await frameSideFileModel.getAvgProcessingTime()
-			
+
 			return jobs * timeSec
 		},
 		counts: async (parent, _, ctx) => {
@@ -66,33 +70,52 @@ export const resolvers = {
 				// local file
 				const { createReadStream, filename, mimetype, encoding } = await file;
 				const stream = createReadStream();
-				const out = fs.createWriteStream(`tmp/${uid}_${filename}`);
+				const tmpLocalFile = `tmp/${uid}_${filename}`
+				const out = fs.createWriteStream(tmpLocalFile);
 				stream.pipe(out);
 				await finished(out);
 
-				// AWS
-				const result = await upload(`tmp/${uid}_${filename}`, `${uid}/${filename}`);
+				const dimensions = imageModel.getImageSize(tmpLocalFile);
 
 				// hash
-				const fileBuffer = fs.readFileSync(`tmp/${uid}_${filename}`);
+				const fileBuffer = fs.readFileSync(tmpLocalFile);
 				const hashSum = crypto.createHash('sha256');
 				hashSum.update(fileBuffer);
-				const dimensions = sizeOf(`tmp/${uid}_${filename}`);
+				const hash = hashSum.digest('hex')
+
+				const ext = fileModel.getFileExtension(filename)
+
+				// resize
+				const tmpResizeFile = `tmp/${uid}_${filename}_1024`
+				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile, 1024)
+
+				// AWS
+				const [originalResult] = await Promise.all([
+					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
+					upload(tmpResizeFile, `${uid}/${hash}/1024p${ext ? "." + ext : ''}`)
+				]);
 
 				// db
 				const id = await fileModel.insert(
 					uid,
 					filename,
-					hashSum.digest('hex'),
+					ext,
+					hash,
 					dimensions.width,
 					dimensions.height
 				);
 
-				logger.info('uploaded',{filename});
+				// for accounting
+				await fileResizeModel.insertResize(id);
+
+				logger.info('uploaded original and resized version', { filename });
+				logger.info('File uploaded to S3');
+				logger.info(originalResult);
 
 				return {
 					id,
-					url: result.Location
+					url: originalResult.Location,
+					sizes: fileResizeModel.getResizes(id, uid)
 				}
 
 			} catch (err) {

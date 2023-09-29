@@ -38,6 +38,7 @@ export async function detectQueenCups(file) {
 
 async function askClarifai(file) {
     const url = file.url
+    logger.info("Asking clarifai to detect cups on URL:" + url)
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
@@ -65,9 +66,11 @@ async function askClarifai(file) {
                 const output = response.outputs[0];
 
                 logger.info("Predicted concepts:");
-                for (const concept of output.data.concepts) {
-                    logger.info(concept.name + " " + concept.value);
-                }
+                console.log(response);
+
+                // for (const concept of output.data.concepts) {
+                //     logger.info(concept.name + " " + concept.value);
+                // }
 
                 resolve(output)
             }
