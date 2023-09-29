@@ -1,4 +1,4 @@
-import { convertDetectedBeesStorageFormat } from "./darknet";
+import { convertDetectedBeesStorageFormat } from "./detectBees";
 
 it('converts yolo to json', async()=>{
 	const cut = {

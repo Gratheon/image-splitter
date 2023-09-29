@@ -11,7 +11,7 @@ import gql from "graphql-tag";
 import fs from "fs";
 import path from "path";
 
-import darknetWorker from "./workers/darknet";
+import orchestrator from "./workers/orchestrator";
 import { schema } from "./graphql/schema";
 import { resolvers } from "./graphql/resolvers";
 import { initStorage } from "./models/storage";
@@ -102,7 +102,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
   logger.info('Starting service...');
 
   await initStorage(logger);
-  darknetWorker();
+  orchestrator();
 
   const app = fastify({
     logger,
