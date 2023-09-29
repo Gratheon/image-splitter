@@ -2,6 +2,7 @@ const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
 import { logger } from '../logger';
+import { generateChannelName, publisher } from '../redisPubSub';
 
 const PAT = config.clarifai.PAT;
 const USER_ID = 'artjom-clarify';
@@ -17,9 +18,22 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
-    retryAsyncFunction(async () => {
+    const detectionResult = await retryAsyncFunction(async () => {
         await askClarifai(file)
     }, 20, 60)
+
+    logger.info('Publishing queen cup detection results to redis');
+    publisher.publish(
+        generateChannelName(
+            file.user_id,
+            'frame_side',
+            file.frame_side_id,
+            'queen_cups_detected'
+        ),
+        JSON.stringify({
+            detectionResult
+        })
+    );
 }
 
 async function askClarifai(file) {
@@ -70,8 +84,8 @@ async function retryAsyncFunction(asyncFunction, maxRetries, delayBetweenRetries
             const result = await asyncFunction();
             return result; // Return the result if successful.
         } catch (error) {
-            logger.error(`Attempt ${retries + 1} failed`);
-            logger.error(error);
+            logger.warn(`Attempt ${retries + 1} failed`);
+            logger.warn(error);
             retries++;
             if (retries < maxRetries) {
                 await new Promise((resolve) => setTimeout(resolve, delayBetweenRetries));
