@@ -6,6 +6,7 @@ docker_build('local/image-splitter', '.',
 
     # Re-run npm install whenever package.json changes.
     run('npm i', trigger='package.json'),
+    run('npm run build', trigger='*.ts'),
 
     # Restart the process to pick up the changed files.
     restart_container()

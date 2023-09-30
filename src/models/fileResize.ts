@@ -27,6 +27,7 @@ export default {
 			result.push({
 				__typename: "FileResize",
 				id: row.id,
+				max_dimension_px: row.max_dimension_px,
 				url: `${config.files_base_url}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
 			});
 		}

@@ -14,7 +14,7 @@ import frameSideFileModel from '../models/frameSide';
 export const resolvers = {
 	Query: {
 		file: async (_, { id }, ctx) => {
-			return fileModel.getById(id, ctx.uid)
+			return await fileModel.getById(id, ctx.uid)
 		},
 		hiveFiles: async (_, { hiveId }, ctx) => {
 			return fileModel.getByHiveId(hiveId, ctx.uid)
@@ -32,8 +32,8 @@ export const resolvers = {
 		__resolveReference: async ({ id }, ctx) => {
 			return fileModel.getById(id, ctx.uid)
 		},
-		resizes: async({ id }, ctx)=>{
-			fileResizeModel.getResizes(id, ctx.uid)
+		resizes: async({ id }, __, ctx) => {
+			return await fileResizeModel.getResizes(id, ctx.uid)
 		}
 	},
 	FrameSide: {
@@ -87,12 +87,12 @@ export const resolvers = {
 
 				// resize
 				const tmpResizeFile = `tmp/${uid}_${filename}_1024`
-				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile, 1024)
+				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile, 1024, 70)
 
 				// AWS
 				const [originalResult] = await Promise.all([
 					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
-					upload(tmpResizeFile, `${uid}/${hash}/1024p${ext ? "." + ext : ''}`)
+					upload(tmpResizeFile, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
 				]);
 
 				// db

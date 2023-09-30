@@ -18,7 +18,7 @@ export async function cutImage(file, cutPosition, partialFilePath) {
 	return partialFilePath
 }
 
-export async function resizeImage(inputPath: string, outputPath: string, maxDimension: number) {
+export async function resizeImage(inputPath: string, outputPath: string, maxDimension: number, quality = 95) {
 	try {
 		// Open the image using Jimp
 		const image = await Jimp.read(inputPath);
@@ -41,7 +41,7 @@ export async function resizeImage(inputPath: string, outputPath: string, maxDime
 		image.resize(newWidth, newHeight);
 
 		// Save the resized image to the output path
-		await image.writeAsync(outputPath);
+		await image.quality(quality).writeAsync(outputPath);
 
 		console.log(`Image resized and saved to ${outputPath}`);
 	} catch (error) {
