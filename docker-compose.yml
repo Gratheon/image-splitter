@@ -2,6 +2,7 @@ version: '3.8'
 services:
   image-splitter:
     build:
+      context: .
       dockerfile: Dockerfile.prod
     command:
       node /app/app/image-splitter.js
