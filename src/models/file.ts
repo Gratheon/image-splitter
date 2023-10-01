@@ -42,6 +42,7 @@ const fileModel = {
     );
     return true;
   },
+
   updateDetectedResources: async function (detections, fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel 
@@ -50,21 +51,34 @@ const fileModel = {
     );
     return true;
   },
+
+  updateDetectedQueenCups: async function (detections, fileId, frameSideId) {
+    await storage().query(
+      sql`UPDATE files_frame_side_rel 
+			SET detected_queen_cups=${JSON.stringify(detections)}
+			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+    );
+    return true;
+  },
+
   startDetection: async function (fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
     );
   },
+
   endDetection: async function (fileId, frameSideId) {
     await storage().query(
       sql`UPDATE files_frame_side_rel SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
     );
   },
+
   updateDimentions: async function ({ width, height }, fileId: number) {
     await storage().query(
       sql`UPDATE files SET width=${width}, height=${height} WHERE id=${fileId}`
     );
   },
+
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
       sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t2.width, t2.height, t2.url_version, t2.ext

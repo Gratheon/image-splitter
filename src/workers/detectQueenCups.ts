@@ -2,6 +2,7 @@ const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
 import { logger } from '../logger';
+import fileModel from '../models/file';
 import { generateChannelName, publisher } from '../redisPubSub';
 
 const PAT = config.clarifai.PAT;
@@ -19,10 +20,20 @@ metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
     const detectionResult = await retryAsyncFunction(async () => {
-        await askClarifai(file)
+        return await askClarifai(file)
     }, 20, 60)
 
-    logger.info('Publishing queen cup detection results to redis');
+    logger.info('Updating DB with found compact stats');
+    await fileModel.updateDetectedQueenCups(
+        detectionResult,
+        file.file_id,
+        file.frame_side_id
+    );
+
+
+    logger.info('Publishing queen cup detection results to redis:');
+    console.log(detectionResult)
+
     publisher.publish(
         generateChannelName(
             file.user_id,
@@ -31,12 +42,25 @@ export async function detectQueenCups(file) {
             'queen_cups_detected'
         ),
         JSON.stringify({
-            detectionResult
+            delta: detectionResult
         })
     );
 }
 
+export type DetectedRectangle = {
+	n: String, // class
+	// 10 - queen cup
+	x: number
+	y: number
+
+	x2: number
+	y2: number
+	c: number // confidence
+}
+
 async function askClarifai(file) {
+    const result: DetectedRectangle[] = [];
+
     const url = file.url
     logger.info("Asking clarifai to detect cups on URL:" + url)
     return new Promise((resolve, reject) => {
@@ -65,14 +89,28 @@ async function askClarifai(file) {
                 // Since we have one input, one output will exist here
                 const output = response.outputs[0];
 
-                logger.info("Predicted concepts:");
-                console.log(response);
+                // console.log('output',output)
+                const regions = output.data.regions
 
-                // for (const concept of output.data.concepts) {
-                //     logger.info(concept.name + " " + concept.value);
-                // }
+                for (let i = 0; i < regions.length; i++) {
+                    const c = regions[i].value // confidence
+                    if (c > 0.5) {
+                        const { top_row, left_col, bottom_row, right_col } = regions[i].region_info.bounding_box
 
-                resolve(output)
+                        // const h = bottom_row - top_row;
+                        // const w = right_col - left_col;
+                        result.push({
+                            n: '10',
+                            y: top_row,
+                            x: left_col,
+                            y2: bottom_row,
+                            x2: right_col,
+                            c
+                        })
+                    }
+                }
+                console.log('result', result)
+                resolve(result)
             }
 
         );
@@ -84,8 +122,7 @@ async function retryAsyncFunction(asyncFunction, maxRetries, delayBetweenRetries
     let retries = 0;
     while (retries < maxRetries) {
         try {
-            const result = await asyncFunction();
-            return result; // Return the result if successful.
+            return await asyncFunction();
         } catch (error) {
             logger.warn(`Attempt ${retries + 1} failed`);
             logger.warn(error);

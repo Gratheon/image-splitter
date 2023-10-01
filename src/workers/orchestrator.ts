@@ -6,7 +6,7 @@ import { logger } from '../logger';
 import fileModel from '../models/file';
 import { detectBees } from './detectBees';
 import { detectFrameResources } from './detectFrameResources';
-import { detectQueenCups } from './queenCups';
+import { detectQueenCups } from './detectQueenCups';
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -29,6 +29,7 @@ async function downloadFile(url, localPath) {
 
 export type DetectedObject = {
 	n: String, // class
+	// 10 - queen cup
 	x: number
 	y: number
 	w: number

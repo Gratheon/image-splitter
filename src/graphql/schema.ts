@@ -34,6 +34,7 @@ type FrameSideFile {
 	strokeHistory: JSON
 	detectedBees: JSON
 	detectedFrameResources: JSON
+	detectedQueenCups: JSON
 	estimatedDetectionTimeSec: Float
 
 	counts: [DetectedObjectCount]

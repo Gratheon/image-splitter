@@ -37,7 +37,7 @@ export default {
 
 	getByFrameSideId: async function (frameSideId, uid) {
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, 
+			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t1.detected_queen_cups,
 			t2.width, t2.height, t2.id as fileId
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
@@ -57,7 +57,8 @@ export default {
 			strokeHistory: rel.strokeHistory,
 			file: await fileModel.getById(rel.fileId, uid),
 			detectedBees: rel.detected_bees,
-			detectedFrameResources: rel.detected_frame_resources
+			detectedFrameResources: rel.detected_frame_resources,
+			detectedQueenCups: rel.detected_queen_cups
 		};
 	},
 
