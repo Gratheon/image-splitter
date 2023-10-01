@@ -88,8 +88,8 @@ async function analyzeImage() {
 
 		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
 		await Promise.all([
-			// detectBees(file),
-			// detectFrameResources(file),
+			detectBees(file),
+			detectFrameResources(file),
 			detectQueenCups(file)
 		])
 
