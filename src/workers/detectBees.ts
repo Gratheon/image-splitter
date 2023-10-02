@@ -32,7 +32,7 @@ export async function detectBees(file) {
 			};
 
 			logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
-			imageModel.cutImage(file, cutPosition, partialFilePath)
+			await imageModel.cutImage(file, cutPosition, partialFilePath)
 
 			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
 			try {
