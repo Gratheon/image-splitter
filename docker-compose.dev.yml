@@ -8,6 +8,9 @@ services:
     #   ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
     environment:
       - ENV_ID=dev
+      - DD_ENV=dev
+      - DD_LOGS_INJECTION=true
+      - DD_PROFILING_ENABLED=true
     tty: true
     ports:
       - 8800:8800

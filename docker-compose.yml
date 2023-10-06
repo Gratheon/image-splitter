@@ -8,6 +8,9 @@ services:
       node /app/app/image-splitter.js
     environment:
       - ENV_ID=prod
+      - DD_ENV=prod
+      - DD_LOGS_INJECTION=true
+      - DD_PROFILING_ENABLED=true
     ports:
       - 8800:8800
     volumes:
