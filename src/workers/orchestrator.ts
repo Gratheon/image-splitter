@@ -57,7 +57,6 @@ async function analyzeImage() {
 
 	if (file == null) {
 		setTimeout(analyzeImage, 10000);
-		logger.info('empty queue, 10s..');
 		return
 	}
 

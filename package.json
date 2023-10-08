@@ -4,7 +4,6 @@
   "description": "This project was bootstrapped with Fastify-CLI.",
   "main": "app.js",
   "dependencies": {
-    "dd-trace": "4.16.0",
     "@apollo/federation": "0.33.0",
     "@databases/mysql": "5.2.1",
     "@databases/mysql-schema-cli": "1.1.0",
@@ -16,6 +15,7 @@
     "apollo-server-fastify": "3.10.2",
     "aws-sdk": "2.1116.0",
     "clarifai-nodejs-grpc": "9.8.4",
+    "dd-trace": "4.16.0",
     "fastify": "3.22.1",
     "fastify-multipart": "5.3.1",
     "fastify-raw-body": "3.2.0",
@@ -28,7 +28,7 @@
     "jsonwebtoken": "8.5.1",
     "jwt-encode": "1.0.1",
     "node-fetch": "2.6.6",
-    "pino-pretty": "^9.1.1",
+    "pino-pretty": "9.1.1",
     "sha1": "1.1.1",
     "stripe": "8.211.0",
     "winston": "3.8.2"

@@ -111,9 +111,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
   });
 
   try {
-    const version = fs.readFileSync(path.resolve(".version"), "utf8");
-
-    await registerSchema(schema, version);
+    await registerSchema(schema);
     const relPath = await startApolloServer(app, schema, resolvers);
     await app.listen(8800, "0.0.0.0");
 

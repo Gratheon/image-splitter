@@ -115,7 +115,6 @@ async function askClarifai(file) {
 
         );
     })
-
 }
 
 async function retryAsyncFunction(asyncFunction, maxRetries, delayBetweenRetries) {

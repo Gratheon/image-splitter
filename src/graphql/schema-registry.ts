@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
+import sha1 from 'sha1';
+
 import config from "../config/index";
 
 const packageJson = JSON.parse(
@@ -37,7 +39,10 @@ async function postData(url = "", data = {}) {
   }
 }
 
-export async function registerSchema(schema, version) {
+export async function registerSchema(schema) {
+
+  const version = sha1(schema)
+
   await postData(config.schema_registry_url, {
     name: packageJson.name,
     url: config.selfUrl,
