@@ -42,7 +42,7 @@ export const resolvers = {
 		}
 	},
 
-	FrameSideFile: {
+	FrameSideFile:{
 		estimatedDetectionTimeSec: async () => {
 			let jobs = await frameSideFileModel.countPendingJobs()
 			if (jobs == 0) {
@@ -51,12 +51,35 @@ export const resolvers = {
 
 			let timeSec = await frameSideFileModel.getAvgProcessingTime()
 
+			// todo take into account current job order
 			return jobs * timeSec
 		},
-		counts: async (parent, _, ctx) => {
-			return frameSideFileModel.countDetectedBees(parent.detectedBees)
+		isBeeDetectionComplete: async (parent, _, ctx) => {
+			return frameSideFileModel.isComplete(parent.frameSideId, ctx.uid)
+		},
+		isCellsDetectionComplete: async (parent, _, ctx) => {
+			return false
+		},
+		isQueenCupsDetectionComplete: async (parent, _, ctx) => {
+			return false
+		},
+
+		// todo add caching or dedicated column around this
+		detectedBees: async (parent, _, ctx) => {
+			return frameSideFileModel.getDetectedBees(parent.frameSideId, ctx.uid)
+		},
+		detectedQueenCount: async (parent, _, ctx) => {
+			return frameSideFileModel.getQueenCount(parent.frameSideId, ctx.uid)
+		},
+		detectedWorkerBeeCount: async (parent, _, ctx) => {
+			return frameSideFileModel.getWorkerBeeCount(parent.frameSideId, ctx.uid)
+		},
+		detectedDroneCount: async (parent, _, ctx) => {
+			return frameSideFileModel.getDroneCount(parent.frameSideId, ctx.uid)
 		},
 	},
+
+
 	Mutation: {
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);

@@ -4,73 +4,12 @@ import { storage } from "./storage";
 import config from "../config/index";
 
 const fileModel = {
-  getFirstUnprocessedFile: async function () {
-    const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
-			FROM files_frame_side_rel t1
-			LEFT JOIN files t2 ON t1.file_id = t2.id
-			WHERE t1.process_start_time IS NULL
-			ORDER BY t1.added_time ASC
-			LIMIT 1`
-    );
-
-    const file = result[0];
-
-    if (!file) {
-      return null;
-    }
-
-    file.url = fileModel.getUrl(file);
-    file.localFilePath = `tmp/${file.user_id}_${file.filename}`;
-
-    return file;
-  },
-
   getUrl(file) {
     if (file.url_version == 1) {
       return `${config.files_base_url}${file.user_id}/${file.filename}`
     } else {
       return `${config.files_base_url}${file.user_id}/${file.hash}/original${file.ext ? "." + file.ext : ''}`
     }
-  },
-
-  updateDetectedBees: async function (detections, fileId, frameSideId) {
-    await storage().query(
-      sql`UPDATE files_frame_side_rel 
-			SET detected_bees=${JSON.stringify(detections)}
-			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-    );
-    return true;
-  },
-
-  updateDetectedResources: async function (detections, fileId, frameSideId) {
-    await storage().query(
-      sql`UPDATE files_frame_side_rel 
-			SET detected_frame_resources=${JSON.stringify(detections)}
-			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-    );
-    return true;
-  },
-
-  updateDetectedQueenCups: async function (detections, fileId, frameSideId) {
-    await storage().query(
-      sql`UPDATE files_frame_side_rel 
-			SET detected_queen_cups=${JSON.stringify(detections)}
-			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-    );
-    return true;
-  },
-
-  startDetection: async function (fileId, frameSideId) {
-    await storage().query(
-      sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-    );
-  },
-
-  endDetection: async function (fileId, frameSideId) {
-    await storage().query(
-      sql`UPDATE files_frame_side_rel SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-    );
   },
 
   updateDimentions: async function ({ width, height }, fileId: number) {
@@ -81,9 +20,10 @@ const fileModel = {
 
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t1.detected_frame_resources, t2.width, t2.height, t2.url_version, t2.ext
+      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t3.cells, t2.width, t2.height, t2.url_version, t2.ext
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
+      LEFT JOIN files_frame_side_resources t3 ON t1.file_id=t3.file_id
 			WHERE t1.frame_side_id = ${id}
 			and t1.user_id = ${uid}
 			LIMIT 1`

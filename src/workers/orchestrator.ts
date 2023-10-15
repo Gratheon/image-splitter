@@ -4,9 +4,12 @@ import https from 'https';
 
 import { logger } from '../logger';
 import fileModel from '../models/file';
+import frameSideModel from '../models/frameSide';
+
 import { detectBees } from './detectBees';
-import { detectFrameResources } from './detectFrameResources';
+import { detectCells } from './detectCells';
 import { detectQueenCups } from './detectQueenCups';
+import frameSideCells from '../models/frameSideCells';
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -52,11 +55,11 @@ export type CutPosition = {
 	top: number
 }
 
-async function analyzeImage() {
-	const file = await fileModel.getFirstUnprocessedFile();
+async function analyzeBees() {
+	const file = await frameSideModel.getFirstUnprocessedBees();
 
 	if (file == null) {
-		setTimeout(analyzeImage, 10000);
+		setTimeout(analyzeBees, 10000);
 		return
 	}
 
@@ -64,47 +67,76 @@ async function analyzeImage() {
 	logger.info({ file });
 
 	try {
-		if (!fs.existsSync(file.localFilePath)) {
-			logger.info(`downloading ${file.url} -> ${file.localFilePath}`);
-			await downloadFile(file.url, file.localFilePath);
-			logger.info(`download complete ${file.url} -> ${file.localFilePath}`);
-		}
-
-		logger.info(`updating DB to start detection for fileid ${file.file_id}`);
-		await fileModel.startDetection(file.file_id, file.frame_side_id);
-
-		if (file.width === null || file.height === null) {
-			const image = await Jimp.read(file.localFilePath)
-			file.width = image.bitmap.width;
-			file.height = image.bitmap.height;
-
-			logger.info(`updating DB of file dimensions ${file.file_id}`);
-			await fileModel.updateDimentions({
-				width: file.width,
-				height: file.height,
-			}, file.file_id);
-		}
+		await downloadAndUpdateResolutionInDB(file);
 
 		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
-		await Promise.all([
-			detectBees(file),
-			detectFrameResources(file),
-			detectQueenCups(file)
-		])
-
-		logger.info(`detections complete for ${file.file_id}`);
-		await fileModel.endDetection(file.file_id, file.frame_side_id);
+		await detectBees(file)
+		
 		fs.unlinkSync(file.localFilePath);
 	}
 	catch (e) {
 		logger.error(e)
 	}
 
-	setTimeout(analyzeImage, 500);
+	setTimeout(analyzeBees, 500);
+}
+
+async function analyzeCells() {
+	const file = await frameSideCells.getFirstUnprocessedCells();
+
+	if (file == null) {
+		setTimeout(analyzeCells, 10000);
+		return
+	}
+
+	logger.info('starting processing file');
+	logger.info({ file });
+
+	try {
+		await downloadAndUpdateResolutionInDB(file);
+
+		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
+		await detectCells(file)
+		
+		// Promise.all([
+		// 	detectBees(file),
+		// 	detectCells(file),
+		// 	detectQueenCups(file)
+		// ])
+
+		fs.unlinkSync(file.localFilePath);
+	}
+	catch (e) {
+		logger.error(e)
+	}
+
+	setTimeout(analyzeCells, 500);
+}
+
+async function downloadAndUpdateResolutionInDB(file: any) {
+	if (!fs.existsSync(file.localFilePath)) {
+		logger.info(`downloading ${file.url} -> ${file.localFilePath}`);
+		await downloadFile(file.url, file.localFilePath);
+		logger.info(`download complete ${file.url} -> ${file.localFilePath}`);
+	}
+
+	if (file.width === null || file.height === null) {
+		const image = await Jimp.read(file.localFilePath);
+		file.width = image.bitmap.width;
+		file.height = image.bitmap.height;
+
+		logger.info(`updating DB of file dimensions ${file.file_id}`);
+		await fileModel.updateDimentions({
+			width: file.width,
+			height: file.height,
+		}, file.file_id);
+	}
 }
 
 export default function init() {
-	analyzeImage();
+	analyzeBees();
+	analyzeCells();
+	// analyzeQueenCups();
 };
 
 export function roundToDecimal(num: number, decimalPlaces: number): number {

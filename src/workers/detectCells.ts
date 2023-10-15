@@ -3,13 +3,17 @@ import FormData from 'form-data';
 
 import { logger } from '../logger';
 import fileModel from '../models/file';
+import frameSideCells from '../models/frameSideCells';
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
 import { DetectedFrameResource, roundToDecimal } from './orchestrator';
 
-export async function detectFrameResources(file) {
+export async function detectCells(file) {
+	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
+
 	logger.info(`Detecting frame resources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
+
 	try {
 		logger.info(`Reading tmp file ${file.localFilePath}`);
 
@@ -36,8 +40,7 @@ export async function detectFrameResources(file) {
 		logger.info("Converting frame resource response to more compact form");
 		const delta = convertDetectedResourcesStorageFormat(res, file.width, file.height);
 
-		logger.info("Saving frame resource response to DB");
-		await fileModel.updateDetectedResources(
+		await frameSideCells.updateDetectedResources(
 			delta,
 			file.file_id,
 			file.frame_side_id
@@ -61,6 +64,9 @@ export async function detectFrameResources(file) {
 	catch (e) {
 		logger.error("Frame resource detection failed");
 		console.error(e);
+	}
+	finally{
+		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
 }
 

@@ -4,7 +4,8 @@ WORKDIR /app
 
 EXPOSE 8800
 
-# expect things to be already built
+RUN npm install
+RUN npm run build
 COPY . /app/
 
 CMD node ./app/image-splitter.js

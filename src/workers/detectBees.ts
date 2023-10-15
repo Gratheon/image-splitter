@@ -2,8 +2,11 @@ import fs from 'fs';
 import FormData from 'form-data';
 
 import { logger } from '../logger';
+
 import fileModel from '../models/file';
 import * as imageModel from '../models/image';
+import frameSideModel from '../models/frameSide';
+
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
@@ -11,6 +14,8 @@ import { CutPosition, DetectedObject, roundToDecimal } from './orchestrator';
 
 export async function detectBees(file) {
 	let width, height, partialFilePath;
+
+	await frameSideModel.startDetection(file.file_id, file.frame_side_id);
 
 	let results: DetectedObject[] = [];
 
@@ -49,7 +54,7 @@ export async function detectBees(file) {
 
 				if (!response.ok) {
 					logger.info('Response is not ok', response);
-					await fileModel.updateDetectedBees(
+					await frameSideModel.updateDetectedBees(
 						results,
 						file.file_id,
 						file.frame_side_id
@@ -72,7 +77,7 @@ export async function detectBees(file) {
 				];
 
 				logger.info('Updating DB with found compact stats');
-				await fileModel.updateDetectedBees(
+				await frameSideModel.updateDetectedBees(
 					results,
 					file.file_id,
 					file.frame_side_id
@@ -90,18 +95,43 @@ export async function detectBees(file) {
 						'bees_partially_detected'
 					),
 					JSON.stringify({
-						delta
+						delta,
+						detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+						detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+						detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+						isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
 					})
 				);
 			}
-
 			catch (e) {
 				logger.error("detectBees failed");
 				console.error(e);
 			}
 		}
 	}
-}export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
+
+	await frameSideModel.endDetection(file.file_id, file.frame_side_id);
+
+	// push isBeeDetectionComplete
+	publisher.publish(
+		generateChannelName(
+			file.user_id,
+			'frame_side',
+			file.frame_side_id,
+			'bees_partially_detected'
+		),
+		JSON.stringify({
+			delta: [],
+			detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+			detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+			detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+			isBeeDetectionComplete: true
+		})
+	);
+}
+
+
+export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 

@@ -32,27 +32,22 @@ type FrameSideFile {
 	frameSideId: ID
 	hiveId: ID
 	strokeHistory: JSON
+
 	detectedBees: JSON
-	detectedFrameResources: JSON
-	detectedQueenCups: JSON
+	detectedQueenCount: Int
+	detectedWorkerBeeCount: Int
+	detectedDroneCount: Int
 	estimatedDetectionTimeSec: Float
+	isBeeDetectionComplete: Boolean
 
-	counts: [DetectedObjectCount]
+	detectedFrameResources: JSON
+	isCellsDetectionComplete: Boolean
+
+	detectedQueenCups: JSON
+	isQueenCupsDetectionComplete: Boolean
 }
 
-enum DetectedObjectType {
-	"""n=0"""
-	BEE_WORKER
-	"""n=1"""
-	BEE_DRONE
-	"""n=3"""
-	BEE_QUEEN
-}
 
-type DetectedObjectCount{
-	type: DetectedObjectType
-	count: Int
-}
 
 type File{
 	id: ID!

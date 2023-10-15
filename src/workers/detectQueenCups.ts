@@ -2,7 +2,7 @@ const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
 import { logger } from '../logger';
-import fileModel from '../models/file';
+import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import { generateChannelName, publisher } from '../redisPubSub';
 
 const PAT = config.clarifai.PAT;
@@ -19,17 +19,20 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
+    await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+
     const detectionResult = await retryAsyncFunction(async () => {
         return await askClarifai(file)
-    }, 20, 60)
+    }, 10)
 
     logger.info('Updating DB with found compact stats');
-    await fileModel.updateDetectedQueenCups(
+    await fileSideQueenCupsModel.updateDetectedQueenCups(
         detectionResult,
         file.file_id,
         file.frame_side_id
     );
 
+    await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
 
     logger.info('Publishing queen cup detection results to redis:');
     console.log(detectionResult)
@@ -117,7 +120,7 @@ async function askClarifai(file) {
     })
 }
 
-async function retryAsyncFunction(asyncFunction, maxRetries, delayBetweenRetries) {
+async function retryAsyncFunction(asyncFunction, maxRetries) {
     let retries = 0;
     while (retries < maxRetries) {
         try {
@@ -127,9 +130,14 @@ async function retryAsyncFunction(asyncFunction, maxRetries, delayBetweenRetries
             logger.warn(error);
             retries++;
             if (retries < maxRetries) {
-                await new Promise((resolve) => setTimeout(resolve, delayBetweenRetries));
+                await sleep(60)
             }
         }
     }
     throw new Error(`Exceeded maximum retries (${maxRetries}).`);
+}
+
+async function sleep(sec = 1){
+	// slow down API for security to slow down brute-force
+	await new Promise(resolve => setTimeout(resolve, sec * 1000));
 }
