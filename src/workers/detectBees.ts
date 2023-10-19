@@ -5,12 +5,10 @@ import { logger } from '../logger';
 
 import fileModel from '../models/file';
 import * as imageModel from '../models/image';
-import frameSideModel from '../models/frameSide';
+import frameSideModel, { CutPosition, DetectedObject, convertDetectedBeesStorageFormat } from '../models/frameSide';
 
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
-
-import { CutPosition, DetectedObject, roundToDecimal } from './orchestrator';
 
 export async function detectBees(file) {
 	let width, height, partialFilePath;
@@ -129,26 +127,3 @@ export async function detectBees(file) {
 		})
 	);
 }
-
-
-export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
-	const result: DetectedObject[] = [];
-	const lines = txt.split("\n");
-
-	for (let line of lines) {
-		if (line.length < 5) continue;
-
-		const [n, x, y, w, h, c] = line.split(' ');
-		result.push({
-			n,
-			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-			w: roundToDecimal(Number(w) / splitCountX, 4),
-			h: roundToDecimal(Number(h) / splitCountY, 4),
-			c: roundToDecimal(Number(c), 2)
-		});
-	}
-
-	return result;
-}
-

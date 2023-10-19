@@ -9,7 +9,11 @@ import upload from '../models/s3';
 import fileModel from '../models/file';
 import fileResizeModel from '../models/fileResize';
 import * as imageModel from '../models/image';
+
 import frameSideFileModel from '../models/frameSide';
+import frameSideCells from '../models/frameSideCells';
+import frameSideQueenCupsModel from '../models/frameSideQueenCups';
+import frameSideModel from '../models/frameSide';
 
 export const resolvers = {
 	Query: {
@@ -19,8 +23,14 @@ export const resolvers = {
 		hiveFiles: async (_, { hiveId }, ctx) => {
 			return fileModel.getByHiveId(hiveId, ctx.uid)
 		},
+		// hiveFrameSide: async (_, { frameSideId }, ctx) => {
+		// 	return frameSideModel.getByFrameSideId(frameSideId, ctx.uid)
+		// },
 		hiveFrameSideFile: async (_, { frameSideId }, ctx) => {
 			return frameSideFileModel.getByFrameSideId(frameSideId, ctx.uid)
+		},
+		hiveFrameSideCells: async (_, { frameSideId }, ctx) => {
+			return frameSideCells.getByFrameSideId(frameSideId, ctx.uid)
 		},
 	},
 	Hive: {
@@ -32,36 +42,29 @@ export const resolvers = {
 		__resolveReference: async ({ id }, ctx) => {
 			return fileModel.getById(id, ctx.uid)
 		},
-		resizes: async({ id }, __, ctx) => {
+		resizes: async ({ id }, __, ctx) => {
 			return await fileResizeModel.getResizes(id, ctx.uid)
 		}
 	},
 	FrameSide: {
+		__resolveReference: async ({ id }, ctx) => {
+			return await frameSideModel.getByFrameSideId(id, ctx.uid)
+		},
+
 		file: async ({ id }, __, ctx) => {
 			return fileModel.getByFrameSideId(id, ctx.uid)
 		}
 	},
 
-	FrameSideFile:{
-		estimatedDetectionTimeSec: async () => {
-			let jobs = await frameSideFileModel.countPendingJobs()
-			if (jobs == 0) {
-				return 0;
-			}
-
-			let timeSec = await frameSideFileModel.getAvgProcessingTime()
-
-			// todo take into account current job order
-			return jobs * timeSec
-		},
+	FrameSideFile: {
 		isBeeDetectionComplete: async (parent, _, ctx) => {
 			return frameSideFileModel.isComplete(parent.frameSideId, ctx.uid)
 		},
 		isCellsDetectionComplete: async (parent, _, ctx) => {
-			return false
+			return frameSideCells.isComplete(parent.frameSideId, ctx.uid)
 		},
 		isQueenCupsDetectionComplete: async (parent, _, ctx) => {
-			return false
+			return frameSideQueenCupsModel.isComplete(parent.frameSideId, ctx.uid)
 		},
 
 		// todo add caching or dedicated column around this
@@ -83,10 +86,11 @@ export const resolvers = {
 	Mutation: {
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);
+			await frameSideCells.addFrameCells(fileId, frameSideId, uid);
+			await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, uid);
+
 			await fileModel.addHiveRelation(fileId, hiveId, uid);
-			return ({
-				estimatedDetectionTimeSec: await resolvers.FrameSideFile.estimatedDetectionTimeSec()
-			})
+			return true
 		},
 		uploadFrameSide: async (_, { file }, { uid }) => {
 			try {
@@ -148,6 +152,12 @@ export const resolvers = {
 
 		filesStrokeEditMutation: async (_, { files }, { uid }) => {
 			return await fileModel.updateStrokes(files, uid);
+		},
+
+		updateFrameSideCells: async (_, { cells }, { uid }) => {
+			await frameSideCells.updateRelativeCells(cells, uid, cells.id);
+			console.log('updateFrameSideFile called', cells)
+			return true
 		}
 	},
 	Upload: GraphQLUpload,

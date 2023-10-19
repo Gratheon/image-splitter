@@ -13,6 +13,22 @@ let typeMap = {
 }
 
 
+export type CutPosition = {
+	width: number
+	height: number
+	left: number
+	top: number
+}
+
+export type DetectedObject = {
+	n: String, // class
+	// 10 - queen cup
+	x: number
+	y: number
+	w: number
+	h: number
+	c: number // confidence
+}
 
 // Beehive frames have sides
 // For every side we detect bees
@@ -54,41 +70,14 @@ const frameSideModel = {
 		);
 	},
 
-	getAvgProcessingTime: async function () {
-		const result = await storage().query(
-			sql`SELECT AVG(process_end_time-process_start_time) as time FROM (
-			SELECT * FROM files_frame_side_rel WHERE process_start_time IS NOT NULL ORDER BY frame_side_id DESC LIMIT 10
-			) t2`
-		);
-
-		const rel = result[0];
-
-		if (!rel) {
-			return 0;
-		}
-
-		return rel.time
-	},
-
-	countPendingJobs: async function () {
-		const result = await storage().query(
-			sql`SELECT COUNT(*) cnt FROM files_frame_side_rel WHERE process_start_time IS NULL`
-		);
-
-		const rel = result[0];
-
-		if (!rel) {
-			return 0; //lets say it takes 1 sec on avg
-		}
-
-		return rel.cnt;
-	},
-
 	getByFrameSideId: async function (frameSideId, uid) {
 		//t1.detected_bees
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t3.cells, t4.cups,
-			t2.width, t2.height, t2.id as fileId
+			t2.width, t2.height, t2.id as fileId,
+			t1.queen_detected,
+			t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
+
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
@@ -104,13 +93,22 @@ const frameSideModel = {
 		}
 
 		return {
-			__typename: 'FrameSideFile',
+			__typename: 'FrameSide',
 			frameSideId,
 			strokeHistory: rel.strokeHistory,
 			file: await fileModel.getById(rel.fileId, uid),
 			// detectedBees: rel.detected_bees,
-			detectedFrameResources: rel.cells,
-			detectedQueenCups: rel.detected_queen_cups
+			detectedCells: rel.cells,
+			detectedQueenCups: rel.detected_queen_cups,
+			
+			queenDetected: rel.queen_detected,
+
+			// percentage
+			broodPercent: rel.brood,
+			cappedBroodPercent: rel.capped_brood,
+			eggsPercent: rel.eggs,
+			pollenPercent: rel.pollen,
+			honeyPercent: rel.honey
 		};
 	},
 
@@ -247,3 +245,30 @@ const frameSideModel = {
 };
 
 export default frameSideModel
+
+
+export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
+	const result: DetectedObject[] = [];
+	const lines = txt.split("\n");
+
+	for (let line of lines) {
+		if (line.length < 5) continue;
+
+		const [n, x, y, w, h, c] = line.split(' ');
+		result.push({
+			n,
+			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
+			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
+			w: roundToDecimal(Number(w) / splitCountX, 4),
+			h: roundToDecimal(Number(h) / splitCountY, 4),
+			c: roundToDecimal(Number(c), 2)
+		});
+	}
+
+	return result;
+}
+
+function roundToDecimal(num: number, decimalPlaces: number): number {
+	const multiplier = Math.pow(10, decimalPlaces);
+	return Math.round(num * multiplier) / multiplier;
+}

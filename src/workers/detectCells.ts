@@ -2,12 +2,11 @@ import fs from 'fs';
 import FormData from 'form-data';
 
 import { logger } from '../logger';
-import fileModel from '../models/file';
 import frameSideCells from '../models/frameSideCells';
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
-import { DetectedFrameResource, roundToDecimal } from './orchestrator';
+import { DetectedFrameResource } from './orchestrator';
 
 export async function detectCells(file) {
 	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
@@ -40,24 +39,30 @@ export async function detectCells(file) {
 		logger.info("Converting frame resource response to more compact form");
 		const delta = convertDetectedResourcesStorageFormat(res, file.width, file.height);
 
-		await frameSideCells.updateDetectedResources(
+		const relativeCounts = await frameSideCells.updateDetectedCells(
 			delta,
 			file.file_id,
 			file.frame_side_id
 		);
+		
 
 		const ch = generateChannelName(
-			file.user_id,
-			'frame_side',
-			file.frame_side_id,
-			'frame_resources_detected'
+			file.user_id, 'frame_side',
+			file.frame_side_id, 'frame_resources_detected'
 		);
 
 		logger.info("Publishing frame resources to redis channel", ch);
 		await publisher.publish(
 			ch,
 			JSON.stringify({
-				delta
+				delta,
+				isCellsDetectionComplete: true,
+
+				broodPercent: relativeCounts.brood,
+				cappedBroodPercent: relativeCounts.capped_brood,
+				eggsPercent: relativeCounts.eggs,
+				pollenPercent: relativeCounts.pollen,
+				honeyPercent: relativeCounts.honey
 			})
 		);
 	}
@@ -84,5 +89,10 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 	}
 
 	return result;
+}
+
+function roundToDecimal(num: number, decimalPlaces: number): number {
+	const multiplier = Math.pow(10, decimalPlaces);
+	return Math.round(num * multiplier) / multiplier;
 }
 

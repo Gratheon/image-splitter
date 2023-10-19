@@ -9,7 +9,9 @@ import frameSideModel from '../models/frameSide';
 import { detectBees } from './detectBees';
 import { detectCells } from './detectCells';
 import { detectQueenCups } from './detectQueenCups';
+
 import frameSideCells from '../models/frameSideCells';
+import cupsModel from '../models/frameSideQueenCups';
 
 async function downloadFile(url, localPath) {
 	return new Promise((resolve, reject) => {
@@ -30,16 +32,6 @@ async function downloadFile(url, localPath) {
 	});
 }
 
-export type DetectedObject = {
-	n: String, // class
-	// 10 - queen cup
-	x: number
-	y: number
-	w: number
-	h: number
-	c: number // confidence
-}
-
 export type DetectedFrameResource = [
 	number, // class: ["Capped", "Eggs", "Honey", "Larves", "Nectar", "Other", "Pollen"]
 	number, // x
@@ -47,13 +39,6 @@ export type DetectedFrameResource = [
 	number, // radius
 	number // probability
 ]
-
-export type CutPosition = {
-	width: number
-	height: number
-	left: number
-	top: number
-}
 
 async function analyzeBees() {
 	const file = await frameSideModel.getFirstUnprocessedBees();
@@ -95,15 +80,9 @@ async function analyzeCells() {
 	try {
 		await downloadAndUpdateResolutionInDB(file);
 
-		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
+		logger.info(`making parallel requests to detect cells for file ${file.file_id}`);
 		await detectCells(file)
 		
-		// Promise.all([
-		// 	detectBees(file),
-		// 	detectCells(file),
-		// 	detectQueenCups(file)
-		// ])
-
 		fs.unlinkSync(file.localFilePath);
 	}
 	catch (e) {
@@ -111,6 +90,29 @@ async function analyzeCells() {
 	}
 
 	setTimeout(analyzeCells, 500);
+}
+
+async function analyzeQueenCups() {
+	const file = await cupsModel.getFirstUnprocessedCups();
+
+	if (file == null) {
+		setTimeout(analyzeQueenCups, 10000);
+		return
+	}
+
+	logger.info('starting processing file');
+	logger.info({ file });
+
+	try {
+		// no need to download file, clarifai will do it for us
+		logger.info(`making parallel requests to detect queen cups for file ${file.file_id}`);
+		await detectQueenCups(file)
+	}
+	catch (e) {
+		logger.error(e)
+	}
+
+	setTimeout(analyzeQueenCups, 500);
 }
 
 async function downloadAndUpdateResolutionInDB(file: any) {
@@ -136,10 +138,5 @@ async function downloadAndUpdateResolutionInDB(file: any) {
 export default function init() {
 	analyzeBees();
 	analyzeCells();
-	// analyzeQueenCups();
+	analyzeQueenCups();
 };
-
-export function roundToDecimal(num: number, decimalPlaces: number): number {
-	const multiplier = Math.pow(10, decimalPlaces);
-	return Math.round(num * multiplier) / multiplier;
-}

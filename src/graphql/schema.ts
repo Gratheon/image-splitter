@@ -9,22 +9,21 @@ type Query {
 	file(id:ID!): File
 	hiveFiles(hiveId:ID!): [FrameSideFile]
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
+	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
 }
 
 type Mutation {
 	uploadFrameSide(file: Upload!): File
-	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): AddFileToFrameSideResult
+	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
+
+	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
 }
 
 input FilesUpdateInput{
 	frameSideId: ID!
 	fileId: ID!
 	strokeHistory: JSON!
-}
-
-type AddFileToFrameSideResult{
-	estimatedDetectionTimeSec: Float
 }
 
 type FrameSideFile {
@@ -37,17 +36,19 @@ type FrameSideFile {
 	detectedQueenCount: Int
 	detectedWorkerBeeCount: Int
 	detectedDroneCount: Int
-	estimatedDetectionTimeSec: Float
 	isBeeDetectionComplete: Boolean
 
-	detectedFrameResources: JSON
+	detectedCells: JSON
 	isCellsDetectionComplete: Boolean
 
 	detectedQueenCups: JSON
 	isQueenCupsDetectionComplete: Boolean
+
+	queenDetected: Boolean!
+  
+	workerCount: Int
+	droneCount: Int
 }
-
-
 
 type File{
 	id: ID!
@@ -69,5 +70,25 @@ extend type FrameSide @key(fields: "id") {
 extend type Hive @key(fields: "id") {
 	id: ID! @external
 	files: [FrameSideFile]
+}
+
+type FrameSideCells @key(fields: "id"){
+	id: ID!
+	
+	broodPercent: Int
+	cappedBroodPercent: Int
+	eggsPercent: Int
+	pollenPercent: Int
+	honeyPercent: Int
+}
+
+input FrameSideCellsInput{
+	id: ID!
+	
+	broodPercent: Int
+	cappedBroodPercent: Int
+	eggsPercent: Int
+	pollenPercent: Int
+	honeyPercent: Int
 }
 `;

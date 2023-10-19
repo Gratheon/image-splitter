@@ -21,9 +21,10 @@ metadata.set("authorization", "Key " + PAT);
 export async function detectQueenCups(file) {
     await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
 
-    const detectionResult = await retryAsyncFunction(async () => {
-        return await askClarifai(file)
-    }, 10)
+    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
+
+    logger.info("Queen cups detection result:")
+    logger.info(detectionResult)
 
     logger.info('Updating DB with found compact stats');
     await fileSideQueenCupsModel.updateDetectedQueenCups(
@@ -39,13 +40,12 @@ export async function detectQueenCups(file) {
 
     publisher.publish(
         generateChannelName(
-            file.user_id,
-            'frame_side',
-            file.frame_side_id,
-            'queen_cups_detected'
+            file.user_id, 'frame_side',
+            file.frame_side_id, 'queen_cups_detected'
         ),
         JSON.stringify({
-            delta: detectionResult
+            delta: detectionResult,
+            isQueenCupsDetectionComplete: true
         })
     );
 }

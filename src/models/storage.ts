@@ -40,7 +40,7 @@ export async function initStorage(logger) {
 }
 
 process.once("SIGTERM", () => {
-  db.dispose().catch((ex) => {
+  db?.dispose().catch((ex) => {
     console.error(ex);
   });
 });
