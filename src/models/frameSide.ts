@@ -73,15 +73,14 @@ const frameSideModel = {
 	getByFrameSideId: async function (frameSideId, uid) {
 		//t1.detected_bees
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t3.cells, t4.cups,
-			t2.width, t2.height, t2.id as fileId,
-			t1.queen_detected,
-			t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
-
+			sql`SELECT t1.user_id, t1.strokeHistory, t3.cells, t1.queen_detected,
+				t2.filename, t2.width, t2.height, t2.id as fileId,
+				t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey,
+				t4.cups
 			FROM files_frame_side_rel t1
-			LEFT JOIN files t2 ON t1.file_id = t2.id
-			LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
-			LEFT JOIN files_frame_side_queen_cups t4 ON t1.file_id = t4.file_id
+				LEFT JOIN files t2 ON t1.file_id = t2.id
+				LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
+				LEFT JOIN files_frame_side_queen_cups t4 ON t1.file_id = t4.file_id
 			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
 			LIMIT 1`
 		);
@@ -93,17 +92,17 @@ const frameSideModel = {
 		}
 
 		return {
-			__typename: 'FrameSide',
+			__typename: 'FrameSideFile',
 			frameSideId,
 			strokeHistory: rel.strokeHistory,
 			file: await fileModel.getById(rel.fileId, uid),
-			// detectedBees: rel.detected_bees,
+			detectedBees: rel.detected_bees,
 			detectedCells: rel.cells,
-			detectedQueenCups: rel.detected_queen_cups,
+			detectedQueenCups: rel.cups,
 			
 			queenDetected: rel.queen_detected,
 
-			// percentage
+			// percentages
 			broodPercent: rel.brood,
 			cappedBroodPercent: rel.capped_brood,
 			eggsPercent: rel.eggs,

@@ -48,7 +48,11 @@ export const resolvers = {
 	},
 	FrameSide: {
 		__resolveReference: async ({ id }, ctx) => {
-			return await frameSideModel.getByFrameSideId(id, ctx.uid)
+			return {
+				__typename: 'FrameSide',
+				id,
+				frameSideId: id
+			};
 		},
 
 		file: async ({ id }, __, ctx) => {
