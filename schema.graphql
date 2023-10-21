@@ -16,6 +16,7 @@ type Mutation {
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
+	updateFrameSideQueenPresense(frameSideId: ID!, isPresent: Boolean!): Boolean!
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
 }
 
@@ -95,6 +96,8 @@ extend type FrameSide @key(fields: "id") {
 	id: ID @external
 	file: File
 	cells: FrameSideCells
+
+	frameSideFile: FrameSideFile
 }
 
 

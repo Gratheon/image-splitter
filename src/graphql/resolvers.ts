@@ -13,7 +13,6 @@ import * as imageModel from '../models/image';
 import frameSideFileModel from '../models/frameSide';
 import frameSideCells from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
-import frameSideModel from '../models/frameSide';
 
 export const resolvers = {
 	Query: {
@@ -23,9 +22,6 @@ export const resolvers = {
 		hiveFiles: async (_, { hiveId }, ctx) => {
 			return fileModel.getByHiveId(hiveId, ctx.uid)
 		},
-		// hiveFrameSide: async (_, { frameSideId }, ctx) => {
-		// 	return frameSideModel.getByFrameSideId(frameSideId, ctx.uid)
-		// },
 		hiveFrameSideFile: async (_, { frameSideId }, ctx) => {
 			return frameSideFileModel.getByFrameSideId(frameSideId, ctx.uid)
 		},
@@ -64,9 +60,16 @@ export const resolvers = {
 		cells: async (parent, __, ctx) => {
 			return await frameSideCells.getByFrameSideId(parent.frameSideId, ctx.uid)
 		},
+
+		frameSideFile: async(parent, __, ctx) => {
+			return ({ frameSideId:  parent.frameSideId})
+		}
 	},
 
 	FrameSideFile: {
+		queenDetected: async (parent, _, ctx) => {
+			return frameSideFileModel.isQueenDetected(parent.frameSideId, ctx.uid)
+		},
 		isBeeDetectionComplete: async (parent, _, ctx) => {
 			return frameSideFileModel.isComplete(parent.frameSideId, ctx.uid)
 		},
@@ -161,7 +164,11 @@ export const resolvers = {
 		},
 
 		filesStrokeEditMutation: async (_, { files }, { uid }) => {
-			return await fileModel.updateStrokes(files, uid);
+			return await frameSideFileModel.updateStrokes(files, uid);
+		},
+
+		updateFrameSideQueenPresense: async (_, { frameSideId, isPresent }, { uid }) => {
+			return await frameSideFileModel.updateFrameSideQueenPresense(frameSideId, isPresent, uid);
 		},
 
 		updateFrameSideCells: async (_, { cells }, { uid }) => {

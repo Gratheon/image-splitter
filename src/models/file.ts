@@ -124,18 +124,6 @@ const fileModel = {
     `))[0].id;
   },
 
-  updateStrokes: async function (fileRels, uid) {
-    for (let file of fileRels) {
-      await storage().query(
-        sql`UPDATE files_frame_side_rel
-        SET strokeHistory=${JSON.stringify(file.strokeHistory)}
-        WHERE file_id=${file.fileId} AND frame_side_id=${file.frameSideId} AND user_id=${uid}`
-      );
-    }
-
-    return true;
-  },
-
   addHiveRelation: async function (file_id, hive_id, user_id) {
     // @ts-ignore
     return (await storage().query(sql`

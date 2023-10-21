@@ -73,13 +73,11 @@ const frameSideModel = {
 	getByFrameSideId: async function (frameSideId, uid) {
 		//t1.detected_bees
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t1.strokeHistory, t3.cells, t1.queen_detected,
+			sql`SELECT t1.user_id, t1.strokeHistory, t1.queen_detected,
 				t2.filename, t2.width, t2.height, t2.id as fileId,
-				t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey,
 				t4.cups
 			FROM files_frame_side_rel t1
 				LEFT JOIN files t2 ON t1.file_id = t2.id
-				LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
 				LEFT JOIN files_frame_side_queen_cups t4 ON t1.file_id = t4.file_id
 			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
 			LIMIT 1`
@@ -99,15 +97,8 @@ const frameSideModel = {
 			detectedBees: rel.detected_bees,
 			detectedCells: rel.cells,
 			detectedQueenCups: rel.cups,
-			
-			queenDetected: rel.queen_detected,
 
-			// percentages
-			broodPercent: rel.brood,
-			cappedBroodPercent: rel.capped_brood,
-			eggsPercent: rel.eggs,
-			pollenPercent: rel.pollen,
-			honeyPercent: rel.honey
+			queenDetected: rel.queen_detected,
 		};
 	},
 
@@ -194,6 +185,22 @@ const frameSideModel = {
 		return rel.queen_count;
 	},
 
+	isQueenDetected: async function (frameSideId, uid) {
+		const result = await storage().query(
+			sql`SELECT t1.queen_detected
+			FROM files_frame_side_rel t1
+			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return true;
+		}
+
+		return rel.process_end_time ? true : false;
+	},
 	isComplete: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.process_end_time
@@ -240,6 +247,27 @@ const frameSideModel = {
 		}
 
 		return cnt;
+	},
+
+
+	updateStrokes: async function (fileRels, uid) {
+		for (let file of fileRels) {
+			await storage().query(
+				sql`UPDATE files_frame_side_rel
+			SET strokeHistory=${JSON.stringify(file.strokeHistory)}
+			WHERE file_id=${file.fileId} AND frame_side_id=${file.frameSideId} AND user_id=${uid}`
+			);
+		}
+
+		return true;
+	},
+	updateFrameSideQueenPresense: async function (frameSideId, isPresent, uid) {
+		await storage().query(
+			sql`UPDATE files_frame_side_rel
+			SET queen_detected=${isPresent}
+			WHERE frame_side_id=${frameSideId} AND user_id=${uid}`
+		);
+		return true;
 	},
 };
 
