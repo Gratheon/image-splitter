@@ -136,6 +136,22 @@ const frameSideModel = {
 
 		return rel.detected_bees;
 	},
+	getDetectedCells: async function (frameSideId, uid) {
+		const result = await storage().query(
+			sql`SELECT t1.cells
+			FROM files_frame_side_cells t1
+			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return null;
+		}
+
+		return rel.cells;
+	},
 	getWorkerBeeCount: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.worker_bee_count

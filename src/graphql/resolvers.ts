@@ -84,6 +84,9 @@ export const resolvers = {
 		detectedBees: async (parent, _, ctx) => {
 			return frameSideFileModel.getDetectedBees(parent.frameSideId, ctx.uid)
 		},
+		detectedCells: async (parent, _, ctx) => {
+			return frameSideFileModel.getDetectedCells(parent.frameSideId, ctx.uid)
+		},
 		detectedQueenCount: async (parent, _, ctx) => {
 			return frameSideFileModel.getQueenCount(parent.frameSideId, ctx.uid)
 		},
