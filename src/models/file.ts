@@ -42,6 +42,17 @@ const fileModel = {
     };
   },
 
+  countAllBees: async function (hiveId, uid) {
+    const result = await storage().query(
+      sql`SELECT SUM(t2.worker_bee_count) + SUM(t2.drone_count) + SUM(t2.queen_count) as cnt
+				FROM files_hive_rel t1
+				INNER JOIN files_frame_side_rel t2 ON t2.file_id = t1.file_id
+				WHERE t1.user_id = ${uid} AND t1.hive_id=${hiveId}
+				LIMIT 1`
+    );
+
+    return result[0].cnt;
+  },
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
       sql`SELECT t2.id, t2.user_id, t2.filename, t3.frame_side_id, t3.strokeHistory, t2.url_version, t2.hash, t2.ext

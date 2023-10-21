@@ -69,14 +69,9 @@ export async function detectBees(file) {
 				logger.info('Converting JSON to more compact format');
 				const delta = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
 
-				results = [
-					...results,
-					...delta,
-				];
-
 				logger.info('Updating DB with found compact stats');
 				await frameSideModel.updateDetectedBees(
-					results,
+					delta,
 					file.file_id,
 					file.frame_side_id
 				);

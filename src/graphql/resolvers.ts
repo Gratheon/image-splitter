@@ -36,6 +36,9 @@ export const resolvers = {
 	Hive: {
 		files: async (hive, _, ctx) => {
 			return fileModel.getByHiveId(hive.id, ctx.uid);
+		},
+		beeCount: async (hive, _, ctx) => {
+			return fileModel.countAllBees(hive.id, ctx.uid);
 		}
 	},
 	File: {
