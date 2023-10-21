@@ -9,7 +9,14 @@ const packageJson = JSON.parse(
   fs.readFileSync(path.resolve("package.json"), "utf8")
 );
 
-async function postData(url = "", data = {}) {
+type SchemaRegistryInput ={
+	name: string
+	url: string
+	version: string
+	type_defs: string
+}
+
+async function postData(url = "", data:SchemaRegistryInput) {
   // Default options are marked with *
   try {
     const response = await fetch(url, {

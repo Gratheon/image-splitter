@@ -10,8 +10,6 @@ import { buildSubgraphSchema } from "@apollo/federation";
 import { processRequest } from "graphql-upload";
 import jwt from "jsonwebtoken";
 import gql from "graphql-tag";
-import fs from "fs";
-import path from "path";
 
 import orchestrator from "./workers/orchestrator";
 import { schema } from "./graphql/schema";
