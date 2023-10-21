@@ -26,6 +26,9 @@ input FilesUpdateInput{
 	strokeHistory: JSON!
 }
 
+"""
+FrameSideFile is an intermediate (join) entity that connects FrameSide with File
+"""
 type FrameSideFile {
 	file: File!
 	frameSideId: ID
@@ -50,6 +53,11 @@ type FrameSideFile {
 	droneCount: Int
 }
 
+"""
+File is an abstraction of an uploaded photo of a frame
+But we don't want to mix it with various properties in case we will have more uploads
+for other purposes than for a frame. For example, hive bottom or hive entrance.
+"""
 type File{
 	id: ID!
 	url: URL!
@@ -62,9 +70,14 @@ type FileResize {
 	url: URL!
 }
 
+"""
+Frame has two sides - left and right
+FrameSide is associated with an photo of it (file) and the contents (cells)
+"""
 extend type FrameSide @key(fields: "id") {
 	id: ID @external
 	file: File
+	cells: FrameSideCells
 }
 
 extend type Hive @key(fields: "id") {
@@ -72,6 +85,9 @@ extend type Hive @key(fields: "id") {
 	files: [FrameSideFile]
 }
 
+"""
+Frame cells is a statistic information of FrameSide composition
+"""
 type FrameSideCells @key(fields: "id"){
 	id: ID!
 	
@@ -82,6 +98,10 @@ type FrameSideCells @key(fields: "id"){
 	honeyPercent: Int
 }
 
+"""
+FrameSideCellsInput is used to update percentage composition of a FrameSide
+This is useful if automatic detection was not correct and user wants to adjust percentages
+"""
 input FrameSideCellsInput{
 	id: ID!
 	

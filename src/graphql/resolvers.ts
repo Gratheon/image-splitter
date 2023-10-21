@@ -52,8 +52,11 @@ export const resolvers = {
 		},
 
 		file: async ({ id }, __, ctx) => {
-			return fileModel.getByFrameSideId(id, ctx.uid)
-		}
+			return await fileModel.getByFrameSideId(id, ctx.uid)
+		},
+		cells: async (parent, __, ctx) => {
+			return await frameSideCells.getByFrameSideId(parent.frameSideId, ctx.uid)
+		},
 	},
 
 	FrameSideFile: {
