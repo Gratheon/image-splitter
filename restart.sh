@@ -5,8 +5,6 @@ rm -rf /www/image-splitter/app/
 
 su www
 cd /www/image-splitter/
-nvm use
-npm i
-npm run build
+source ~/.nvm/nvm.sh && nvm use && npm i && npm run build
 
 COMPOSE_PROJECT_NAME=gratheon docker-compose up -d --build
