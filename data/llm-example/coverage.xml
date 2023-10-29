@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="726" lines-covered="72" line-rate="0.09910000000000001" branches-valid="107" branches-covered="9" branch-rate="0.08410000000000001" timestamp="1698612113314" complexity="0" version="0.1">
+<coverage lines-valid="730" lines-covered="72" line-rate="0.0986" branches-valid="107" branches-covered="9" branch-rate="0.08410000000000001" timestamp="1698617352023" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
@@ -486,7 +486,7 @@
         </class>
       </classes>
     </package>
-    <package name="src.models" line-rate="0.1752" branch-rate="0.106">
+    <package name="src.models" line-rate="0.17309999999999998" branch-rate="0.106">
       <classes>
         <class name="ai-beekeeper.ts" filename="src/models/ai-beekeeper.ts" line-rate="0" branch-rate="0">
           <methods>
@@ -497,17 +497,17 @@
             </method>
             <method name="(anonymous_2)" hits="0" signature="()V">
               <lines>
-                <line number="47" hits="0"/>
+                <line number="59" hits="0"/>
               </lines>
             </method>
             <method name="(anonymous_3)" hits="0" signature="()V">
               <lines>
-                <line number="57" hits="0"/>
+                <line number="69" hits="0"/>
               </lines>
             </method>
             <method name="(anonymous_4)" hits="0" signature="()V">
               <lines>
-                <line number="75" hits="0"/>
+                <line number="87" hits="0"/>
               </lines>
             </method>
           </methods>
@@ -517,31 +517,35 @@
             <line number="4" hits="0" branch="false"/>
             <line number="5" hits="0" branch="false"/>
             <line number="8" hits="0" branch="false"/>
-            <line number="15" hits="0" branch="false"/>
-            <line number="44" hits="0" branch="false"/>
-            <line number="49" hits="0" branch="false"/>
-            <line number="59" hits="0" branch="false"/>
-            <line number="66" hits="0" branch="false"/>
-            <line number="68" hits="0" branch="true" condition-coverage="0% (0/1)"/>
-            <line number="69" hits="0" branch="false"/>
-            <line number="72" hits="0" branch="false"/>
-            <line number="76" hits="0" branch="false"/>
+            <line number="16" hits="0" branch="false"/>
+            <line number="21" hits="0" branch="false"/>
+            <line number="22" hits="0" branch="false"/>
+            <line number="23" hits="0" branch="false"/>
+            <line number="25" hits="0" branch="false"/>
+            <line number="56" hits="0" branch="false"/>
+            <line number="61" hits="0" branch="false"/>
+            <line number="71" hits="0" branch="false"/>
             <line number="78" hits="0" branch="false"/>
-            <line number="79" hits="0" branch="false"/>
-            <line number="80" hits="0" branch="false"/>
+            <line number="80" hits="0" branch="true" condition-coverage="0% (0/1)"/>
             <line number="81" hits="0" branch="false"/>
+            <line number="84" hits="0" branch="false"/>
+            <line number="88" hits="0" branch="false"/>
             <line number="90" hits="0" branch="false"/>
+            <line number="91" hits="0" branch="false"/>
             <line number="92" hits="0" branch="false"/>
-            <line number="108" hits="0" branch="false"/>
-            <line number="117" hits="0" branch="false"/>
-            <line number="118" hits="0" branch="false"/>
-            <line number="120" hits="0" branch="true" condition-coverage="0% (0/9)"/>
-            <line number="121" hits="0" branch="false"/>
-            <line number="122" hits="0" branch="false"/>
-            <line number="125" hits="0" branch="false"/>
-            <line number="126" hits="0" branch="false"/>
-            <line number="128" hits="0" branch="false"/>
-            <line number="131" hits="0" branch="false"/>
+            <line number="93" hits="0" branch="false"/>
+            <line number="102" hits="0" branch="false"/>
+            <line number="104" hits="0" branch="false"/>
+            <line number="120" hits="0" branch="false"/>
+            <line number="129" hits="0" branch="false"/>
+            <line number="130" hits="0" branch="false"/>
+            <line number="132" hits="0" branch="true" condition-coverage="0% (0/9)"/>
+            <line number="133" hits="0" branch="false"/>
+            <line number="134" hits="0" branch="false"/>
+            <line number="137" hits="0" branch="false"/>
+            <line number="138" hits="0" branch="false"/>
+            <line number="140" hits="0" branch="false"/>
+            <line number="143" hits="0" branch="false"/>
           </lines>
         </class>
         <class name="file.ts" filename="src/models/file.ts" line-rate="0.14279999999999998" branch-rate="0">
