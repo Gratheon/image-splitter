@@ -9,9 +9,11 @@ type Query {
 	hiveFiles(hiveId:ID!): [FrameSideFile]
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
+	getExistingHiveAdvice(hiveID: ID): String
 }
 
 type Mutation {
+	generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String
 	uploadFrameSide(file: Upload!): File
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean

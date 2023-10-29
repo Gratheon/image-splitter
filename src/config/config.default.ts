@@ -25,6 +25,12 @@ export default {
         privateKey: "",
     },
     clarifai:{
-        PAT:""
-    }
+        PAT:"",
+        beekeeper_app:{
+            PAT:"",
+            USER_ID:"openai",
+            APP_ID:"chat-completion",
+            MODEL_ID:"GPT-4"
+        }
+    },
 }

@@ -13,6 +13,7 @@ import * as imageModel from '../models/image';
 import frameSideFileModel from '../models/frameSide';
 import frameSideCells from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
+import beekeeper from '../models/ai-beekeeper';
 
 export const resolvers = {
 	Query: {
@@ -28,6 +29,9 @@ export const resolvers = {
 		hiveFrameSideCells: async (_, { frameSideId }, ctx) => {
 			return frameSideCells.getByFrameSideId(frameSideId, ctx.uid)
 		},
+		getExistingHiveAdvice: (_, { hiveID }, ctx) => {
+			return beekeeper.getAdvice(hiveID, ctx.uid)
+		}
 	},
 	Hive: {
 		files: async (hive, _, ctx) => {
@@ -61,11 +65,10 @@ export const resolvers = {
 			return await frameSideCells.getByFrameSideId(parent.frameSideId, ctx.uid)
 		},
 
-		frameSideFile: async(parent, __, ctx) => {
-			return ({ frameSideId:  parent.frameSideId})
+		frameSideFile: async (parent, __, ctx) => {
+			return ({ frameSideId: parent.frameSideId })
 		}
 	},
-
 	FrameSideFile: {
 		queenDetected: async (parent, _, ctx) => {
 			return frameSideFileModel.isQueenDetected(parent.frameSideId, ctx.uid)
@@ -97,9 +100,14 @@ export const resolvers = {
 			return frameSideFileModel.getDroneCount(parent.frameSideId, ctx.uid)
 		},
 	},
-
-
 	Mutation: {
+		generateHiveAdvice: async (_, { hiveID, adviceContext, langCode = 'en' }, ctx) => {
+			langCode = langCode.substring(0, 2) // avoid injections
+			const question = beekeeper.generatePrompt(langCode, adviceContext)
+			const answer = await beekeeper.generateHiveAdvice(question)
+			beekeeper.insert(ctx.uid, hiveID, question, answer)
+			return answer
+		},
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);
 			await frameSideCells.addFrameCells(fileId, frameSideId, uid);
@@ -182,3 +190,4 @@ export const resolvers = {
 	},
 	Upload: GraphQLUpload,
 }
+
