@@ -12,34 +12,46 @@ export default {
         // TODO add weather
         // TODO add previous treatments
         // TODO add temperature and treatment of the hive once we have this data
-        let RAW_TEXT = `Act as an expert beekeeper and provide detailed insights about beehive for the current season.
+
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        const currentTimestamp = new Date();
+        const day = currentTimestamp.getDate();
+        const month = months[currentTimestamp.getMonth()];
+
+        let RAW_TEXT = `Act as an expert beekeeper and provide detailed insights about beehive.
+    Current date, which is ${day} ${month}.
     Take into consideration the following hive parameters given as a context in JSON format:
 
     ${JSON.stringify(generateHiveAdvice)}
 
-    Please provide a comprehensive analysis of the beehive's current state and recommendations for potential actions or interventions to optimize bee health, honey production, or address any issues. 
-    Include any relevant data trends and comparisons to past hive conditions if available.
+    Provide a comprehensive analysis of the beehive's state and give recommendations for potential actions or interventions to optimize bee health, honey production, or address any issues. 
     Given a language code: ${langCode}, answer only in this language.
-    Avoid linebreack characters - return response in html format, use paragraphs tags, lists tags, avoid javascript and css. 
+
+    Avoid explaining current context (like hive structure), user is already aware of it.
     Avoid referencing technical programming data (JSON keys, IDs, types)
+    Avoid linebreack characters - return response in html format, use paragraphs tags, lists tags, avoid javascript and css. 
     `
-    // Number of bees in the hive: 20000
-    // Queen bee's status: missing
-    // Queen cups: 4 detected
-    // Hive has 2 sections
-    // Section 1 (starting from bottom) has 8 frames
-    // Section 2 (starting from bottom) has 8 frames
-    // Brood per box, per frame:
-    //     10% 20% 0% 0%  0% 20% 20% 0%
-    //     0% 0% 0% 0%  0% 0% 0% 0%
+        // Number of bees in the hive: 20000
+        // Queen bee's status: missing
+        // Queen cups: 4 detected
+        // Hive has 2 sections
+        // Section 1 (starting from bottom) has 8 frames
+        // Section 2 (starting from bottom) has 8 frames
+        // Brood per box, per frame:
+        //     10% 20% 0% 0%  0% 20% 20% 0%
+        //     0% 0% 0% 0%  0% 0% 0% 0%
 
-    // Honey stores per box per frame:
-    //     5% 2% 1% 10%  10% 0% 0% 0%
-    //     0% 0% 0% 0% 0% 0% 0%
+        // Honey stores per box per frame:
+        //     5% 2% 1% 10%  10% 0% 0% 0%
+        //     0% 0% 0% 0% 0% 0% 0%
 
-    // Pollen reserves per box per frame:
-    //     5% 2% 1% 10%  10% 0% 0% 0%
-    //     0% 0% 0% 0% 0% 0% 0%
+        // Pollen reserves per box per frame:
+        //     5% 2% 1% 10%  10% 0% 0% 0%
+        //     0% 0% 0% 0% 0% 0% 0%
 
         return RAW_TEXT;
     },
@@ -63,7 +75,7 @@ export default {
             ORDER BY added_time DESC
             LIMIT 1`
         ));
-        console.log({result})
+        console.log({ result })
 
         if (!result[0]) {
             return null
