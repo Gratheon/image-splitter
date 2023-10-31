@@ -21,8 +21,7 @@ export type CutPosition = {
 }
 
 export type DetectedObject = {
-	n: String, // class
-	// 10 - queen cup
+	n: String, // class. 10 - queen cup. 11 - varroa
 	x: number
 	y: number
 	w: number
@@ -103,15 +102,19 @@ const frameSideModel = {
 	},
 
 
-	updateDetectedBees: async function (detections, fileId, frameSideId) {
-		const workerBeeCount = frameSideModel.countDetectedWorkerBees(detections)
-		const detectedDrones = frameSideModel.countDetectedDrones(detections)
-		const countDetectedQueens = frameSideModel.countDetectedQueens(detections)
+	updateDetectedBeesAndVarroa: async function (detectedBees, detectedVarroa, fileId, frameSideId) {
+		const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
+		const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
+		const countDetectedQueens = frameSideModel.countDetectedQueens(detectedBees)
+		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 
 		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones} / ${countDetectedQueens}`)
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
-				SET detected_bees=${JSON.stringify(detections)},
+				SET 
+				detected_bees=${JSON.stringify(detectedBees)},
+				detected_varroa=${JSON.stringify(detectedVarroa)},
+				varroa_count = IFNULL(varroa_count,0) + ${countDetectedVarroa},
 				worker_bee_count = IFNULL(worker_bee_count,0) + ${workerBeeCount},
 				drone_count = IFNULL(drone_count,0) + ${detectedDrones},
 				queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
@@ -135,6 +138,22 @@ const frameSideModel = {
 		}
 
 		return rel.detected_bees;
+	},
+	getDetectedVarroa: async function (frameSideId, uid) {
+		const result = await storage().query(
+			sql`SELECT t1.detected_varroa
+			FROM files_frame_side_rel t1
+			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return null;
+		}
+
+		return rel.detected_varroa;
 	},
 	getDetectedCells: async function (frameSideId, uid) {
 		const result = await storage().query(
@@ -167,6 +186,22 @@ const frameSideModel = {
 		}
 
 		return rel.worker_bee_count;
+	},
+	getVarroaCount: async function (frameSideId, uid) {
+		const result = await storage().query(
+			sql`SELECT t1.varroa_count
+			FROM files_frame_side_rel t1
+			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return null;
+		}
+
+		return rel.varroa_count;
 	},
 	getDroneCount: async function (frameSideId, uid) {
 		const result = await storage().query(
@@ -217,6 +252,7 @@ const frameSideModel = {
 
 		return rel.process_end_time ? true : false;
 	},
+
 	isComplete: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.process_end_time
@@ -234,30 +270,40 @@ const frameSideModel = {
 		return rel.process_end_time ? true : false;
 	},
 
-	countDetectedWorkerBees: function (detectedBees): number {
+	countDetectedVarroa: function (detectedVarroa: DetectedObject[]): number {
 		let cnt = 0
-		for (let o of detectedBees) {
-			if (o.n == typeMap.BEE_WORKER || o.n == typeMap.BEE_WORKER_ALTERNATE) {
+		for (let o of detectedVarroa) {
+			if (o.c > 0.6) {
 				cnt++
 			}
 		}
 
 		return cnt;
 	},
-	countDetectedDrones: function (detectedBees): number {
+	countDetectedWorkerBees: function (detectedBees: DetectedObject[]): number {
 		let cnt = 0
 		for (let o of detectedBees) {
-			if (o.n == typeMap.BEE_DRONE) {
+			if (o.c > 0.5 && (o.n == typeMap.BEE_WORKER || o.n == typeMap.BEE_WORKER_ALTERNATE)) {
 				cnt++
 			}
 		}
 
 		return cnt;
 	},
-	countDetectedQueens: function (detectedBees): number {
+	countDetectedDrones: function (detectedBees: DetectedObject[]): number {
 		let cnt = 0
 		for (let o of detectedBees) {
-			if (o.n == typeMap.BEE_QUEEN) {
+			if (o.c > 0.5 && o.n == typeMap.BEE_DRONE) {
+				cnt++
+			}
+		}
+
+		return cnt;
+	},
+	countDetectedQueens: function (detectedBees: DetectedObject[]): number {
+		let cnt = 0
+		for (let o of detectedBees) {
+			if (o.c > 0.7 && o.n == typeMap.BEE_QUEEN) {
 				cnt++
 			}
 		}
@@ -291,6 +337,7 @@ export default frameSideModel
 
 
 export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
+	logger.info('Converting JSON to more compact format');
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 
@@ -302,8 +349,8 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 			n,
 			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
 			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-			w: roundToDecimal(Number(w) / splitCountX, 4),
-			h: roundToDecimal(Number(h) / splitCountY, 4),
+			w: roundToDecimal(Number(w) / (splitCountX), 4),
+			h: roundToDecimal(Number(h) / (splitCountY), 4),
 			c: roundToDecimal(Number(c), 2)
 		});
 	}

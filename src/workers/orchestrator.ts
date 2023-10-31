@@ -6,7 +6,7 @@ import { logger } from '../logger';
 import fileModel from '../models/file';
 import frameSideModel from '../models/frameSide';
 
-import { detectBees } from './detectBees';
+import { detectBees as detectBeesAndVarroa } from './detectBees';
 import { detectCells } from './detectCells';
 import { detectQueenCups } from './detectQueenCups';
 
@@ -40,11 +40,11 @@ export type DetectedFrameResource = [
 	number // probability
 ]
 
-async function analyzeBees() {
+async function analyzeBeesAndVarroa() {
 	const file = await frameSideModel.getFirstUnprocessedBees();
 
 	if (file == null) {
-		setTimeout(analyzeBees, 10000);
+		setTimeout(analyzeBeesAndVarroa, 10000);
 		return
 	}
 
@@ -55,7 +55,7 @@ async function analyzeBees() {
 		await downloadAndUpdateResolutionInDB(file);
 
 		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
-		await detectBees(file)
+		await detectBeesAndVarroa(file)
 		
 		fs.unlinkSync(file.localFilePath);
 	}
@@ -63,7 +63,7 @@ async function analyzeBees() {
 		logger.error(e)
 	}
 
-	setTimeout(analyzeBees, 500);
+	setTimeout(analyzeBeesAndVarroa, 500);
 }
 
 async function analyzeCells() {
@@ -136,7 +136,7 @@ async function downloadAndUpdateResolutionInDB(file: any) {
 }
 
 export default function init() {
-	analyzeBees();
+	analyzeBeesAndVarroa();
 	analyzeCells();
 	analyzeQueenCups();
 };
