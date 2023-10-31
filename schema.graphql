@@ -41,6 +41,7 @@ type FrameSideFile {
 	detectedQueenCount: Int
 	detectedWorkerBeeCount: Int
 	detectedDroneCount: Int
+
 	isBeeDetectionComplete: Boolean
 
 	""" regions of detected cells """
@@ -55,6 +56,9 @@ type FrameSideFile {
   
 	workerCount: Int
 	droneCount: Int
+
+	detectedVarroa: JSON
+	varroaCount: Int
 }
 
 """ File is an abstraction of an uploaded photo of a frame.But we don't want to mix it with various properties in case we will have more uploads.for other purposes than for a frame. For example, hive bottom or hive entrance. """

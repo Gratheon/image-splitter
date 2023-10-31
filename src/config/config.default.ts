@@ -21,16 +21,19 @@ export default {
 
     "files_base_url": "",
 
-    jwt:{
+    jwt: {
         privateKey: "",
     },
-    clarifai:{
-        PAT:"",
-        beekeeper_app:{
-            PAT:"",
-            USER_ID:"openai",
-            APP_ID:"chat-completion",
-            MODEL_ID:"GPT-4"
+    clarifai: {
+        PAT: "",
+        beekeeper_app: {
+            PAT: "",
+            USER_ID: "openai",
+            APP_ID: "chat-completion",
+            MODEL_ID: "GPT-4"
         }
     },
+    roboflow: {
+        token: ""
+    }
 }

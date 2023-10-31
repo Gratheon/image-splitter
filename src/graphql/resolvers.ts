@@ -87,11 +87,17 @@ export const resolvers = {
 		detectedBees: async (parent, _, ctx) => {
 			return frameSideFileModel.getDetectedBees(parent.frameSideId, ctx.uid)
 		},
+		detectedVarroa: async (parent, _, ctx) => {
+			return frameSideFileModel.getDetectedVarroa(parent.frameSideId, ctx.uid)
+		},
 		detectedCells: async (parent, _, ctx) => {
 			return frameSideFileModel.getDetectedCells(parent.frameSideId, ctx.uid)
 		},
 		detectedQueenCount: async (parent, _, ctx) => {
 			return frameSideFileModel.getQueenCount(parent.frameSideId, ctx.uid)
+		},
+		varroaCount: async (parent, _, ctx) => {
+			return frameSideFileModel.getVarroaCount(parent.frameSideId, ctx.uid)
 		},
 		detectedWorkerBeeCount: async (parent, _, ctx) => {
 			return frameSideFileModel.getWorkerBeeCount(parent.frameSideId, ctx.uid)

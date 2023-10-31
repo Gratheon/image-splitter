@@ -91,7 +91,7 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 	return result;
 }
 
-function roundToDecimal(num: number, decimalPlaces: number): number {
+export function roundToDecimal(num: number, decimalPlaces: number): number {
 	const multiplier = Math.pow(10, decimalPlaces);
 	return Math.round(num * multiplier) / multiplier;
 }
