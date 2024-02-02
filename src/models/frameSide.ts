@@ -345,14 +345,19 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 		if (line.length < 5) continue;
 
 		const [n, x, y, w, h, c] = line.split(' ');
-		result.push({
-			n,
-			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-			w: roundToDecimal(Number(w) / (splitCountX), 4),
-			h: roundToDecimal(Number(h) / (splitCountY), 4),
-			c: roundToDecimal(Number(c), 2)
-		});
+
+		// skip queen detections coming from models-bee-detector
+		// we run a separate model for queen detection in clarifai
+		if (n !== typeMap.BEE_QUEEN) {
+			result.push({
+				n,
+				x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
+				y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
+				w: roundToDecimal(Number(w) / (splitCountX), 4),
+				h: roundToDecimal(Number(h) / (splitCountY), 4),
+				c: roundToDecimal(Number(c), 2)
+			});
+		}
 	}
 
 	return result;
