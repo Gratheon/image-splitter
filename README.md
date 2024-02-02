@@ -11,6 +11,7 @@ In production its upload traffic is not going via graphql-router as federated gr
 
 ## Architecture
 
+### Service diagram
 ```mermaid
 flowchart LR
     web-app("<a href='https://github.com/Gratheon/web-app'>web-app</a>\n:8080") --> graphql-router("<a href='https://github.com/Gratheon/graphql-router'>graphql-router</a>") --> image-splitter("<a href='https://github.com/Gratheon/image-splitter'>image-splitter</a>\n:8800") --"poll images for processing every 500ms-10s\nstore inference results"--> mysql
@@ -22,6 +23,15 @@ flowchart LR
 	image-splitter --"event {uid}.frame_side.{frame_side_id}.bees_partially_detected"--> redis
     image-splitter --"event {uid}.frame_side.{frame_side_id}.frame_resources_detected"--> redis
     image-splitter --"event {uid}.frame_side.{frame_side_id}.queen_cups_detected"--> redis
+```
+
+### Async worker processing / data flow
+```mermaid
+flowchart LR
+analyzeBeesAndVarroa --"re-run in 10 sec"--> analyzeBeesAndVarroa --> detectBeesAndVarroa
+analyzeQueenCups --> detectQueenCups
+analyzeCells --"re-run in 10 sec"--> analyzeCells
+analyzeCells --> downloadAndUpdateResolutionInDB
 ```
 
 ### Development

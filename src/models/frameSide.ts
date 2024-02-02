@@ -40,6 +40,7 @@ const frameSideModel = {
 			sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
 	},
+
 	getFirstUnprocessedBees: async function () {
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
@@ -101,14 +102,12 @@ const frameSideModel = {
 		};
 	},
 
-
 	updateDetectedBeesAndVarroa: async function (detectedBees, detectedVarroa, fileId, frameSideId) {
 		const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
 		const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
-		const countDetectedQueens = frameSideModel.countDetectedQueens(detectedBees)
 		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 
-		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones} / ${countDetectedQueens}`)
+		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones}`)
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 
@@ -116,8 +115,7 @@ const frameSideModel = {
 				detected_varroa=${JSON.stringify(detectedVarroa)},
 				varroa_count = IFNULL(varroa_count,0) + ${countDetectedVarroa},
 				worker_bee_count = IFNULL(worker_bee_count,0) + ${workerBeeCount},
-				drone_count = IFNULL(drone_count,0) + ${detectedDrones},
-				queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
+				drone_count = IFNULL(drone_count,0) + ${detectedDrones}
 				WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
 		return true;
@@ -300,17 +298,6 @@ const frameSideModel = {
 
 		return cnt;
 	},
-	countDetectedQueens: function (detectedBees: DetectedObject[]): number {
-		let cnt = 0
-		for (let o of detectedBees) {
-			if (o.c > 0.7 && o.n == typeMap.BEE_QUEEN) {
-				cnt++
-			}
-		}
-
-		return cnt;
-	},
-
 
 	updateStrokes: async function (fileRels, uid) {
 		for (let file of fileRels) {
@@ -331,6 +318,17 @@ const frameSideModel = {
 		);
 		return true;
 	},
+	updateQueens: async function (queens, frameSideId, uid) {
+		const countDetectedQueens = queens.length
+
+		await storage().query(
+			sql`UPDATE files_frame_side_rel
+			SET detected_queens=${queens},
+			queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
+			WHERE frame_side_id=${frameSideId} AND user_id=${uid}`
+		);
+		return true;
+	},
 };
 
 export default frameSideModel
@@ -345,14 +343,19 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 		if (line.length < 5) continue;
 
 		const [n, x, y, w, h, c] = line.split(' ');
-		result.push({
-			n,
-			x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-			y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-			w: roundToDecimal(Number(w) / (splitCountX), 4),
-			h: roundToDecimal(Number(h) / (splitCountY), 4),
-			c: roundToDecimal(Number(c), 2)
-		});
+
+		// skip queen detections coming from models-bee-detector
+		// we run a separate model for queen detection in clarifai
+		if (n !== typeMap.BEE_QUEEN) {
+			result.push({
+				n,
+				x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
+				y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
+				w: roundToDecimal(Number(w) / (splitCountX), 4),
+				h: roundToDecimal(Number(h) / (splitCountY), 4),
+				c: roundToDecimal(Number(c), 2)
+			});
+		}
 	}
 
 	return result;

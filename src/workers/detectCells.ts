@@ -2,11 +2,13 @@ import fs from 'fs';
 import FormData from 'form-data';
 
 import { logger } from '../logger';
-import frameSideCells from '../models/frameSideCells';
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
-import { DetectedFrameResource } from './orchestrator';
+import frameSideCells from "../models/frameSideCells";
+
+import { DetectedFrameResource } from './types';
+import { downloadAndUpdateResolutionInDB } from './downloadFile';
 
 export async function detectCells(file) {
 	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
@@ -94,5 +96,31 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 export function roundToDecimal(num: number, decimalPlaces: number): number {
 	const multiplier = Math.pow(10, decimalPlaces);
 	return Math.round(num * multiplier) / multiplier;
+}
+
+export async function analyzeCells() {
+	const file = await frameSideCells.getFirstUnprocessedCells();
+
+	if (file == null) {
+		setTimeout(analyzeCells, 10000);
+		return;
+	}
+
+	logger.info('starting processing file');
+	logger.info({ file });
+
+	try {
+		await downloadAndUpdateResolutionInDB(file);
+
+		logger.info(`making parallel requests to detect cells for file ${file.file_id}`);
+		await detectCells(file);
+
+		fs.unlinkSync(file.localFilePath);
+	}
+	catch (e) {
+		logger.error(e);
+	}
+
+	setTimeout(analyzeCells, 500);
 }
 
