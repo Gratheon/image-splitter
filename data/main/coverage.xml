@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="825" lines-covered="74" line-rate="0.08960000000000001" branches-valid="119" branches-covered="10" branch-rate="0.084" timestamp="1706872081367" complexity="0" version="0.1">
+<coverage lines-valid="825" lines-covered="74" line-rate="0.08960000000000001" branches-valid="119" branches-covered="10" branch-rate="0.084" timestamp="1706872457683" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
