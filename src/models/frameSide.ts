@@ -323,8 +323,7 @@ const frameSideModel = {
 
 		await storage().query(
 			sql`UPDATE files_frame_side_rel
-			SET detected_queens=${queens},
-			queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
+			SET detected_queens=${JSON.stringify(queens)}, queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
 			WHERE frame_side_id=${frameSideId} AND user_id=${uid}`
 		);
 		return true;
