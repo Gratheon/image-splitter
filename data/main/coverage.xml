@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="825" lines-covered="74" line-rate="0.08960000000000001" branches-valid="119" branches-covered="10" branch-rate="0.084" timestamp="1706871512986" complexity="0" version="0.1">
+<coverage lines-valid="825" lines-covered="74" line-rate="0.08960000000000001" branches-valid="119" branches-covered="10" branch-rate="0.084" timestamp="1706872081367" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
@@ -781,12 +781,12 @@
             </method>
             <method name="convertDetectedBeesStorageFormat" hits="2" signature="()V">
               <lines>
-                <line number="337" hits="2"/>
+                <line number="336" hits="2"/>
               </lines>
             </method>
             <method name="roundToDecimal" hits="10" signature="()V">
               <lines>
-                <line number="364" hits="10"/>
+                <line number="363" hits="10"/>
               </lines>
             </method>
           </methods>
@@ -886,20 +886,20 @@
             <line number="319" hits="0" branch="false"/>
             <line number="322" hits="0" branch="false"/>
             <line number="324" hits="0" branch="false"/>
-            <line number="330" hits="0" branch="false"/>
-            <line number="334" hits="1" branch="false"/>
-            <line number="337" hits="1" branch="false"/>
+            <line number="329" hits="0" branch="false"/>
+            <line number="333" hits="1" branch="false"/>
+            <line number="336" hits="1" branch="false"/>
+            <line number="337" hits="2" branch="false"/>
             <line number="338" hits="2" branch="false"/>
             <line number="339" hits="2" branch="false"/>
-            <line number="340" hits="2" branch="false"/>
-            <line number="342" hits="2" branch="false"/>
-            <line number="343" hits="3" branch="true" condition-coverage="100% (1/1)"/>
-            <line number="345" hits="2" branch="false"/>
-            <line number="349" hits="2" branch="true" condition-coverage="100% (1/1)"/>
-            <line number="350" hits="2" branch="false"/>
-            <line number="361" hits="2" branch="false"/>
+            <line number="341" hits="2" branch="false"/>
+            <line number="342" hits="3" branch="true" condition-coverage="100% (1/1)"/>
+            <line number="344" hits="2" branch="false"/>
+            <line number="348" hits="2" branch="true" condition-coverage="100% (1/1)"/>
+            <line number="349" hits="2" branch="false"/>
+            <line number="360" hits="2" branch="false"/>
+            <line number="364" hits="10" branch="false"/>
             <line number="365" hits="10" branch="false"/>
-            <line number="366" hits="10" branch="false"/>
           </lines>
         </class>
         <class name="frameSideCells.ts" filename="src/models/frameSideCells.ts" line-rate="0.4285" branch-rate="0.5">
