@@ -1,17 +1,18 @@
 import fs from 'fs';
 import FormData from 'form-data';
-import axios from "axios";
 
 import { logger } from '../logger';
+import config from '../config';
 
 import * as imageModel from '../models/image';
-import frameSideModel, { CutPosition, DetectedObject, convertDetectedBeesStorageFormat } from '../models/frameSide';
+import frameSideModel, { CutPosition, convertDetectedBeesStorageFormat } from '../models/frameSide';
 
-import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
-import { roundToDecimal } from './detectCells';
+import { detectVarroa } from './detectVarroa';
+import { analyzeQueens } from './detectQueens';
+import { downloadAndUpdateResolutionInDB } from './downloadFile';
 
-export async function detectBees(file) {
+export async function splitIn9ImagesAndDetect(file) {
 	let width, height, partialFilePath;
 
 	await frameSideModel.startDetection(file.file_id, file.frame_side_id);
@@ -38,72 +39,20 @@ export async function detectBees(file) {
 
 			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
 			try {
-				const fileContents = fs.readFileSync(partialFilePath);
+				file.imageBytes = fs.readFileSync(partialFilePath);
 				const formData = new FormData();
-				formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
+				formData.append('file', file.imageBytes, { type: 'application/octet-stream', filename: file.filename });
 
-
-				const detectedVarroa = await detectVarroa(partialFilePath, cutPosition, splitCountX, splitCountY)
-
-				logger.info('Making request to ' + config.yolo_v5_url);
-				const response = await fetch(config.yolo_v5_url, {
-					method: 'POST',
-					body: formData,
-				});
-				logger.info('received response from yolo v5 model');
-
-				if (!response.ok) {
-					logger.info('Response is not ok', response);
-					await frameSideModel.updateDetectedBeesAndVarroa(
-						[],
-						detectedVarroa,
-						file.file_id,
-						file.frame_side_id
-					);
-
-					logger.info('Removing temp file');
-					fs.unlinkSync(partialFilePath);
-					throw new Error(`HTTP request failed with status ${response.status}`);
-				}
-
-				const res = await response.json();
-				logger.info('Parsed response from yolo v5 model to JSON', res);
-
-
-				const delta = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
-
-				logger.info('Updating DB with found compact stats');
-				await frameSideModel.updateDetectedBeesAndVarroa(
-					delta,
-					detectedVarroa,
-					file.file_id,
-					file.frame_side_id
-				);
-
-				logger.info('Removing temp file');
-				fs.unlinkSync(partialFilePath);
-
-				logger.info('Publishing results to redis');
-				publisher.publish(
-					generateChannelName(
-						file.user_id,
-						'frame_side',
-						file.frame_side_id,
-						'bees_partially_detected'
-					),
-					JSON.stringify({
-						delta,
-						detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-						detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-						detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-						isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
-					})
-				);
+				await runDetectionOnSplitImage(file, partialFilePath, cutPosition, splitCountX, splitCountY, formData);
 			}
 			catch (e) {
 				logger.error("detectBees failed");
 				console.error(e);
 			}
+
+
+			logger.info('Removing temp file');
+			fs.unlinkSync(partialFilePath);
 		}
 	}
 
@@ -127,38 +76,89 @@ export async function detectBees(file) {
 	);
 }
 
-async function detectVarroa(partialFilePath, cutPosition: CutPosition, splitCountX, splitCountY): Promise<DetectedObject[]> {
-	logger.info('Making request to roboflow to detect varroa');
-	const image = fs.readFileSync(partialFilePath, {
-		encoding: "base64"
-	});
+async function runDetectionOnSplitImage(file: any, partialFilePath: any, cutPosition: CutPosition, splitCountX: number, splitCountY: number, formData: any) {
+	const [
+		detectedQueens, detectedVarroa, detectedBees
+	] = await Promise.all([
+		analyzeQueens(file),
+		detectVarroa(partialFilePath, cutPosition, splitCountX, splitCountY),
 
-	const rawResult = await axios({
-		method: "POST",
-		url: "https://detect.roboflow.com/varroa-gasbl/1",
-		params: {
-			api_key: config.roboflow.token
-		},
-		data: image,
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded"
-		}
-	})
+		// detect bees
+		fetch(config.yolo_v5_url, {
+			method: 'POST',
+			body: formData,
+		})
+	]);
 
-	logger.info('Converting JSON to more compact format');
-	const result: DetectedObject[] = [];
+	logger.info('received response from yolo v5 model');
+	console.log('detectedQueens', detectedQueens);
 
-	for (let row of rawResult.data.predictions) {
-		result.push({
-			n: '11',
-			x: roundToDecimal((Number(row.x) + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-			y: roundToDecimal((Number(row.y) + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-			w: roundToDecimal(Number(row.width) / (3 * cutPosition.width), 4),
-			h: roundToDecimal(Number(row.height) / (3 * cutPosition.height), 4),
-			c: roundToDecimal(row.confidence, 4)
-		});
+	if (!detectedBees.ok) {
+		logger.info('Response is not ok', detectedBees);
+		await frameSideModel.updateDetectedBeesAndVarroa(
+			[],
+			detectedVarroa,
+			file.file_id,
+			file.frame_side_id
+		);
+
+		logger.info('Removing temp file');
+		fs.unlinkSync(partialFilePath);
+		throw new Error(`HTTP request failed with status ${detectedBees.status}`);
 	}
 
-	return result;
+	const res = await detectedBees.json();
+	logger.info('Parsed response from yolo v5 model to JSON', res);
 
+
+	let newDetectedBees = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
+
+	logger.info('Updating DB with found compact stats');
+	await frameSideModel.updateDetectedBeesAndVarroa(
+		newDetectedBees,
+		detectedVarroa,
+		file.file_id,
+		file.frame_side_id
+	);
+	logger.info('Publishing results to redis');
+	publisher.publish(
+		generateChannelName(
+			file.user_id, 'frame_side',
+			file.frame_side_id, 'bees_partially_detected'
+		),
+		JSON.stringify({
+			delta: newDetectedBees,
+			detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+			detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+			detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+			isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
+		})
+	);
 }
+
+export async function analyzeBeesAndVarroa() {
+	const file = await frameSideModel.getFirstUnprocessedBees();
+
+	if (file == null) {
+		setTimeout(analyzeBeesAndVarroa, 10000);
+		return;
+	}
+
+	logger.info('starting processing file');
+	logger.info({ file });
+
+	try {
+		await downloadAndUpdateResolutionInDB(file);
+
+		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
+		await splitIn9ImagesAndDetect(file);
+
+		fs.unlinkSync(file.localFilePath);
+	}
+	catch (e) {
+		logger.error(e);
+	}
+
+	setTimeout(analyzeBeesAndVarroa, 500);
+}
+
