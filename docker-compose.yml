@@ -13,9 +13,6 @@ services:
     ports:
       - 8800:8800
     volumes:
-      - ./config:/app/config
-      - ./migrations:/app/migrations
-      - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
     network_mode: host
