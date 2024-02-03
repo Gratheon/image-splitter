@@ -1,7 +1,10 @@
 import Jimp from 'jimp';
 import sizeOf from 'image-size';
+import webp from 'webp-converter';
 
 import { logger } from '../logger';
+
+webp.grant_permission();
 
 export async function cutImage(file, cutPosition, partialFilePath) {
 	let j1 = await Jimp.read(file.localFilePath);
@@ -17,6 +20,11 @@ export async function cutImage(file, cutPosition, partialFilePath) {
 
 	return partialFilePath
 }
+
+export function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
+	return webp.dwebp(webpFilePath, jpgFilePath, "-o");
+}
+
 
 export async function resizeImage(inputPath: string, outputPath: string, maxDimension: number, quality = 95) {
 	try {

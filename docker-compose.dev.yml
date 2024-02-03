@@ -2,9 +2,8 @@ version: '3.9'
 services:
   image-splitter:
     build: 
+      context: .
       dockerfile: Dockerfile.dev
-    command:
-      ./node_modules/.bin/tsc-watch --project ./src/config/tsconfig.json --onSuccess "node ./app/image-splitter.js"
     environment:
       - ENV_ID=dev
       - DD_ENV=dev
@@ -12,8 +11,13 @@ services:
     tty: true
     ports:
       - 8800:8800
+    # mount folders to keep hot reload
+    # while having node_modules installed in the container as it has linux dependencies
     volumes:
-      - .:/app/
+      - ./config:/app/config
+      - ./migrations:/app/migrations
+      - ./src:/app/src
+      - ./tmp:/app/tmp
     restart: always
     network_mode: bridge
     networks:

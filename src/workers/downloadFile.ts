@@ -42,8 +42,10 @@ export async function downloadAndUpdateResolutionInDB(file: any) {
 			height: file.height,
 		}, file.file_id);
 	}
-}export async function sleep(sec = 1) {
-    // slow down API for security to slow down brute-force
-    await new Promise(resolve => setTimeout(resolve, sec * 1000));
+}
+
+export async function sleep(sec = 1) {
+	// slow down API for security to slow down brute-force
+	await new Promise(resolve => setTimeout(resolve, sec * 1000));
 }
 

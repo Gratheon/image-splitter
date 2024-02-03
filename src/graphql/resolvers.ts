@@ -123,14 +123,30 @@ export const resolvers = {
 			return true
 		},
 		uploadFrameSide: async (_, { file }, { uid }) => {
+			const rootPath = '/app/'
 			try {
 				// local file
-				const { createReadStream, filename, mimetype, encoding } = await file;
+				let { createReadStream, filename, mimetype, encoding } = await file;
 				const stream = createReadStream();
-				const tmpLocalFile = `tmp/${uid}_${filename}`
+				let tmpLocalFile = `${rootPath}tmp/${uid}_${filename}`
+
+				// copy stream to tmp folder
 				const out = fs.createWriteStream(tmpLocalFile);
 				stream.pipe(out);
 				await finished(out);
+
+				// convert webp to jpg because jimp does not handle webp
+				if (mimetype === 'image/webp') {
+					const webpFilePath = tmpLocalFile;
+					const jpgFilePath = tmpLocalFile.replace('.webp', '.jpg');
+					filename = filename.replace('.webp', '.jpg');
+					const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
+					logger.info('converted webp to jpg', { filename, result });
+					tmpLocalFile = jpgFilePath;
+
+					// delete webp
+					fs.unlinkSync(webpFilePath);
+				}
 
 				const dimensions = imageModel.getImageSize(tmpLocalFile);
 
@@ -140,10 +156,10 @@ export const resolvers = {
 				hashSum.update(fileBuffer);
 				const hash = hashSum.digest('hex')
 
-				const ext = fileModel.getFileExtension(filename)
+				let ext = fileModel.getFileExtension(filename)
 
 				// resize
-				const tmpResizeFile = `tmp/${uid}_${filename}_1024`
+				const tmpResizeFile = `${rootPath}tmp/${uid}_${filename}_1024`
 				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile, 1024, 70)
 
 				// AWS
@@ -151,6 +167,11 @@ export const resolvers = {
 					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
 					upload(tmpResizeFile, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
 				]);
+
+				// cleanup
+				fs.unlinkSync(tmpLocalFile);
+				fs.unlinkSync(tmpResizeFile);
+
 
 				// db
 				const id = await fileModel.insert(
