@@ -1,7 +1,17 @@
 FROM node:16-alpine
 
+# for webp converter
+RUN apk update && apk upgrade && apk add gcompat
+
 WORKDIR /app
 
 EXPOSE 8800
+
+COPY package.json /app/
+COPY schema.graphql /app/schema.graphql
+
+# we have linux dependencies so need to install them in the container
+RUN npm install
+RUN npm run build
 
 CMD node ./app/image-splitter.js
