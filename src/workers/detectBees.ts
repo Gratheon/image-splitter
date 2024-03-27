@@ -1,7 +1,7 @@
 import fs from 'fs';
 import FormData from 'form-data';
 
-import { logger } from '../logger';
+import { log, logger } from '../logger';
 import config from '../config';
 
 import * as imageModel from '../models/image';
@@ -76,7 +76,14 @@ export async function splitIn9ImagesAndDetect(file) {
 	);
 }
 
-async function runDetectionOnSplitImage(file: any, partialFilePath: any, cutPosition: CutPosition, splitCountX: number, splitCountY: number, formData: any) {
+async function runDetectionOnSplitImage(
+	file: any, 
+	partialFilePath: any, 
+	cutPosition: CutPosition, 
+	splitCountX: number, 
+	splitCountY: number, 
+	formData: any) {
+
 	const [
 		detectedQueens, detectedVarroa, detectedBees
 	] = await Promise.all([
@@ -90,16 +97,16 @@ async function runDetectionOnSplitImage(file: any, partialFilePath: any, cutPosi
 		})
 	]);
 
-	logger.info('received response from yolo v5 model');
-	console.log('detectedQueens', detectedQueens);
+	log('detectedQueens', detectedQueens);
 
 	if (!detectedBees.ok) {
-		logger.info('Response is not ok', detectedBees);
+		logger.error('Response is not ok', detectedBees);
 		await frameSideModel.updateDetectedBeesAndVarroa(
 			[],
 			detectedVarroa,
 			file.file_id,
-			file.frame_side_id
+			file.frame_side_id,
+			file.user_id
 		);
 
 		logger.info('Removing temp file');
@@ -108,7 +115,7 @@ async function runDetectionOnSplitImage(file: any, partialFilePath: any, cutPosi
 	}
 
 	const res = await detectedBees.json();
-	logger.info('Parsed response from yolo v5 model to JSON', res);
+	log('Parsed response from yolo v5 model to JSON', res);
 
 
 	let newDetectedBees = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
@@ -118,7 +125,8 @@ async function runDetectionOnSplitImage(file: any, partialFilePath: any, cutPosi
 		newDetectedBees,
 		detectedVarroa,
 		file.file_id,
-		file.frame_side_id
+		file.frame_side_id,
+		file.user_id
 	);
 	logger.info('Publishing results to redis');
 	publisher.publish(
@@ -144,8 +152,7 @@ export async function analyzeBeesAndVarroa() {
 		return;
 	}
 
-	logger.info('starting processing file');
-	logger.info({ file });
+	log('starting processing file', file);
 
 	try {
 		await downloadAndUpdateResolutionInDB(file);

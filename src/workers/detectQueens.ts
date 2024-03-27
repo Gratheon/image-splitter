@@ -1,7 +1,7 @@
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
-import { logger } from '../logger';
+import { log, logger } from '../logger';
 
 import { DetectedObject } from '../models/frameSide';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
@@ -16,7 +16,7 @@ const APP_ID = 'bee-queen-detection';
 // Change these to whatever model and image URL you want to use
 const MODEL_ID = 'queen-bee';
 const MODEL_VERSION_ID = 'e8278fe079cc4d6796c37cae43015bb3';
-const MIN_CONFIDENCE = 0.6;
+const MIN_CONFIDENCE = 0.5;
 
 const grpcClient = ClarifaiStub.grpc();
 
@@ -29,8 +29,7 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
 
-    logger.info("Queen detection result:")
-    logger.info(detectionResult)
+    log("Queen detection result:", detectionResult)
 
     logger.info('Updating DB with found compact stats');
     await fileSideModel.updateQueens(
@@ -41,8 +40,7 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
 
     // await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
 
-    logger.info('Publishing queens detection results to redis:');
-    console.log(detectionResult)
+    log("Publishing queens detection results to redis", detectionResult)
 
     publisher.publish(
         generateChannelName(
@@ -62,7 +60,7 @@ async function askClarifai(file) {
     const result: DetectedObject[] = [];
 
     const url = file.url
-    logger.info("Asking clarifai to detect cups on URL:" + url)
+    log("Asking clarifai to detect cups on URL:", {url})
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
@@ -94,12 +92,12 @@ async function askClarifai(file) {
                 }
 
 
-                console.log({response})
+                log("response", response)
 
                 // Since we have one input, one output will exist here
                 const output = response.outputs[0];
 
-                // console.log('output',output)
+                log('queen detection result from clarifai', output)
                 const regions = output.data.regions
 
                 for (let i = 0; i < regions.length; i++) {
@@ -122,7 +120,7 @@ async function askClarifai(file) {
                     }
                 }
 
-                console.log('queen result', result)
+                log('queen result', result)
                 resolve(result)
             }
 
