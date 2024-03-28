@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="848" lines-covered="74" line-rate="0.0872" branches-valid="122" branches-covered="10" branch-rate="0.0819" timestamp="1711585562305" complexity="0" version="0.1">
+<coverage lines-valid="850" lines-covered="74" line-rate="0.087" branches-valid="122" branches-covered="10" branch-rate="0.0819" timestamp="1711615286450" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
@@ -1692,11 +1692,13 @@
             <line number="11" hits="0" branch="false"/>
             <line number="12" hits="0" branch="false"/>
             <line number="16" hits="0" branch="false"/>
-            <line number="28" hits="0" branch="false"/>
-            <line number="29" hits="0" branch="false"/>
+            <line number="18" hits="0" branch="false"/>
+            <line number="19" hits="0" branch="false"/>
             <line number="31" hits="0" branch="false"/>
-            <line number="32" hits="0" branch="false"/>
-            <line number="42" hits="0" branch="false"/>
+            <line number="34" hits="0" branch="false"/>
+            <line number="35" hits="0" branch="false"/>
+            <line number="45" hits="0" branch="false"/>
+            <line number="48" hits="0" branch="false"/>
           </lines>
         </class>
         <class name="downloadFile.ts" filename="src/workers/downloadFile.ts" line-rate="0" branch-rate="0">
