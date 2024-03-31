@@ -24,8 +24,8 @@ const fileModel = {
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
       LEFT JOIN files_frame_side_resources t3 ON t1.file_id=t3.file_id
-			WHERE t1.frame_side_id = ${id}
-			and t1.user_id = ${uid}
+			WHERE t1.frame_side_id = ${id} and t1.user_id = ${uid}
+        AND t1.inspection_id IS NULL
 			LIMIT 1`
     );
 
@@ -55,13 +55,14 @@ const fileModel = {
   },
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
-      sql`SELECT t2.id, t2.user_id, t2.filename, t3.frame_side_id, t3.strokeHistory, t2.url_version, t2.hash, t2.ext
-				FROM files t2
-				INNER JOIN files_frame_side_rel t3 ON t3.file_id = t2.id
-				WHERE t2.id IN (
-					SELECT t1.file_id FROM files_hive_rel t1 WHERE t1.hive_id = ${hiveId}
-				) AND t2.user_id = ${uid}
-				LIMIT 500`
+      sql`SELECT t2.id, t2.user_id, t2.filename, t2.url_version, t2.hash, t2.ext,
+        t3.frame_side_id, t3.strokeHistory
+      FROM files t2
+      INNER JOIN files_frame_side_rel t3 ON t3.file_id = t2.id AND t3.inspection_id IS NULL
+      WHERE t2.id IN (
+        SELECT t1.file_id FROM files_hive_rel t1 WHERE t1.hive_id = ${hiveId}
+      ) AND t2.user_id = ${uid}
+      LIMIT 500`
     );
 
     const r = [];

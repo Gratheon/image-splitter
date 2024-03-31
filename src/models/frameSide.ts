@@ -80,6 +80,7 @@ const frameSideModel = {
 				LEFT JOIN files t2 ON t1.file_id = t2.id
 				LEFT JOIN files_frame_side_queen_cups t4 ON t1.file_id = t4.file_id
 			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+				AND t1.inspection_id IS NULL
 			LIMIT 1`
 		);
 
@@ -340,6 +341,16 @@ const frameSideModel = {
 		);
 		return true;
 	},
+
+	cloneFramesForInspection: async function (frameSideIDs: number[], inspectionId: number, uid: number) {
+		await storage().query(
+			sql`UPDATE files_frame_side_rel
+			SET inspection_id=${inspectionId}
+			WHERE inspection_id IS NULL AND frame_side_id IN (${frameSideIDs}) AND user_id=${uid}`
+		);
+
+		return true
+	}
 };
 
 export default frameSideModel

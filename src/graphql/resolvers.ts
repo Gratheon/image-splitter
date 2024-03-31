@@ -10,8 +10,8 @@ import fileModel from '../models/file';
 import fileResizeModel from '../models/fileResize';
 import * as imageModel from '../models/image';
 
-import frameSideFileModel from '../models/frameSide';
-import frameSideCells from '../models/frameSideCells';
+import frameSideModel from '../models/frameSide';
+import frameSideCellsModel from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
 import beekeeper from '../models/ai-beekeeper';
 
@@ -24,10 +24,10 @@ export const resolvers = {
 			return fileModel.getByHiveId(hiveId, ctx.uid)
 		},
 		hiveFrameSideFile: async (_, { frameSideId }, ctx) => {
-			return frameSideFileModel.getByFrameSideId(frameSideId, ctx.uid)
+			return frameSideModel.getByFrameSideId(frameSideId, ctx.uid)
 		},
 		hiveFrameSideCells: async (_, { frameSideId }, ctx) => {
-			return frameSideCells.getByFrameSideId(frameSideId, ctx.uid)
+			return frameSideCellsModel.getByFrameSideId(frameSideId, ctx.uid)
 		},
 		getExistingHiveAdvice: (_, { hiveID }, ctx) => {
 			return beekeeper.getAdvice(hiveID, ctx.uid)
@@ -62,7 +62,7 @@ export const resolvers = {
 			return await fileModel.getByFrameSideId(id, ctx.uid)
 		},
 		cells: async (parent, __, ctx) => {
-			return await frameSideCells.getByFrameSideId(parent.frameSideId, ctx.uid)
+			return await frameSideCellsModel.getByFrameSideId(parent.frameSideId, ctx.uid)
 		},
 
 		frameSideFile: async (parent, __, ctx) => {
@@ -71,13 +71,13 @@ export const resolvers = {
 	},
 	FrameSideFile: {
 		queenDetected: async (parent, _, ctx) => {
-			return frameSideFileModel.isQueenDetected(parent.frameSideId, ctx.uid)
+			return frameSideModel.isQueenDetected(parent.frameSideId, ctx.uid)
 		},
 		isBeeDetectionComplete: async (parent, _, ctx) => {
-			return frameSideFileModel.isComplete(parent.frameSideId, ctx.uid)
+			return frameSideModel.isComplete(parent.frameSideId, ctx.uid)
 		},
 		isCellsDetectionComplete: async (parent, _, ctx) => {
-			return frameSideCells.isComplete(parent.frameSideId, ctx.uid)
+			return frameSideCellsModel.isComplete(parent.frameSideId, ctx.uid)
 		},
 		isQueenCupsDetectionComplete: async (parent, _, ctx) => {
 			return frameSideQueenCupsModel.isComplete(parent.frameSideId, ctx.uid)
@@ -85,28 +85,35 @@ export const resolvers = {
 
 		// todo add caching or dedicated column around this
 		detectedBees: async (parent, _, ctx) => {
-			return frameSideFileModel.getDetectedBees(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDetectedBees(parent.frameSideId, ctx.uid)
 		},
 		detectedVarroa: async (parent, _, ctx) => {
-			return frameSideFileModel.getDetectedVarroa(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDetectedVarroa(parent.frameSideId, ctx.uid)
 		},
 		detectedCells: async (parent, _, ctx) => {
-			return frameSideFileModel.getDetectedCells(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDetectedCells(parent.frameSideId, ctx.uid)
 		},
 		detectedQueenCount: async (parent, _, ctx) => {
-			return frameSideFileModel.getQueenCount(parent.frameSideId, ctx.uid)
+			return frameSideModel.getQueenCount(parent.frameSideId, ctx.uid)
 		},
 		varroaCount: async (parent, _, ctx) => {
-			return frameSideFileModel.getVarroaCount(parent.frameSideId, ctx.uid)
+			return frameSideModel.getVarroaCount(parent.frameSideId, ctx.uid)
 		},
 		detectedWorkerBeeCount: async (parent, _, ctx) => {
-			return frameSideFileModel.getWorkerBeeCount(parent.frameSideId, ctx.uid)
+			return frameSideModel.getWorkerBeeCount(parent.frameSideId, ctx.uid)
 		},
 		detectedDroneCount: async (parent, _, ctx) => {
-			return frameSideFileModel.getDroneCount(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDroneCount(parent.frameSideId, ctx.uid)
 		},
 	},
 	Mutation: {
+		cloneFramesForInspection: async (_, { frameSideIDs, inspectionId }, ctx) => {
+			await frameSideModel.cloneFramesForInspection(frameSideIDs, inspectionId, ctx.uid);
+			await frameSideCellsModel.cloneFramesForInspection(frameSideIDs, inspectionId, ctx.uid);
+			await frameSideQueenCupsModel.cloneFramesForInspection(frameSideIDs, inspectionId, ctx.uid);
+
+			return true
+		},
 		generateHiveAdvice: async (_, { hiveID, adviceContext, langCode = 'en' }, ctx) => {
 			langCode = langCode.substring(0, 2) // avoid injections
 			const question = beekeeper.generatePrompt(langCode, adviceContext)
@@ -116,7 +123,7 @@ export const resolvers = {
 		},
 		addFileToFrameSide: async (_, { frameSideId, fileId, hiveId }, { uid }) => {
 			await fileModel.addFrameRelation(fileId, frameSideId, uid);
-			await frameSideCells.addFrameCells(fileId, frameSideId, uid);
+			await frameSideCellsModel.addFrameCells(fileId, frameSideId, uid);
 			await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, uid);
 
 			await fileModel.addHiveRelation(fileId, hiveId, uid);
@@ -202,15 +209,15 @@ export const resolvers = {
 		},
 
 		filesStrokeEditMutation: async (_, { files }, { uid }) => {
-			return await frameSideFileModel.updateStrokes(files, uid);
+			return await frameSideModel.updateStrokes(files, uid);
 		},
 
 		updateFrameSideQueenPresense: async (_, { frameSideId, isPresent }, { uid }) => {
-			return await frameSideFileModel.updateFrameSideQueenPresense(frameSideId, isPresent, uid);
+			return await frameSideModel.updateFrameSideQueenPresense(frameSideId, isPresent, uid);
 		},
 
 		updateFrameSideCells: async (_, { cells }, { uid }) => {
-			await frameSideCells.updateRelativeCells(cells, uid, cells.id);
+			await frameSideCellsModel.updateRelativeCells(cells, uid, cells.id);
 			console.log('updateFrameSideFile called', cells)
 			return true
 		}

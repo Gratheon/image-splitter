@@ -20,6 +20,12 @@ type Mutation {
 
 	updateFrameSideQueenPresense(frameSideId: ID!, isPresent: Boolean!): Boolean!
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
+
+	"""
+	On inspection creation, we want to clone frames from current state (NULL references) and set inspectionId
+	Then create new set of frames with NULL frames
+	"""
+	cloneFramesForInspection(frameSideIDs: [ID], inspectionId: ID!): Boolean!
 }
 
 """ When user draws on top of a frame photo, we want to store stroke history """

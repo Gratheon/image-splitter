@@ -80,4 +80,14 @@ export default {
 
 		return rel.process_end_time ? true : false;
 	},
+
+	cloneFramesForInspection: async function (frameSideIDs: number[], inspectionId: number, uid: number) {
+		await storage().query(
+			sql`UPDATE files_frame_side_queen_cups
+			SET inspection_id=${inspectionId}
+			WHERE inspection_id IS NULL AND frame_side_id IN (${frameSideIDs}) AND user_id=${uid}`
+		);
+
+		return true
+	}
 };
