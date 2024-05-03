@@ -26,10 +26,9 @@ export async function detectQueenCups(file) {
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
 
-    logger.info("Queen cups detection result:")
-    logger.info(detectionResult)
+    // logger.info("Queen cups detection result:")
+    // logger.info(detectionResult)
 
-    logger.info('Updating DB with found compact stats');
     await fileSideQueenCupsModel.updateDetectedQueenCups(
         detectionResult,
         file.file_id,

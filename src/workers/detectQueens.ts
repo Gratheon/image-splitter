@@ -29,9 +29,8 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
 
-    log("Queen detection result:", detectionResult)
+    // log("Queen detection result:", detectionResult)
 
-    logger.info('Updating DB with found compact stats');
     await fileSideModel.updateQueens(
         detectionResult,
         file.frame_side_id,
@@ -40,7 +39,7 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
 
     // await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
 
-    log("Publishing queens detection results to redis", detectionResult)
+    // log("Publishing queens detection results to redis", detectionResult)
 
     publisher.publish(
         generateChannelName(
@@ -92,12 +91,12 @@ async function askClarifai(file) {
                 }
 
 
-                log("response", response)
+                // log("response", response)
 
                 // Since we have one input, one output will exist here
                 const output = response.outputs[0];
 
-                log('queen detection result from clarifai', output)
+                // log('queen detection result from clarifai', output)
                 const regions = output.data.regions
 
                 for (let i = 0; i < regions.length; i++) {
@@ -120,7 +119,7 @@ async function askClarifai(file) {
                     }
                 }
 
-                log('queen result', result)
+                // log('queen result', result)
                 resolve(result)
             }
 

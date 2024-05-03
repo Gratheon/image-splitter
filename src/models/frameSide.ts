@@ -1,6 +1,6 @@
 import { sql } from "@databases/mysql";
 
-import { logger } from '../logger';
+import { log, logger } from '../logger';
 import { storage } from "./storage";
 import fileModel from './file';
 
@@ -103,53 +103,87 @@ const frameSideModel = {
 		};
 	},
 
-	updateDetectedBeesAndVarroa: async function (detectedBees, detectedVarroa, fileId, frameSideId, uid) {
+	updateDetectedBees: async function (detectedBees: DetectedObject[], fileId, frameSideId, uid) {
 		const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
 		const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
-		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 
-		let exDetectedBees = await frameSideModel.getDetectedBees(frameSideId, fileId)
-		if (!exDetectedBees) {
-			exDetectedBees = []
-		}
+		let exDetectedBees = await frameSideModel.getDetectedBees(frameSideId, fileId, uid)
+		log({ exDetectedBees })
+		// let exDetectedBees: DetectedObject[] = []
+		// if (strExBees) {
+		// 	exDetectedBees = JSON.parse(strExBees)
+		// }
+
 		exDetectedBees.push(...detectedBees)
 
+		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones}`)
+		const db = storage()
+		await db.query(
+			sql`UPDATE files_frame_side_rel 
+				SET 
+					detected_bees=${JSON.stringify(exDetectedBees)},
+					worker_bee_count = IFNULL(worker_bee_count,0) + ${workerBeeCount},
+					drone_count = IFNULL(drone_count,0) + ${detectedDrones}
+					WHERE file_id=${fileId} AND frame_side_id=${frameSideId} AND user_id = ${uid}`
+		);
+		return true;
+	},
+	updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
+		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 		let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
-		if(!exDetectedVarroa) {
+		if (!exDetectedVarroa) {
 			exDetectedVarroa = []
 		}
 		exDetectedVarroa.push(...detectedVarroa)
 
-		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones}`)
+		logger.info(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 
-					detected_bees=${JSON.stringify(exDetectedBees)},
 					detected_varroa=${JSON.stringify(exDetectedVarroa)},
-					varroa_count = IFNULL(varroa_count,0) + ${countDetectedVarroa},
-					worker_bee_count = IFNULL(worker_bee_count,0) + ${workerBeeCount},
-					drone_count = IFNULL(drone_count,0) + ${detectedDrones}
-					WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+					varroa_count = IFNULL(varroa_count,0) + ${countDetectedVarroa}
+					WHERE file_id=${fileId} AND frame_side_id=${frameSideId} AND user_id = ${uid}`
 		);
 		return true;
 	},
 
-	getDetectedBees: async function (frameSideId, uid) {
+	getDetectedBees: async function (frameSideId, fileId, uid): Promise<DetectedObject[]> {
 		const result = await storage().query(
-			sql`SELECT t1.detected_bees
-			FROM files_frame_side_rel t1
-			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+			sql`SELECT detected_bees
+			FROM files_frame_side_rel
+			WHERE file_id=${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel || !rel.detected_bees) {
+			return [];
+		}
+
+		return rel.detected_bees;
+	},
+
+	// frame side can have multiple versions/files attached due to inspections
+	getDetectedBeesFromLatestFile: async function (frameSideId, uid): Promise<DetectedObject[]> {
+		const result = await storage().query(
+			sql`SELECT detected_bees
+			FROM files_frame_side_rel
+			WHERE frame_side_id = ${frameSideId} AND user_id = ${uid}
+			ORDER BY added_time DESC
 			LIMIT 1`
 		);
 
 		const rel = result[0];
 
 		if (!rel) {
-			return null;
+			return [];
 		}
 
 		return rel.detected_bees;
 	},
+
+
 	getDetectedVarroa: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.detected_varroa

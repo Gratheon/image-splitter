@@ -5,7 +5,7 @@ import { log, logger } from '../logger';
 import config from '../config';
 
 import * as imageModel from '../models/image';
-import frameSideModel, { CutPosition, convertDetectedBeesStorageFormat } from '../models/frameSide';
+import frameSideModel, { CutPosition, DetectedObject, convertDetectedBeesStorageFormat } from '../models/frameSide';
 
 import { publisher, generateChannelName } from '../redisPubSub';
 import { detectVarroa } from './detectVarroa';
@@ -50,7 +50,6 @@ export async function splitIn9ImagesAndDetect(file) {
 				console.error(e);
 			}
 
-
 			logger.info('Removing temp file');
 			fs.unlinkSync(partialFilePath);
 		}
@@ -77,11 +76,11 @@ export async function splitIn9ImagesAndDetect(file) {
 }
 
 async function runDetectionOnSplitImage(
-	file: any, 
-	partialFilePath: any, 
-	cutPosition: CutPosition, 
-	splitCountX: number, 
-	splitCountY: number, 
+	file: any,
+	partialFilePath: any,
+	cutPosition: CutPosition,
+	splitCountX: number,
+	splitCountY: number,
 	formData: any) {
 
 	const [
@@ -99,48 +98,44 @@ async function runDetectionOnSplitImage(
 
 	log('detectedQueens', detectedQueens);
 
-	if (!detectedBees.ok) {
-		logger.error('Response is not ok', detectedBees);
-		await frameSideModel.updateDetectedBeesAndVarroa(
-			[],
-			detectedVarroa,
+	if (detectedBees.ok) {
+		const res = await detectedBees.json();
+		// log('Parsed response from yolo v5 model to JSON', res);
+
+		let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
+
+		await frameSideModel.updateDetectedBees(
+			newDetectedBees,
 			file.file_id,
 			file.frame_side_id,
 			file.user_id
 		);
 
-		logger.info('Removing temp file');
-		fs.unlinkSync(partialFilePath);
-		throw new Error(`HTTP request failed with status ${detectedBees.status}`);
+		logger.info('Publishing results to redis');
+		publisher.publish(
+			generateChannelName(
+				file.user_id, 'frame_side',
+				file.frame_side_id, 'bees_partially_detected'
+			),
+			JSON.stringify({
+				delta: newDetectedBees,
+				detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+				detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+				detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+				isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
+			})
+		);
+	}
+	else {
+		logger.error('Response is not ok', detectedBees);
+		logger.error(`HTTP request failed with status ${detectedBees.status}`);
 	}
 
-	const res = await detectedBees.json();
-	log('Parsed response from yolo v5 model to JSON', res);
-
-
-	let newDetectedBees = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
-
-	logger.info('Updating DB with found compact stats');
-	await frameSideModel.updateDetectedBeesAndVarroa(
-		newDetectedBees,
+	await frameSideModel.updateDetectedVarroa(
 		detectedVarroa,
 		file.file_id,
 		file.frame_side_id,
 		file.user_id
-	);
-	logger.info('Publishing results to redis');
-	publisher.publish(
-		generateChannelName(
-			file.user_id, 'frame_side',
-			file.frame_side_id, 'bees_partially_detected'
-		),
-		JSON.stringify({
-			delta: newDetectedBees,
-			detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-			detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-			detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-			isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
-		})
 	);
 }
 

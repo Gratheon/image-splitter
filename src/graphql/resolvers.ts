@@ -85,7 +85,7 @@ export const resolvers = {
 
 		// todo add caching or dedicated column around this
 		detectedBees: async (parent, _, ctx) => {
-			return frameSideModel.getDetectedBees(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDetectedBeesFromLatestFile(parent.frameSideId, ctx.uid)
 		},
 		detectedVarroa: async (parent, _, ctx) => {
 			return frameSideModel.getDetectedVarroa(parent.frameSideId, ctx.uid)
