@@ -70,7 +70,7 @@ const frameSideModel = {
 		);
 	},
 
-	getByFrameSideId: async function (frameSideId, uid) {
+	getLastestByFrameSideId: async function (frameSideId, uid) {
 		//t1.detected_bees
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.strokeHistory, t1.queen_detected,
@@ -81,6 +81,7 @@ const frameSideModel = {
 				LEFT JOIN files_frame_side_queen_cups t4 ON t1.file_id = t4.file_id
 			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
 				AND t1.inspection_id IS NULL
+			ORDER BY t1.added_time DESC
 			LIMIT 1`
 		);
 
@@ -90,12 +91,16 @@ const frameSideModel = {
 			return null;
 		}
 
+		const file = await fileModel.getById(rel.fileId, uid);
+		const detectedBees = await frameSideModel.getDetectedBeesAndQueensFromLatestFile(frameSideId, uid)
+
 		return {
 			__typename: 'FrameSideFile',
 			frameSideId,
 			strokeHistory: rel.strokeHistory,
-			file: await fileModel.getById(rel.fileId, uid),
-			detectedBees: rel.detected_bees,
+			file: file,
+
+			detectedBees: detectedBees, // rel.detected_bees,
 			detectedCells: rel.cells,
 			detectedQueenCups: rel.cups,
 
@@ -165,9 +170,9 @@ const frameSideModel = {
 	},
 
 	// frame side can have multiple versions/files attached due to inspections
-	getDetectedBeesFromLatestFile: async function (frameSideId, uid): Promise<DetectedObject[]> {
+	getDetectedBeesAndQueensFromLatestFile: async function (frameSideId, uid): Promise<DetectedObject[]> {
 		const result = await storage().query(
-			sql`SELECT detected_bees
+			sql`SELECT detected_bees, detected_queens
 			FROM files_frame_side_rel
 			WHERE frame_side_id = ${frameSideId} AND user_id = ${uid}
 			ORDER BY added_time DESC
@@ -180,7 +185,10 @@ const frameSideModel = {
 			return [];
 		}
 
-		return rel.detected_bees;
+		return [
+			...rel.detected_queens,
+			...rel.detected_bees,
+		];
 	},
 
 
@@ -295,7 +303,7 @@ const frameSideModel = {
 			return true;
 		}
 
-		return rel.process_end_time ? true : false;
+		return rel.queen_detected ? true : false;
 	},
 
 	isComplete: async function (frameSideId, uid) {
@@ -366,11 +374,27 @@ const frameSideModel = {
 		return true;
 	},
 	updateQueens: async function (queens, frameSideId, uid) {
-		const countDetectedQueens = queens.length
+		const exQueensRes = await storage().query(
+			sql`SELECT detected_queens
+			FROM files_frame_side_rel
+			WHERE frame_side_id = ${frameSideId} AND user_id = ${uid}
+			ORDER BY added_time DESC
+			LIMIT 1`
+		);
+
+		log({exQueensRes})
+
+		let exQueens: DetectedObject[] = []
+		if (exQueensRes && exQueensRes[0] && exQueensRes[0].detected_queens) {
+			exQueens = exQueensRes[0].detected_queens
+		}
+		exQueens.push(...queens)
 
 		await storage().query(
 			sql`UPDATE files_frame_side_rel
-			SET detected_queens=${JSON.stringify(queens)}, queen_count = IFNULL(queen_count,0) + ${countDetectedQueens}
+			SET detected_queens=${JSON.stringify(exQueens)}, 
+				queen_count = IFNULL(queen_count,0) + ${exQueens.length},
+				queen_detected = ${exQueens.length > 0}
 			WHERE frame_side_id=${frameSideId} AND user_id=${uid}`
 		);
 		return true;

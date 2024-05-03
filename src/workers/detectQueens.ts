@@ -55,7 +55,7 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
     return detectionResult
 }
 
-async function askClarifai(file) {
+async function askClarifai(file): Promise<DetectedObject[]> {
     const result: DetectedObject[] = [];
 
     const url = file.url
@@ -91,7 +91,7 @@ async function askClarifai(file) {
                 }
 
 
-                // log("response", response)
+                // log("queen detection response from clarifai", response)
 
                 // Since we have one input, one output will exist here
                 const output = response.outputs[0];

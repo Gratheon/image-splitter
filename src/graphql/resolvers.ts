@@ -24,7 +24,7 @@ export const resolvers = {
 			return fileModel.getByHiveId(hiveId, ctx.uid)
 		},
 		hiveFrameSideFile: async (_, { frameSideId }, ctx) => {
-			return frameSideModel.getByFrameSideId(frameSideId, ctx.uid)
+			return frameSideModel.getLastestByFrameSideId(frameSideId, ctx.uid)
 		},
 		hiveFrameSideCells: async (_, { frameSideId }, ctx) => {
 			return frameSideCellsModel.getByFrameSideId(frameSideId, ctx.uid)
@@ -85,7 +85,7 @@ export const resolvers = {
 
 		// todo add caching or dedicated column around this
 		detectedBees: async (parent, _, ctx) => {
-			return frameSideModel.getDetectedBeesFromLatestFile(parent.frameSideId, ctx.uid)
+			return frameSideModel.getDetectedBeesAndQueensFromLatestFile(parent.frameSideId, ctx.uid)
 		},
 		detectedVarroa: async (parent, _, ctx) => {
 			return frameSideModel.getDetectedVarroa(parent.frameSideId, ctx.uid)
