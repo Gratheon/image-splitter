@@ -9,6 +9,7 @@ import frameSideCells from "../models/frameSideCells";
 
 import { DetectedFrameResource } from './types';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
+import { roundToDecimal } from './common';
 
 export async function detectCells(file) {
 	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
@@ -91,11 +92,6 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 	}
 
 	return result;
-}
-
-export function roundToDecimal(num: number, decimalPlaces: number): number {
-	const multiplier = Math.pow(10, decimalPlaces);
-	return Math.round(num * multiplier) / multiplier;
 }
 
 export async function analyzeCells() {

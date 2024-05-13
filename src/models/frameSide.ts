@@ -3,6 +3,8 @@ import { sql } from "@databases/mysql";
 import { log, logger } from '../logger';
 import { storage } from "./storage";
 import fileModel from './file';
+import { MIN_VARROA_CONFIDENCE } from "../workers/detectVarroa";
+import { roundToDecimal } from "../workers/common";
 
 
 let typeMap = {
@@ -14,10 +16,14 @@ let typeMap = {
 
 
 export type CutPosition = {
+	x: number
+	y: number
 	width: number
 	height: number
 	left: number
 	top: number
+	maxCutsX: number
+	maxCutsY: number
 }
 
 export type DetectedObject = {
@@ -59,6 +65,8 @@ const frameSideModel = {
 
 		file.url = fileModel.getUrl(file);
 		file.localFilePath = `tmp/${file.user_id}_bees_${file.filename}`;
+		file.width = Number(file.width);
+		file.height = Number(file.height);
 
 		return file;
 	},
@@ -114,10 +122,6 @@ const frameSideModel = {
 
 		let exDetectedBees = await frameSideModel.getDetectedBees(frameSideId, fileId, uid)
 		log({ exDetectedBees })
-		// let exDetectedBees: DetectedObject[] = []
-		// if (strExBees) {
-		// 	exDetectedBees = JSON.parse(strExBees)
-		// }
 
 		exDetectedBees.push(...detectedBees)
 
@@ -133,7 +137,9 @@ const frameSideModel = {
 		);
 		return true;
 	},
+
 	updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
+		log('detectedVarroa1', detectedVarroa);
 		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 		let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
 		if (!exDetectedVarroa) {
@@ -141,7 +147,8 @@ const frameSideModel = {
 		}
 		exDetectedVarroa.push(...detectedVarroa)
 
-		logger.info(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
+		log(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
+		log('detectedVarroa2', detectedVarroa);
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 
@@ -183,6 +190,14 @@ const frameSideModel = {
 
 		if (!rel) {
 			return [];
+		}
+
+		if (!rel.detected_queens) {
+			return rel.detected_bees
+		}
+
+		if (!rel.detected_bees) {
+			return rel.detected_queens
 		}
 
 		return [
@@ -326,7 +341,7 @@ const frameSideModel = {
 	countDetectedVarroa: function (detectedVarroa: DetectedObject[]): number {
 		let cnt = 0
 		for (let o of detectedVarroa) {
-			if (o.c > 0.6) {
+			if (o.c > MIN_VARROA_CONFIDENCE) {
 				cnt++
 			}
 		}
@@ -382,8 +397,6 @@ const frameSideModel = {
 			LIMIT 1`
 		);
 
-		log({exQueensRes})
-
 		let exQueens: DetectedObject[] = []
 		if (exQueensRes && exQueensRes[0] && exQueensRes[0].detected_queens) {
 			exQueens = exQueensRes[0].detected_queens
@@ -414,7 +427,7 @@ const frameSideModel = {
 export default frameSideModel
 
 
-export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition, splitCountX, splitCountY): DetectedObject[] {
+export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition): DetectedObject[] {
 	logger.info('Converting JSON to more compact format');
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
@@ -422,26 +435,36 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 	for (let line of lines) {
 		if (line.length < 5) continue;
 
-		const [n, x, y, w, h, c] = line.split(' ');
+		let [n, x, y, w, h, c] = line.split(' ');
+
+		let w2 = Number(w)
+		let x2 = Number(x)
+		let y2 = Number(y)
+		let h2 = Number(h)
+
+		if (cutPosition.maxCutsX > 0){
+			w2 = Number(w2) / (cutPosition.maxCutsX)
+			x2 = (x2 * cutPosition.width + cutPosition.left) / (cutPosition.maxCutsX * cutPosition.width)
+		}
+
+		if (cutPosition.maxCutsY > 0){
+			h2 = Number(h2) / (cutPosition.maxCutsX)
+			y2 = (Number(y) * cutPosition.height + cutPosition.top) / (cutPosition.maxCutsY * cutPosition.height)
+		}
 
 		// skip queen detections coming from models-bee-detector
 		// we run a separate model for queen detection in clarifai
 		if (n !== typeMap.BEE_QUEEN) {
 			result.push({
 				n,
-				x: roundToDecimal((Number(x) * cutPosition.width + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-				y: roundToDecimal((Number(y) * cutPosition.height + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-				w: roundToDecimal(Number(w) / (splitCountX), 4),
-				h: roundToDecimal(Number(h) / (splitCountY), 4),
+				x: roundToDecimal(x2, 5),
+				y: roundToDecimal(y2, 5),
+				w: roundToDecimal(w2, 4),
+				h: roundToDecimal(h2, 4),
 				c: roundToDecimal(Number(c), 2)
 			});
 		}
 	}
 
 	return result;
-}
-
-function roundToDecimal(num: number, decimalPlaces: number): number {
-	const multiplier = Math.pow(10, decimalPlaces);
-	return Math.round(num * multiplier) / multiplier;
 }

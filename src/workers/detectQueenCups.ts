@@ -3,10 +3,12 @@ const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 import config from '../config';
 import { logger } from '../logger';
 
+import { retryAsyncFunction } from './common';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 
 import { generateChannelName, publisher } from '../redisPubSub';
 import { DetectedRectangle } from './types';
+import { log } from 'console';
 
 const PAT = config.clarifai.PAT;
 const USER_ID = 'artjom-clarify';
@@ -37,8 +39,7 @@ export async function detectQueenCups(file) {
 
     await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
 
-    logger.info('Publishing queen cup detection results to redis:');
-    console.log(detectionResult)
+    log('Publishing queen cup detection results to redis:', detectionResult)
 
     publisher.publish(
         generateChannelName(
@@ -56,7 +57,7 @@ async function askClarifai(file) {
     const result: DetectedRectangle[] = [];
 
     const url = file.url
-    logger.info("Asking clarifai to detect cups on URL:" + url)
+    log("Asking clarifai to detect cups on URL:", url)
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
@@ -103,34 +104,11 @@ async function askClarifai(file) {
                         })
                     }
                 }
-                console.log('result', result)
                 resolve(result)
             }
 
         );
     })
-}
-
-async function retryAsyncFunction(asyncFunction, maxRetries) {
-    let retries = 0;
-    while (retries < maxRetries) {
-        try {
-            return await asyncFunction();
-        } catch (error) {
-            logger.warn(`Attempt ${retries + 1} failed`);
-            logger.warn(error);
-            retries++;
-            if (retries < maxRetries) {
-                await sleep(60)
-            }
-        }
-    }
-    throw new Error(`Exceeded maximum retries (${maxRetries}).`);
-}
-
-async function sleep(sec = 1){
-	// slow down API for security to slow down brute-force
-	await new Promise(resolve => setTimeout(resolve, sec * 1000));
 }
 
 export async function analyzeQueenCups() {

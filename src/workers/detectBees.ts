@@ -8,135 +8,158 @@ import * as imageModel from '../models/image';
 import frameSideModel, { CutPosition, DetectedObject, convertDetectedBeesStorageFormat } from '../models/frameSide';
 
 import { publisher, generateChannelName } from '../redisPubSub';
-import { detectVarroa } from './detectVarroa';
-import { analyzeQueens } from './detectQueens';
+import { analyzeAndUpdateVarroa } from './detectVarroa';
+import { analyzeQueens as analyzeAndUpdateQueens } from './detectQueens';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
 
 export async function splitIn9ImagesAndDetect(file) {
 	let width, height, partialFilePath;
 
-	await frameSideModel.startDetection(file.file_id, file.frame_side_id);
+	try {
+		await frameSideModel.startDetection(file.file_id, file.frame_side_id);
 
-	let splitCountX = Math.round(file.width / 1440);
-	let splitCountY = Math.round(file.height / 1080);
+		let maxCutsX = 1;
+		let maxCutsY = 1;
 
-	logger.info(`Detecting bees in file id ${file.file_id}, frameside ${file.frame_side_id}. Will cut image in parts for better precision`);
-	for (let x = 0; x < splitCountX; x++) {
-		for (let y = 0; y < splitCountY; y++) {
-			width = Math.floor(file.width / splitCountX);
-			height = Math.floor(file.height / splitCountY);
-			partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
-
-			const cutPosition: CutPosition = {
-				width,
-				height,
-				left: x * width,
-				top: y * height
-			};
-
-			logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
-			await imageModel.cutImage(file, cutPosition, partialFilePath)
-
-			logger.info(`Analyzing file id ${file.file_id}, frameside ${file.frame_side_id}, part cut at ${x}x${y}`);
-			try {
-				file.imageBytes = fs.readFileSync(partialFilePath);
-				const formData = new FormData();
-				formData.append('file', file.imageBytes, { type: 'application/octet-stream', filename: file.filename });
-
-				await runDetectionOnSplitImage(file, partialFilePath, cutPosition, splitCountX, splitCountY, formData);
-			}
-			catch (e) {
-				logger.error("detectBees failed");
-				console.error(e);
-			}
-
-			logger.info('Removing temp file');
-			fs.unlinkSync(partialFilePath);
+		if (file.width > 512) {
+			maxCutsX = Math.floor(file.width / 512);
 		}
+
+		if (file.width > 512) {
+			maxCutsY = Math.floor(file.height / 512);
+		}
+
+		logger.info(`Detecting bees in file id ${file.file_id}, frameside ${file.frame_side_id}. Will cut image in parts for better precision`);
+		log("file dimensions", file)
+
+		for (let x = 0; x < maxCutsX; x++) {
+			for (let y = 0; y < maxCutsY; y++) {
+				width = Math.floor(file.width / maxCutsX);
+				height = Math.floor(file.height / maxCutsY);
+				partialFilePath = `/app/tmp/${file.user_id}_${x}${y}_${file.filename}`;
+
+				const cutPosition: CutPosition = {
+					x,
+					y,
+					maxCutsX,
+					maxCutsY,
+
+					width,
+					height,
+					left: x * width,
+					top: y * height,
+				};
+
+				log(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
+				await subImageDetect(
+					file,
+					partialFilePath,
+					cutPosition
+				);
+			}
+		}
+
+		await frameSideModel.endDetection(file.file_id, file.frame_side_id);
+
+		// push isBeeDetectionComplete
+		publisher.publish(
+			generateChannelName(
+				file.user_id,
+				'frame_side',
+				file.frame_side_id,
+				'bees_partially_detected'
+			),
+			JSON.stringify({
+				delta: [],
+				detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+				detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+				detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+				isBeeDetectionComplete: true
+			})
+		);
+	} catch (e) {
+		logger.error(e);
+	}
+}
+
+async function subImageDetect(file: any, partialFilePath: any, cutPosition: CutPosition) {
+	await imageModel.cutImage(file, cutPosition, partialFilePath);
+
+	try {
+		file.imageBytes = fs.readFileSync(partialFilePath);
+		const formData = new FormData();
+		formData.append('file', file.imageBytes, { type: 'application/octet-stream', filename: file.filename });
+
+		await runDetectionOnSplitImage(file, cutPosition, formData);
+	}
+	catch (e) {
+		logger.error("detectBees failed");
+		console.error(e);
 	}
 
-	await frameSideModel.endDetection(file.file_id, file.frame_side_id);
-
-	// push isBeeDetectionComplete
-	publisher.publish(
-		generateChannelName(
-			file.user_id,
-			'frame_side',
-			file.frame_side_id,
-			'bees_partially_detected'
-		),
-		JSON.stringify({
-			delta: [],
-			detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-			detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-			detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-			isBeeDetectionComplete: true
-		})
-	);
+	log('Removing temp file');
+	fs.unlinkSync(partialFilePath);
 }
 
 async function runDetectionOnSplitImage(
 	file: any,
-	partialFilePath: any,
 	cutPosition: CutPosition,
-	splitCountX: number,
-	splitCountY: number,
 	formData: any) {
 
-	const [
-		detectedQueens, detectedVarroa, detectedBees
-	] = await Promise.all([
-		analyzeQueens(file),
-		detectVarroa(partialFilePath, cutPosition, splitCountX, splitCountY),
+	try {
+		// run these together as they depend on same vendor (Clarifai)
+		await Promise.all([
+			analyzeAndUpdateQueens(file, cutPosition),
+			analyzeAndUpdateVarroa(file, cutPosition)
+		])
 
-		// detect bees
-		fetch(config.yolo_v5_url, {
+	} catch (e) {
+		logger.error('Failed to analyze queens');
+		logger.error(e);
+	}
+
+	try {
+		const detectedBees = await fetch(config.yolo_v5_url, {
 			method: 'POST',
 			body: formData,
 		})
-	]);
 
-	log('detectedQueens', detectedQueens);
+		if (detectedBees.ok) {
+			const res = await detectedBees.json();
+			// log('Parsed response from yolo v5 model to JSON', res);
 
-	if (detectedBees.ok) {
-		const res = await detectedBees.json();
-		// log('Parsed response from yolo v5 model to JSON', res);
+			let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(
+				res.result, cutPosition);
 
-		let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(res.result, cutPosition, splitCountX, splitCountY);
+			await frameSideModel.updateDetectedBees(
+				newDetectedBees,
+				file.file_id,
+				file.frame_side_id,
+				file.user_id
+			);
 
-		await frameSideModel.updateDetectedBees(
-			newDetectedBees,
-			file.file_id,
-			file.frame_side_id,
-			file.user_id
-		);
-
-		logger.info('Publishing results to redis');
-		publisher.publish(
-			generateChannelName(
-				file.user_id, 'frame_side',
-				file.frame_side_id, 'bees_partially_detected'
-			),
-			JSON.stringify({
-				delta: newDetectedBees,
-				detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-				detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-				detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-				isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
-			})
-		);
+			logger.info('Publishing results to redis');
+			publisher.publish(
+				generateChannelName(
+					file.user_id, 'frame_side',
+					file.frame_side_id, 'bees_partially_detected'
+				),
+				JSON.stringify({
+					delta: newDetectedBees,
+					detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+					detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+					detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+					isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
+				})
+			);
+		}
+		else {
+			logger.error('Response is not ok', detectedBees);
+			logger.error(`HTTP request failed with status ${detectedBees.status}`);
+		}
+	} catch (e) {
+		logger.error('Failed to analyze bees');
 	}
-	else {
-		logger.error('Response is not ok', detectedBees);
-		logger.error(`HTTP request failed with status ${detectedBees.status}`);
-	}
-
-	await frameSideModel.updateDetectedVarroa(
-		detectedVarroa,
-		file.file_id,
-		file.frame_side_id,
-		file.user_id
-	);
 }
 
 export async function analyzeBeesAndVarroa() {
@@ -147,12 +170,12 @@ export async function analyzeBeesAndVarroa() {
 		return;
 	}
 
-	log('starting processing file', file);
+	log('AnalyzeBeesAndVarroa - processing file', file);
 
 	try {
 		await downloadAndUpdateResolutionInDB(file);
 
-		logger.info(`making parallel requests to detect objects for file ${file.file_id}`);
+		log(`Making parallel requests to detect objects for file ${file.file_id}`);
 		await splitIn9ImagesAndDetect(file);
 
 		fs.unlinkSync(file.localFilePath);

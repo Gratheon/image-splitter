@@ -113,8 +113,8 @@ async function startApolloServer(app, typeDefs, resolvers) {
     const relPath = await startApolloServer(app, schema, resolvers);
     await app.listen(8800, "0.0.0.0");
 
-    logger.info(`Server ready at http://localhost:8800${relPath}`);
+    logger.info(`image-splitter service is ready at http://localhost:8800${relPath}`);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
   }
 })();

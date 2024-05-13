@@ -8,14 +8,12 @@ import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import fileSideModel from '../models/frameSide';
 
 import { generateChannelName, publisher } from '../redisPubSub';
-import { sleep } from './downloadFile';
+import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
 
 const PAT = config.clarifai.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-detection';
-// Change these to whatever model and image URL you want to use
 const MODEL_ID = 'queen-bee';
-const MODEL_VERSION_ID = 'e8278fe079cc4d6796c37cae43015bb3';
 const MIN_CONFIDENCE = 0.5;
 
 const grpcClient = ClarifaiStub.grpc();
@@ -24,22 +22,18 @@ const grpcClient = ClarifaiStub.grpc();
 const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
-export async function analyzeQueens(file) : Promise<DetectedObject[]>{
+export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]> {
     await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
 
-    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
+    const detectionResult = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
 
-    // log("Queen detection result:", detectionResult)
+    log("Queen detection result:", detectionResult)
 
     await fileSideModel.updateQueens(
         detectionResult,
         file.frame_side_id,
         file.user_id
     );
-
-    // await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
-
-    // log("Publishing queens detection results to redis", detectionResult)
 
     publisher.publish(
         generateChannelName(
@@ -55,11 +49,11 @@ export async function analyzeQueens(file) : Promise<DetectedObject[]>{
     return detectionResult
 }
 
-async function askClarifai(file): Promise<DetectedObject[]> {
+async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
     const result: DetectedObject[] = [];
 
     const url = file.url
-    log("Asking clarifai to detect cups on URL:", {url})
+    log("Asking clarifai to detect cups on URL:", { url })
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
@@ -68,7 +62,6 @@ async function askClarifai(file): Promise<DetectedObject[]> {
                     "app_id": APP_ID
                 },
                 model_id: MODEL_ID,
-                version_id: MODEL_VERSION_ID, // This is optional. Defaults to the latest model version
                 inputs: [
                     {
                         data: {
@@ -102,19 +95,14 @@ async function askClarifai(file): Promise<DetectedObject[]> {
                 for (let i = 0; i < regions.length; i++) {
                     const c = regions[i].value // confidence
                     if (c > MIN_CONFIDENCE) {
-                        const { top_row, left_col, bottom_row, right_col } = regions[i].region_info.bounding_box
-
-                        // const h = bottom_row - top_row;
-                        // const w = right_col - left_col;
                         result.push({
                             n: '3',
-                            y: top_row,
-                            x: left_col,
-                            h: bottom_row-top_row,
-                            w: right_col-left_col,
-                            // y2: bottom_row,
-                            // x2: right_col,
-                            c
+                            c: roundToDecimal(c, 2),
+
+                            ...convertClarifaiCoords(
+                                regions[i].region_info.bounding_box,
+                                cutPosition
+                            )
                         })
                     }
                 }
@@ -125,21 +113,4 @@ async function askClarifai(file): Promise<DetectedObject[]> {
 
         );
     })
-}
-
-async function retryAsyncFunction(asyncFunction, maxRetries) {
-    let retries = 0;
-    while (retries < maxRetries) {
-        try {
-            return await asyncFunction();
-        } catch (error) {
-            logger.warn(`Attempt ${retries + 1} failed`);
-            logger.warn(error);
-            retries++;
-            if (retries < maxRetries) {
-                await sleep(60)
-            }
-        }
-    }
-    throw new Error(`Exceeded maximum retries (${maxRetries}).`);
 }

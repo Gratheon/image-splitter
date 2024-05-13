@@ -1,50 +1,111 @@
-import fs from 'fs';
-import axios from "axios";
+const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
-import { logger } from '../logger';
 import config from '../config';
+import { log, logger } from '../logger';
+import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
 
-import { CutPosition, DetectedObject } from '../models/frameSide';
-import { roundToDecimal } from './detectCells';
+import fileSideQueenCupsModel from '../models/frameSideQueenCups';
+import { generateChannelName, publisher } from '../redisPubSub';
 
-export async function detectVarroa(partialFilePath, cutPosition: CutPosition, splitCountX, splitCountY): Promise<DetectedObject[]> {
-	logger.info('Making request to roboflow to detect varroa');
-	const image = fs.readFileSync(partialFilePath, {
-		encoding: "base64"
-	});
+// import { generateChannelName, publisher } from '../redisPubSub';
+import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
+import { DetectedRectangle } from './types';
 
+const PAT = config.clarifai.PAT;
+const USER_ID = 'artjom-clarify';
+const APP_ID = 'varroa-mites';
+// Change these to whatever model and image URL you want to use
+const MODEL_ID = 'varroa-mites';
+export const MIN_VARROA_CONFIDENCE = 0.5;
+
+const grpcClient = ClarifaiStub.grpc();
+
+// This will be used by every Clarifai endpoint call
+const metadata = new grpc.Metadata();
+metadata.set("authorization", "Key " + PAT);
+
+export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
+	await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+
+	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
+
+	await frameSideModel.updateDetectedVarroa(
+		detectedVarroa,
+		file.file_id,
+		file.frame_side_id,
+		file.user_id
+	);
+
+	publisher.publish(
+		generateChannelName(
+			file.user_id, 'frame_side',
+			file.frame_side_id, 'varroa_detected'
+		),
+		JSON.stringify({
+			delta: detectedVarroa,
+			isQueenCupsDetectionComplete: true
+		})
+	);
+}
+
+async function askClarifai(file, cutPosition: CutPosition) {
 	const result: DetectedObject[] = [];
-	
-	try {
-		const rawResult = await axios({
-			method: "POST",
-			url: "https://detect.roboflow.com/varroa-gasbl/1",
-			params: {
-				api_key: config.roboflow.token
+
+	const url = file.url
+	logger.info("Asking clarifai to detect varroa on URL:" + url)
+	return new Promise((resolve, reject) => {
+		grpcClient.PostModelOutputs(
+			{
+				user_app_id: {
+					"user_id": USER_ID,
+					"app_id": APP_ID
+				},
+				model_id: MODEL_ID,
+				inputs: [
+					{
+						data: {
+							image: {
+								base64: file.imageBytes,
+								allow_duplicate_url: true
+							}
+						}
+					}
+				]
 			},
-			data: image,
-			headers: {
-				"Content-Type": "application/x-www-form-urlencoded"
+			metadata,
+			(err, response) => {
+				if (err) {
+					return reject(new Error(err));
+				}
+
+				console.log('varroa response', response)
+				if (response.status.code !== 10000) {
+					return reject(new Error("Post model outputs failed, status: " + response.status.description));
+				}
+
+				// Since we have one input, one output will exist here
+				const output = response.outputs[0];
+				const regions = output.data.regions
+
+				for (let i = 0; i < regions.length; i++) {
+					const c = regions[i].value // confidence
+					if (c > MIN_VARROA_CONFIDENCE) {
+						result.push(
+							{
+								n: '11',
+								c: roundToDecimal(c, 2),
+								...convertClarifaiCoords(
+									regions[i].region_info.bounding_box,
+									cutPosition
+								)
+							}
+						)
+					}
+				}
+				log('varroa result', result)
+				resolve(result)
 			}
-		});
 
-		logger.info('Converting JSON to more compact format');
-		
-
-		for (let row of rawResult.data.predictions) {
-			result.push({
-				n: '11',
-				x: roundToDecimal((Number(row.x) + cutPosition.left) / (splitCountX * cutPosition.width), 5),
-				y: roundToDecimal((Number(row.y) + cutPosition.top) / (splitCountY * cutPosition.height), 5),
-				w: roundToDecimal(Number(row.width) / (3 * cutPosition.width), 4),
-				h: roundToDecimal(Number(row.height) / (3 * cutPosition.height), 4),
-				c: roundToDecimal(row.confidence, 4)
-			});
-		}
-	} catch (e) {
-		logger.error("detectVarroa failed");
-	}
-
-	return result;
-
+		);
+	})
 }

@@ -1,5 +1,8 @@
 start:
 	mkdir -p tmp
+	rm -rf ./app
+	# we install dependencies in the container
+	# but for faster reload we re-run it here
 	source $(HOME)/.nvm/nvm.sh && nvm use && npm i && npm run build
 	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml up --build
 stop:
