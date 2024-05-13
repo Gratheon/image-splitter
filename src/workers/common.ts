@@ -36,8 +36,8 @@ export function convertClarifaiCoords(bounding_box, cutPosition: CutPosition): a
 
 	let h = bottom_row - top_row;
 	let w = right_col - left_col;
-	let x = left_col; // + w / 2;
-	let y = bottom_row; // + h / 2;
+	let x = left_col + w / 2;
+	let y = bottom_row - h / 2;
 
 	if (cutPosition.maxCutsX > 0) {
 		x = (Number(x) * cutPosition.width + cutPosition.left) / (cutPosition.maxCutsX * cutPosition.width)
