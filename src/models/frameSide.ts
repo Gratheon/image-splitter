@@ -1,6 +1,6 @@
 import { sql } from "@databases/mysql";
 
-import { log, logger } from '../logger';
+import { logger } from '../logger';
 import { storage } from "./storage";
 import fileModel from './file';
 import { MIN_VARROA_CONFIDENCE } from "../workers/detectVarroa";
@@ -121,7 +121,6 @@ const frameSideModel = {
 		const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
 
 		let exDetectedBees = await frameSideModel.getDetectedBees(frameSideId, fileId, uid)
-		log({ exDetectedBees })
 
 		exDetectedBees.push(...detectedBees)
 
@@ -139,7 +138,7 @@ const frameSideModel = {
 	},
 
 	updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
-		log('detectedVarroa1', detectedVarroa);
+		logger.info('detectedVarroa', detectedVarroa);
 		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 		let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
 		if (!exDetectedVarroa) {
@@ -147,8 +146,7 @@ const frameSideModel = {
 		}
 		exDetectedVarroa.push(...detectedVarroa)
 
-		log(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
-		log('detectedVarroa2', detectedVarroa);
+		logger.info(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 

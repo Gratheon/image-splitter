@@ -119,8 +119,7 @@ export async function analyzeQueenCups() {
 		return;
 	}
 
-	logger.info('starting processing file');
-	logger.info({ file });
+	logger.info('starting processing file', { file });
 
 	try {
 		// no need to download file, clarifai will do it for us

@@ -1,7 +1,7 @@
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
-import { log, logger } from '../logger';
+import { logger } from '../logger';
 import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
 
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
@@ -102,7 +102,7 @@ async function askClarifai(file, cutPosition: CutPosition) {
 						)
 					}
 				}
-				log('varroa result', result)
+				logger.info('varroa result', result)
 				resolve(result)
 			}
 

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import FormData from 'form-data';
 
-import { log, logger } from '../logger';
+import { logger } from '../logger';
 import config from '../config';
 
 import * as imageModel from '../models/image';
@@ -12,6 +12,8 @@ import { analyzeAndUpdateVarroa } from './detectVarroa';
 import { analyzeQueens as analyzeAndUpdateQueens } from './detectQueens';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
 
+const SUB_IMAGE_DIMENSION = 512
+
 export async function splitIn9ImagesAndDetect(file) {
 	let width, height, partialFilePath;
 
@@ -21,16 +23,16 @@ export async function splitIn9ImagesAndDetect(file) {
 		let maxCutsX = 1;
 		let maxCutsY = 1;
 
-		if (file.width > 512) {
-			maxCutsX = Math.floor(file.width / 512);
+		if (file.width > SUB_IMAGE_DIMENSION) {
+			maxCutsX = Math.floor(file.width / SUB_IMAGE_DIMENSION);
 		}
 
-		if (file.width > 512) {
-			maxCutsY = Math.floor(file.height / 512);
+		if (file.width > SUB_IMAGE_DIMENSION) {
+			maxCutsY = Math.floor(file.height / SUB_IMAGE_DIMENSION);
 		}
 
 		logger.info(`Detecting bees in file id ${file.file_id}, frameside ${file.frame_side_id}. Will cut image in parts for better precision`);
-		log("file dimensions", file)
+		logger.info("file dimensions", file)
 
 		for (let x = 0; x < maxCutsX; x++) {
 			for (let y = 0; y < maxCutsY; y++) {
@@ -50,7 +52,7 @@ export async function splitIn9ImagesAndDetect(file) {
 					top: y * height,
 				};
 
-				log(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
+				logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
 				await subImageDetect(
 					file,
 					partialFilePath,
@@ -94,10 +96,10 @@ async function subImageDetect(file: any, partialFilePath: any, cutPosition: CutP
 	}
 	catch (e) {
 		logger.error("detectBees failed");
-		console.error(e);
+		logger.error(e);
 	}
 
-	log('Removing temp file');
+	logger.info('Removing temp file');
 	fs.unlinkSync(partialFilePath);
 }
 
@@ -159,6 +161,7 @@ async function runDetectionOnSplitImage(
 		}
 	} catch (e) {
 		logger.error('Failed to analyze bees');
+		logger.error(e);
 	}
 }
 
@@ -170,12 +173,12 @@ export async function analyzeBeesAndVarroa() {
 		return;
 	}
 
-	log('AnalyzeBeesAndVarroa - processing file', file);
+	logger.info('AnalyzeBeesAndVarroa - processing file', file);
 
 	try {
 		await downloadAndUpdateResolutionInDB(file);
 
-		log(`Making parallel requests to detect objects for file ${file.file_id}`);
+		logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
 		await splitIn9ImagesAndDetect(file);
 
 		fs.unlinkSync(file.localFilePath);

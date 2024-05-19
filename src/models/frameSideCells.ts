@@ -52,11 +52,8 @@ const cellModel = {
 		let cellCounts = cellModel.countCellsAbsoluteNrs(detections)
 		let relativeCounts = cellModel.getRelativeCounts(cellCounts)
 
-		logger.info("saving cells - absolute counts to DB");
-		logger.info(cellCounts);
-
-		logger.info("saving cells - relative counts to DB");
-		logger.info(relativeCounts);
+		logger.info("saving cells - absolute counts to DB", cellCounts);
+		logger.info("saving cells - relative counts to DB", relativeCounts);
 
 		await storage().query(
 			sql`UPDATE files_frame_side_cells 

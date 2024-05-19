@@ -105,6 +105,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
   orchestrator();
 
   const app = fastify({
+    // @ts-ignore
     logger,
   });
 

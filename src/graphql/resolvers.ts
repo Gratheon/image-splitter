@@ -194,8 +194,7 @@ export const resolvers = {
 				await fileResizeModel.insertResize(id);
 
 				logger.info('uploaded original and resized version', { filename });
-				logger.info('File uploaded to S3');
-				logger.info(originalResult);
+				logger.info('File uploaded to S3', { originalResult });
 
 				return {
 					id,

@@ -23,31 +23,53 @@ export async function detectCells(file) {
 		const formData = new FormData();
 		formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
 
-		logger.info("Making request to " + config.models_frame_resources_url);
-		logger.info("fileContents length is " + fileContents.length);
-		const response = await fetch(config.models_frame_resources_url, {
-			method: 'POST',
-			body: formData,
-		});
-
-		if (!response.ok) {
-			throw new Error(`HTTP request failed with status ${response.status}`);
+		let delta:any = [];
+		// in dev skip cell analysis as this model is too heavy
+		if (process.env.ENV_ID === 'dev') {
+			delta = [
+				[5, 0.3852, 0.6097, 0.0044, 75],
+				[5, 0.2828, 0.5689, 0.0044, 100],
+				[4, 0.3829, 0.5298, 0.0044, 85],
+				[5, 0.2174, 0.5515, 0.0044, 100],
+				[5, 0.2822, 0.4907, 0.0044, 100],
+				[5, 0.5189, 0.2737, 0.0044, 100],
+				[5, 0.6069, 0.3814, 0.0044, 100],
+				[6, 0.3673, 0.5185, 0.0044, 79],
+				[4, 0.3412, 0.4829, 0.0044, 100],
+				[5, 0.3893, 0.3492, 0.0044, 100],
+				[4, 0.4315, 0.4742, 0.0044, 100],
+				[5, 0.4541, 0.4065, 0.0044, 100],
+				[6, 0.3164, 0.4465, 0.0044, 50],
+				[4, 0.3551, 0.3649, 0.0044, 99]
+			]
 		}
+		else {
+			logger.info("Making request to " + config.models_frame_resources_url);
+			logger.info("fileContents length is " + fileContents.length);
+			const response = await fetch(config.models_frame_resources_url, {
+				method: 'POST',
+				body: formData,
+			});
 
-		logger.info(`Received frame resource ok response`);
-		const res = await response.json();
+			if (!response.ok) {
+				throw new Error(`HTTP request failed with status ${response.status}`);
+			}
 
-		logger.info("Parsed frame resource response as JSON");
+			logger.info(`Received frame resource ok response`);
+			const res = await response.json();
 
-		logger.info("Converting frame resource response to more compact form");
-		const delta = convertDetectedResourcesStorageFormat(res, file.width, file.height);
+			logger.info("Parsed frame resource response as JSON");
+
+			logger.info("Converting frame resource response to more compact form");
+			delta = convertDetectedResourcesStorageFormat(res, file.width, file.height);
+		}
 
 		const relativeCounts = await frameSideCells.updateDetectedCells(
 			delta,
 			file.file_id,
 			file.frame_side_id
 		);
-		
+
 
 		const ch = generateChannelName(
 			file.user_id, 'frame_side',
@@ -73,7 +95,7 @@ export async function detectCells(file) {
 		logger.error("Frame resource detection failed");
 		console.error(e);
 	}
-	finally{
+	finally {
 		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
 }
@@ -102,8 +124,7 @@ export async function analyzeCells() {
 		return;
 	}
 
-	logger.info('starting processing file');
-	logger.info({ file });
+	logger.info('starting processing file', { file });
 
 	try {
 		await downloadAndUpdateResolutionInDB(file);

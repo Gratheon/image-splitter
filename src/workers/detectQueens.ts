@@ -1,7 +1,7 @@
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
-import { log, logger } from '../logger';
+import { logger } from '../logger';
 
 import { DetectedObject } from '../models/frameSide';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
@@ -27,7 +27,7 @@ export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
 
-    log("Queen detection result:", detectionResult)
+    logger.info("Queen detection result:", detectionResult)
 
     await fileSideModel.updateQueens(
         detectionResult,
@@ -53,7 +53,7 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
     const result: DetectedObject[] = [];
 
     const url = file.url
-    log("Asking clarifai to detect cups on URL:", { url })
+    logger.info("Asking clarifai to detect cups on URL:", { url })
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
