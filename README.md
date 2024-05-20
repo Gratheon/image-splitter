@@ -39,6 +39,13 @@ analyzeCells --> downloadAndUpdateResolutionInDB
 make start
 ```
 
+#### DB migrations
+We use `@databases/mysql` and run migrations automatically from `migrations` folder.
+Its not perfect, its just pure SQL without ability to run programmatic migrations to have rollback support.
+It also assumes we have single container that runs this at the service start.
+To add migration, just add new file. Try to keep same naming convention.
+
+
 ### Roadmap / ToDo
 - Change processing mechanism from polling to a queue (kafka?) to initiate processing faster
 - Add more test coverage & improve types
