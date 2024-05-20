@@ -41,7 +41,7 @@ export type DetectedObject = {
 // 
 const frameSideModel = {
 	startDetection: async function (fileId, frameSideId) {
-		logger.info(`updating DB to start bee detection for fileid ${fileId}`);
+		logger.info(`updating DB to start bee detection for fileid`, {fileId, frameSideId});
 		await storage().query(
 			sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -72,7 +72,7 @@ const frameSideModel = {
 	},
 
 	endDetection: async function (fileId, frameSideId) {
-		logger.info(`bee detections complete for ${fileId}`);
+		logger.info(`bee detections complete`, {fileId, frameSideId});
 		await storage().query(
 			sql`UPDATE files_frame_side_rel SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -124,7 +124,7 @@ const frameSideModel = {
 
 		exDetectedBees.push(...detectedBees)
 
-		logger.info(`Updating detected bees in DB, setting counts ${workerBeeCount} / ${detectedDrones}`)
+		logger.info(`updating detected bees in DB, setting counts`, { fileId, frameSideId, uid, workerBeeCount, detectedDrones })
 		const db = storage()
 		await db.query(
 			sql`UPDATE files_frame_side_rel 
@@ -138,7 +138,8 @@ const frameSideModel = {
 	},
 
 	updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
-		logger.info('detectedVarroa', detectedVarroa);
+		let logCtx = { fileId, frameSideId, uid}
+		logger.info('detectedVarroa', { ...logCtx, detectedVarroa });
 		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 		let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
 		if (!exDetectedVarroa) {
@@ -146,7 +147,7 @@ const frameSideModel = {
 		}
 		exDetectedVarroa.push(...detectedVarroa)
 
-		logger.info(`Updating detected varroa in DB, setting counts ${countDetectedVarroa}`)
+		logger.info(`Updating detected varroa in DB, setting counts`, {...logCtx, countDetectedVarroa})
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 

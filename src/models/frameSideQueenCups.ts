@@ -32,7 +32,7 @@ export default {
 	},
 
 	startDetection: async function (fileId, frameSideId) {
-		logger.info(`starting queen cup detection for fileid ${fileId}`);
+		logger.info(`starting queen cup detection`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_queen_cups SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -48,7 +48,7 @@ export default {
 	},
 
 	endDetection: async function (fileId, frameSideId) {
-		logger.info(`ending queen cup detection for fileid ${fileId}`);
+		logger.info(`ending queen cup detection`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_queen_cups SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);

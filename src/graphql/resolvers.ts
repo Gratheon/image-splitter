@@ -148,7 +148,7 @@ export const resolvers = {
 					const jpgFilePath = tmpLocalFile.replace('.webp', '.jpg');
 					filename = filename.replace('.webp', '.jpg');
 					const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
-					logger.info('converted webp to jpg', { filename, result });
+					logger.info('converted webp to jpg', { uid, filename, result });
 					tmpLocalFile = jpgFilePath;
 
 					// delete webp
@@ -193,8 +193,8 @@ export const resolvers = {
 				// for accounting
 				await fileResizeModel.insertResize(id);
 
-				logger.info('uploaded original and resized version', { filename });
-				logger.info('File uploaded to S3', { originalResult });
+				logger.info('uploaded original and resized version', { uid, filename });
+				logger.info('File uploaded to S3', { uid, originalResult });
 
 				return {
 					id,

@@ -15,7 +15,7 @@ export async function cutImage(file, cutPosition, partialFilePath) {
 		cutPosition.height
 	);
 
-	logger.info(`Writing cut to ${partialFilePath}`);
+	logger.info(`Writing file cut`, { cutPosition, partialFilePath});
 	await j2.writeAsync(partialFilePath);
 
 	return partialFilePath
@@ -51,7 +51,7 @@ export async function resizeImage(inputPath: string, outputPath: string, maxDime
 		// Save the resized image to the output path
 		await image.quality(quality).writeAsync(outputPath);
 
-		console.log(`Image resized and saved to ${outputPath}`);
+		console.log(`Image resized and saved`, { outputPath });
 	} catch (error) {
 		console.error('Error:', error);
 	}

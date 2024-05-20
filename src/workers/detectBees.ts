@@ -31,8 +31,11 @@ export async function splitIn9ImagesAndDetect(file) {
 			maxCutsY = Math.floor(file.height / SUB_IMAGE_DIMENSION);
 		}
 
-		logger.info(`Detecting bees in file id ${file.file_id}, frameside ${file.frame_side_id}. Will cut image in parts for better precision`);
-		logger.info("file dimensions", file)
+		logger.info(`Detecting bees. Will cut image in parts for better precision`,{
+			fileId: file.file_id,
+			frameSideId: file.frame_side_id,
+			file
+		});
 
 		for (let x = 0; x < maxCutsX; x++) {
 			for (let y = 0; y < maxCutsY; y++) {
@@ -116,7 +119,6 @@ async function runDetectionOnSplitImage(
 		])
 
 	} catch (e) {
-		logger.error('Failed to analyze queens');
 		logger.error(e);
 	}
 
@@ -160,7 +162,6 @@ async function runDetectionOnSplitImage(
 			logger.error(`HTTP request failed with status ${detectedBees.status}`);
 		}
 	} catch (e) {
-		logger.error('Failed to analyze bees');
 		logger.error(e);
 	}
 }

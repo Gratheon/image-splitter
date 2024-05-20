@@ -20,7 +20,7 @@ export type CellCounts = {
 
 const cellModel = {
 	startDetection: async function (fileId, frameSideId) {
-		logger.info(`starting bee detection for fileid ${fileId}`);
+		logger.info(`starting bee detection for fileid`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_cells SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -52,8 +52,7 @@ const cellModel = {
 		let cellCounts = cellModel.countCellsAbsoluteNrs(detections)
 		let relativeCounts = cellModel.getRelativeCounts(cellCounts)
 
-		logger.info("saving cells - absolute counts to DB", cellCounts);
-		logger.info("saving cells - relative counts to DB", relativeCounts);
+		logger.info("saving cells - counts to DB", { cellCounts, relativeCounts, fileId, frameSideId});
 
 		await storage().query(
 			sql`UPDATE files_frame_side_cells 
@@ -128,7 +127,7 @@ const cellModel = {
 	},
 
 	endDetection: async function (fileId, frameSideId) {
-		logger.info(`ending bee detection for fileid ${fileId}`);
+		logger.info(`ending bee detection for fileid`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_cells SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);

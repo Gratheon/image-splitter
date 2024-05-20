@@ -38,3 +38,7 @@ analyzeCells --> downloadAndUpdateResolutionInDB
 ```
 make start
 ```
+
+### Roadmap / ToDo
+- Change processing mechanism from polling to a queue (kafka?) to initiate processing faster
+- Add more test coverage & improve types
