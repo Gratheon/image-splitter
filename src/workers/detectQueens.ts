@@ -14,7 +14,7 @@ const PAT = config.clarifai.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-detection';
 const MODEL_ID = 'queen-bee';
-const MIN_CONFIDENCE = 0.5;
+const MIN_CONFIDENCE = 0.65;
 
 const grpcClient = ClarifaiStub.grpc();
 

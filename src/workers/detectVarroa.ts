@@ -16,7 +16,7 @@ const USER_ID = 'artjom-clarify';
 const APP_ID = 'varroa-mites';
 // Change these to whatever model and image URL you want to use
 const MODEL_ID = 'varroa-mites';
-export const MIN_VARROA_CONFIDENCE = 0.5;
+export const MIN_VARROA_CONFIDENCE = 0.65;
 
 const grpcClient = ClarifaiStub.grpc();
 
