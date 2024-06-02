@@ -5,11 +5,11 @@ import config from "../config/index";
 
 export default {
 
-	insertResize: async function (file_id) {
+	insertResize: async function (file_id, max_dimension_px) {
 		// @ts-ignore
 		return (await storage().query(sql`
-		INSERT INTO files_resized (file_id) 
-		VALUES (${file_id});
+		INSERT INTO files_resized (file_id, max_dimension_px) 
+		VALUES (${file_id}, ${max_dimension_px});
 		SELECT LAST_INSERT_ID() as id;
 		`))[0].id;
 	},
@@ -17,7 +17,8 @@ export default {
 	getResizes: async function (file_id, uid) {
 		const rows = await storage().query(
 			sql`SELECT files_resized.id, files_resized.max_dimension_px, files.hash, files.user_id, files.ext
-				FROM files_resized INNER JOIN files ON files.id = files_resized.file_id
+				FROM files_resized 
+				INNER JOIN files ON files.id = files_resized.file_id
 				WHERE file_id=${file_id} and user_id=${uid}`
 		);
 

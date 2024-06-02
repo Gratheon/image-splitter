@@ -187,19 +187,23 @@ export const resolvers = {
 				let ext = fileModel.getFileExtension(filename)
 
 				// resize
-				const tmpResizeFile = `${rootPath}tmp/${uid}_${filename}_1024`
-				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile, 1024, 70)
+				const tmpResizeFile1024 = `${rootPath}tmp/${uid}_${filename}_1024`
+				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70)
+
+				const tmpResizeFile512 = `${rootPath}tmp/${uid}_${filename}_512`
+				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile512, 512, 70)
 
 				// AWS
 				const [originalResult] = await Promise.all([
 					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
-					upload(tmpResizeFile, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
+					upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`),
+					upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
 				]);
 
 				// cleanup
 				fs.unlinkSync(tmpLocalFile);
-				fs.unlinkSync(tmpResizeFile);
-
+				fs.unlinkSync(tmpResizeFile1024);
+				fs.unlinkSync(tmpResizeFile512);
 
 				// db
 				const id = await fileModel.insert(
@@ -211,8 +215,8 @@ export const resolvers = {
 					dimensions.height
 				);
 
-				// for accounting
-				await fileResizeModel.insertResize(id);
+				await fileResizeModel.insertResize(id, 1024);
+				await fileResizeModel.insertResize(id, 512);
 
 				logger.info('uploaded original and resized version', { uid, filename });
 				logger.info('File uploaded to S3', { uid, originalResult });

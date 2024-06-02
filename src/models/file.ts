@@ -21,7 +21,7 @@ const fileModel = {
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
       sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, 
-      t2.width, t2.height, t2.url_version, t2.ext,
+      t2.id, t2.width, t2.height, t2.url_version, t2.ext,
       t3.cells
 
 			FROM files_frame_side_rel t1
@@ -39,7 +39,7 @@ const fileModel = {
 
     return {
       __typename: "File",
-      id,
+      ...file,
       url: fileModel.getUrl(file),
     };
   },
@@ -47,7 +47,7 @@ const fileModel = {
   getByFrameSideAndInspectionId: async function (id, inspectionId, uid) {
     const result = await storage().query(
       sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, 
-      t2.width, t2.height, t2.url_version, t2.ext,
+      t2.id, t2.width, t2.height, t2.url_version, t2.ext, t2.hash, t2.user_id,
       t3.cells
 
 			FROM files_frame_side_rel t1
@@ -66,7 +66,7 @@ const fileModel = {
 
     return {
       __typename: "File",
-      id,
+      ...file,
       url: fileModel.getUrl(file),
     };
   },
