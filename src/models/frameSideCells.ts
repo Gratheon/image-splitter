@@ -193,6 +193,40 @@ const cellModel = {
 		};
 	},
 
+	getByFrameSideAndInspectionId: async function (frameSideId, inspectionId, uid) {
+		//t1.detected_bees
+		const result = await storage().query(
+			sql`SELECT t1.user_id, t1.queen_detected,
+			t3.cells, t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
+
+			FROM files_frame_side_rel t1
+			LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
+			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
+				AND t1.inspection_id = ${inspectionId}
+			LIMIT 1`
+		);
+
+		const rel = result[0];
+
+		if (!rel) {
+			return null;
+		}
+
+		return {
+			__typename: 'FrameSideCells',
+			id: frameSideId,
+			frameSideId,
+			cells: rel.cells,
+
+			// percentage
+			broodPercent: rel.brood,
+			cappedBroodPercent: rel.capped_brood,
+			eggsPercent: rel.eggs,
+			pollenPercent: rel.pollen,
+			honeyPercent: rel.honey
+		};
+	},
+
 
 	updateRelativeCells: async function (cells, uid, frameSideId) {
 		await storage().query(

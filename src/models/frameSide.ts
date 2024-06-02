@@ -40,8 +40,49 @@ export type DetectedObject = {
 // We also allow drawing with ipad pencil on it - strokeHistory
 // 
 const frameSideModel = {
+	getFrameSides: async function (frameSideIds=[], inspectionId, uid) {
+		let result;
+
+		logger.info(`SELECT 
+		t1.inspection_id as inspectionId,
+		t1.frame_side_id as frameSideId, 
+		"FrameSideInspection" as __typename
+	FROM files_frame_side_rel t1
+	WHERE 
+		t1.user_id = ${uid} AND 
+		t1.inspection_id = ${inspectionId}`)
+		
+		if (frameSideIds.length === 0) {
+			result = await storage().query(
+				sql`SELECT 
+				t1.inspection_id as inspectionId,
+				t1.frame_side_id as frameSideId, 
+				"FrameSideInspection" as __typename
+			FROM files_frame_side_rel t1
+			WHERE 
+				t1.user_id = ${uid} AND 
+				t1.inspection_id = ${inspectionId}`
+			);
+		}
+		else {
+			result = await storage().query(
+				sql`SELECT 
+				t1.inspection_id as inspectionId,
+				t1.frame_side_id as frameSideId, 
+				"FrameSideInspection" as __typename
+			FROM files_frame_side_rel t1
+			WHERE 
+				t1.frame_side_id IN (${frameSideIds}) AND 
+				t1.user_id = ${uid} AND 
+				t1.inspection_id = ${inspectionId}`
+			);
+		}
+
+		return result;
+	},
+
 	startDetection: async function (fileId, frameSideId) {
-		logger.info(`updating DB to start bee detection for fileid`, {fileId, frameSideId});
+		logger.info(`updating DB to start bee detection for fileid`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -72,7 +113,7 @@ const frameSideModel = {
 	},
 
 	endDetection: async function (fileId, frameSideId) {
-		logger.info(`bee detections complete`, {fileId, frameSideId});
+		logger.info(`bee detections complete`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_rel SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
 		);
@@ -138,7 +179,7 @@ const frameSideModel = {
 	},
 
 	updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
-		let logCtx = { fileId, frameSideId, uid}
+		let logCtx = { fileId, frameSideId, uid }
 		logger.info('detectedVarroa', { ...logCtx, detectedVarroa });
 		const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
 		let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
@@ -147,7 +188,7 @@ const frameSideModel = {
 		}
 		exDetectedVarroa.push(...detectedVarroa)
 
-		logger.info(`Updating detected varroa in DB, setting counts`, {...logCtx, countDetectedVarroa})
+		logger.info(`Updating detected varroa in DB, setting counts`, { ...logCtx, countDetectedVarroa })
 		await storage().query(
 			sql`UPDATE files_frame_side_rel 
 				SET 
@@ -205,7 +246,6 @@ const frameSideModel = {
 		];
 	},
 
-
 	getDetectedVarroa: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.detected_varroa
@@ -222,6 +262,7 @@ const frameSideModel = {
 
 		return rel.detected_varroa;
 	},
+
 	getDetectedCells: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.cells
@@ -238,6 +279,7 @@ const frameSideModel = {
 
 		return rel.cells;
 	},
+
 	getWorkerBeeCount: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.worker_bee_count
@@ -254,6 +296,7 @@ const frameSideModel = {
 
 		return rel.worker_bee_count;
 	},
+
 	getVarroaCount: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.varroa_count
@@ -270,6 +313,7 @@ const frameSideModel = {
 
 		return rel.varroa_count;
 	},
+
 	getDroneCount: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.drone_count
@@ -286,6 +330,7 @@ const frameSideModel = {
 
 		return rel.drone_count;
 	},
+
 	getQueenCount: async function (frameSideId, uid) {
 		const result = await storage().query(
 			sql`SELECT t1.queen_count
@@ -347,6 +392,7 @@ const frameSideModel = {
 
 		return cnt;
 	},
+
 	countDetectedWorkerBees: function (detectedBees: DetectedObject[]): number {
 		let cnt = 0
 		for (let o of detectedBees) {
@@ -357,6 +403,7 @@ const frameSideModel = {
 
 		return cnt;
 	},
+
 	countDetectedDrones: function (detectedBees: DetectedObject[]): number {
 		let cnt = 0
 		for (let o of detectedBees) {
@@ -379,6 +426,7 @@ const frameSideModel = {
 
 		return true;
 	},
+
 	updateFrameSideQueenPresense: async function (frameSideId, isPresent, uid) {
 		await storage().query(
 			sql`UPDATE files_frame_side_rel
@@ -387,6 +435,7 @@ const frameSideModel = {
 		);
 		return true;
 	},
+
 	updateQueens: async function (queens, frameSideId, uid) {
 		const exQueensRes = await storage().query(
 			sql`SELECT detected_queens
@@ -441,12 +490,12 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
 		let y2 = Number(y)
 		let h2 = Number(h)
 
-		if (cutPosition.maxCutsX > 0){
+		if (cutPosition.maxCutsX > 0) {
 			w2 = Number(w2) / (cutPosition.maxCutsX)
 			x2 = (x2 * cutPosition.width + cutPosition.left) / (cutPosition.maxCutsX * cutPosition.width)
 		}
 
-		if (cutPosition.maxCutsY > 0){
+		if (cutPosition.maxCutsY > 0) {
 			h2 = Number(h2) / (cutPosition.maxCutsX)
 			y2 = (Number(y) * cutPosition.height + cutPosition.top) / (cutPosition.maxCutsY * cutPosition.height)
 		}

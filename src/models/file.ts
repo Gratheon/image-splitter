@@ -42,6 +42,30 @@ const fileModel = {
     };
   },
 
+  getByFrameSideAndInspectionId: async function (id, inspectionId, uid) {
+    const result = await storage().query(
+      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, t3.cells, t2.width, t2.height, t2.url_version, t2.ext
+			FROM files_frame_side_rel t1
+			LEFT JOIN files t2 ON t1.file_id = t2.id
+      LEFT JOIN files_frame_side_resources t3 ON t1.file_id=t3.file_id
+			WHERE t1.frame_side_id = ${id} and t1.user_id = ${uid}
+        AND t1.inspection_id = ${inspectionId}
+			LIMIT 1`
+    );
+
+    const file = result[0];
+
+    if (!file) {
+      return null;
+    }
+
+    return {
+      __typename: "File",
+      id,
+      url: fileModel.getUrl(file),
+    };
+  },
+
   countAllBees: async function (hiveId, uid) {
     const result = await storage().query(
       sql`SELECT SUM(t2.worker_bee_count) + SUM(t2.drone_count) + SUM(t2.queen_count) as cnt
@@ -53,6 +77,7 @@ const fileModel = {
 
     return result[0].cnt;
   },
+
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
       sql`SELECT t2.id, t2.user_id, t2.filename, t2.url_version, t2.hash, t2.ext,
@@ -143,6 +168,5 @@ const fileModel = {
       `))[0].id;
   }
 };
-
 
 export default fileModel;

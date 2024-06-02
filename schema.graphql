@@ -7,9 +7,12 @@ scalar URL
 type Query {
 	file(id:ID!): File
 	hiveFiles(hiveId:ID!): [FrameSideFile]
+	getExistingHiveAdvice(hiveID: ID): String
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
-	getExistingHiveAdvice(hiveID: ID): String
+
+	""" Gets single inspection states of frame sides (frameSideIds are optional, for extra filtering) """
+	frameSidesInspections(frameSideIds: [ID], inspectionId:ID!): [FrameSideInspection]
 }
 
 type Mutation {
@@ -102,18 +105,22 @@ input FrameSideCellsInput{
 	honeyPercent: Int
 }
 
+type FrameSideInspection {
+	frameSideId: ID!
+	inspectionId: ID!
+	file: File
+	cells: FrameSideCells
+	frameSideFile: FrameSideFile
+}
 
-# Frame has two sides - left and right.FrameSide is associated with an photo of it (file) and the contents (cells)
 extend type FrameSide @key(fields: "id") {
 	id: ID @external
 	file: File
 	cells: FrameSideCells
-
 	frameSideFile: FrameSideFile
+	inspections: [FrameSideInspection]
 }
 
-
-# Hive is defined in swarm-api, here we extend it to allow preloading files
 extend type Hive @key(fields: "id") {
 	id: ID! @external
 

@@ -47,7 +47,6 @@ async function postData(url = "", data:SchemaRegistryInput) {
 }
 
 export async function registerSchema(schema) {
-
   const version = sha1(schema)
 
   await postData(config.schema_registry_url, {

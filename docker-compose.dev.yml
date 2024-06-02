@@ -16,6 +16,7 @@ services:
     volumes:
       - ./config:/app/config
       - ./migrations:/app/migrations
+      - ./schema.graphql:/app/schema.graphql
       - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
