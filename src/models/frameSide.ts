@@ -42,22 +42,12 @@ export type DetectedObject = {
 const frameSideModel = {
 	getFrameSides: async function (frameSideIds=[], inspectionId, uid) {
 		let result;
-
-		logger.info(`SELECT 
-		t1.inspection_id as inspectionId,
-		t1.frame_side_id as frameSideId, 
-		"FrameSideInspection" as __typename
-	FROM files_frame_side_rel t1
-	WHERE 
-		t1.user_id = ${uid} AND 
-		t1.inspection_id = ${inspectionId}`)
 		
 		if (frameSideIds.length === 0) {
 			result = await storage().query(
 				sql`SELECT 
 				t1.inspection_id as inspectionId,
-				t1.frame_side_id as frameSideId, 
-				"FrameSideInspection" as __typename
+				t1.frame_side_id as frameSideId
 			FROM files_frame_side_rel t1
 			WHERE 
 				t1.user_id = ${uid} AND 
@@ -68,8 +58,7 @@ const frameSideModel = {
 			result = await storage().query(
 				sql`SELECT 
 				t1.inspection_id as inspectionId,
-				t1.frame_side_id as frameSideId, 
-				"FrameSideInspection" as __typename
+				t1.frame_side_id as frameSideId
 			FROM files_frame_side_rel t1
 			WHERE 
 				t1.frame_side_id IN (${frameSideIds}) AND 
