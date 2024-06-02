@@ -188,23 +188,26 @@ export const resolvers = {
 
 				// resize
 				const tmpResizeFile1024 = `${rootPath}tmp/${uid}_${filename}_1024`
-				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70)
-
 				const tmpResizeFile512 = `${rootPath}tmp/${uid}_${filename}_512`
-				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile512, 512, 70)
 
-				// AWS
+				// 3 heavier jobs to run in parallel
 				const [originalResult] = await Promise.all([
 					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
-					upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`),
-					upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
+					async () => {
+						await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70),
+						await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
+						fs.unlinkSync(tmpResizeFile1024);
+					},
+					async () => {
+						await imageModel.resizeImage(tmpLocalFile, tmpResizeFile512, 512, 70)
+						await upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
+						fs.unlinkSync(tmpResizeFile512);
+					}
 				]);
 
-				// cleanup
+				// cleanup original after resizes are complete
 				fs.unlinkSync(tmpLocalFile);
-				fs.unlinkSync(tmpResizeFile1024);
-				fs.unlinkSync(tmpResizeFile512);
-
+				
 				// db
 				const id = await fileModel.insert(
 					uid,
