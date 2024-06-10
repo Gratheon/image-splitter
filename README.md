@@ -18,7 +18,7 @@ flowchart LR
     graphql-router --upload--> image-splitter --"store original upload, download for inference"--> aws-s3
 	image-splitter --"detect bees"--> models-bee-detector("<a href='https://github.com/Gratheon/models-bee-detector'>models-bee-detector</a>\n:8700")
 	image-splitter --"detect frame cells"--> models-frame-resources("<a href='https://github.com/Gratheon/models-frame-resources'>models-frame-resources</a>\n:8540")
-	image-splitter --"detect queen cups"--> clarifai("<a href='https://clarifai.com'>clarifai</a>")
+	image-splitter --"detect queen cups\ndetect varroa\ndetect queens"--> clarifai("<a href='https://clarifai.com'>clarifai</a>")
 
 	image-splitter --"event {uid}.frame_side.{frame_side_id}.bees_partially_detected"--> redis
     image-splitter --"event {uid}.frame_side.{frame_side_id}.frame_resources_detected"--> redis
