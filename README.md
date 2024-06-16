@@ -35,6 +35,9 @@ analyzeCells --> downloadAndUpdateResolutionInDB
 ```
 
 ### Development
+Copy `./src/config/config.default.ts` file as `./src/config/config.dev.ts` and change values if needed (for example AWS S3 credentials)
+
+Then start a service in dockerized mode:
 ```
 make start
 ```
