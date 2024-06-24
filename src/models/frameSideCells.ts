@@ -22,13 +22,16 @@ const cellModel = {
 	startDetection: async function (fileId, frameSideId) {
 		logger.info(`starting bee detection for fileid`, { fileId, frameSideId });
 		await storage().query(
-			sql`UPDATE files_frame_side_cells SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+			sql`UPDATE files_frame_side_cells 
+			SET process_start_time=NOW() 
+			WHERE file_id=${fileId} AND frame_side_id=${frameSideId} AND inspection_id IS NULL`
 		);
 	},
 
 	getFirstUnprocessedCells: async function () {
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
+			sql`SELECT t1.user_id, t1.file_id, t1.frame_side_id, 
+					t2.filename, t2.width, t2.height, t2.hash, t2.url_version, t2.ext
 				FROM files_frame_side_cells t1
 				LEFT JOIN files t2 ON t1.file_id = t2.id
 				WHERE t1.process_start_time IS NULL
@@ -52,7 +55,7 @@ const cellModel = {
 		let cellCounts = cellModel.countCellsAbsoluteNrs(detections)
 		let relativeCounts = cellModel.getRelativeCounts(cellCounts)
 
-		logger.info("saving cells - counts to DB", { cellCounts, relativeCounts, fileId, frameSideId});
+		logger.info("saving cells - counts to DB", { cellCounts, relativeCounts, fileId, frameSideId });
 
 		await storage().query(
 			sql`UPDATE files_frame_side_cells 
@@ -73,7 +76,9 @@ const cellModel = {
 				pollen=${relativeCounts.pollen},
 				honey=${relativeCounts.honey}
 
-			WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+			WHERE file_id=${fileId} AND 
+				frame_side_id=${frameSideId} AND 
+				inspection_id IS NULL`
 		);
 
 		return relativeCounts;
@@ -129,7 +134,12 @@ const cellModel = {
 	endDetection: async function (fileId, frameSideId) {
 		logger.info(`ending bee detection for fileid`, { fileId, frameSideId });
 		await storage().query(
-			sql`UPDATE files_frame_side_cells SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
+			sql`UPDATE files_frame_side_cells 
+			SET process_end_time=NOW() 
+			WHERE 
+				file_id=${fileId} AND 
+				frame_side_id=${frameSideId} AND 
+				inspection_id IS NULL`
 		);
 	},
 
@@ -137,7 +147,10 @@ const cellModel = {
 		const result = await storage().query(
 			sql`SELECT process_end_time
 			FROM files_frame_side_cells t1
-			WHERE frame_side_id = ${frameSideId} AND user_id = ${uid}
+			WHERE 
+				frame_side_id = ${frameSideId} AND 
+				user_id = ${uid} AND 
+				inspection_id IS NULL
 			LIMIT 1`
 		);
 
@@ -159,16 +172,25 @@ const cellModel = {
 		  `))[0].id;
 	},
 
-	getByFrameSideId: async function (frameSideId, uid) {
-		//t1.detected_bees
+	getByFrameSideId: async function (frameSideId, uid, fieldsRequested: string[]) {
+		let extraFields = sql``
+
+		// cells are very heavy so we only load them if requested
+		if (fieldsRequested.indexOf('cells') === -1) {
+			extraFields = sql`, t3.cells`
+		}
+
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.queen_detected,
-			t3.cells, t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
-
+			t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
+			${extraFields}
 			FROM files_frame_side_rel t1
-			LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
-			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
-				AND t1.inspection_id IS NULL
+			LEFT JOIN files_frame_side_cells t3 
+				ON t1.file_id = t3.file_id
+			WHERE
+				t1.user_id = ${uid} AND 
+				t1.frame_side_id = ${frameSideId} AND 
+				t1.inspection_id IS NULL
 			LIMIT 1`
 		);
 
@@ -182,7 +204,7 @@ const cellModel = {
 			__typename: 'FrameSideCells',
 			id: frameSideId,
 			frameSideId,
-			cells: rel.cells,
+			cells: rel?.cells,
 
 			// percentage
 			broodPercent: rel.brood,
@@ -197,12 +219,14 @@ const cellModel = {
 		//t1.detected_bees
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.queen_detected,
-			t3.cells, t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
-
+				t3.cells, t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
 			FROM files_frame_side_rel t1
-			LEFT JOIN files_frame_side_cells t3 ON t1.file_id = t3.file_id
-			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
-				AND t1.inspection_id = ${inspectionId}
+			LEFT JOIN files_frame_side_cells t3 
+				ON t1.file_id = t3.file_id
+			WHERE 
+				t1.frame_side_id = ${frameSideId} AND 
+				t1.user_id = ${uid} AND 
+				t1.inspection_id = ${inspectionId}
 			LIMIT 1`
 		);
 
@@ -237,8 +261,10 @@ const cellModel = {
 				eggs=${cells.eggsPercent},
 				pollen=${cells.pollenPercent},
 				honey=${cells.honeyPercent}
-
-			WHERE user_id=${uid} AND frame_side_id=${frameSideId}`
+			WHERE 
+				user_id=${uid} AND 
+				frame_side_id=${frameSideId} AND 
+				inspection_id IS NULL`
 		);
 	},
 
@@ -246,7 +272,10 @@ const cellModel = {
 		await storage().query(
 			sql`UPDATE files_frame_side_cells
 			SET inspection_id=${inspectionId}
-			WHERE inspection_id IS NULL AND frame_side_id IN (${frameSideIDs}) AND user_id=${uid}`
+			WHERE 
+				inspection_id IS NULL AND 
+				frame_side_id IN (${frameSideIDs}) AND 
+				user_id=${uid}`
 		);
 
 		return true

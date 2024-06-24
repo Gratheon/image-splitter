@@ -1,6 +1,7 @@
 import fs from 'fs';
 import crypto from 'crypto';
 
+import { parseResolveInfo, simplifyParsedResolveInfoFragmentWithType } from 'graphql-parse-resolve-info';
 import { GraphQLUpload } from 'graphql-upload';
 import { finished } from 'stream/promises';
 
@@ -30,8 +31,8 @@ export const resolvers = {
 		hiveFrameSideFile: async (_, { frameSideId }, { uid }) => {
 			return frameSideModel.getLastestByFrameSideId(frameSideId, uid)
 		},
-		hiveFrameSideCells: async (_, { frameSideId }, { uid }) => {
-			return frameSideCellsModel.getByFrameSideId(frameSideId, uid)
+		hiveFrameSideCells: async (_, { frameSideId }, { uid }, info) => {
+			return frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info))
 		},
 		// Loads all frame sides for a particular past inspection
 		frameSidesInspections: async (_, { frameSideIds, inspectionId }, { uid }) => {
@@ -70,9 +71,9 @@ export const resolvers = {
 		file: async ({ id }, __, { uid }) => {
 			return await fileModel.getByFrameSideId(id, uid)
 		},
-		cells: async (parent, __, { uid }) => {
+		cells: async (parent, __, { uid }, info) => {
 			let frameSideId = parent.frameSideId ? parent.frameSideId : parent.id
-			return await frameSideCellsModel.getByFrameSideId(frameSideId, uid)
+			return await frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info))
 		},
 
 		frameSideFile: async ({ frameSideId }, __, { uid }) => {
@@ -195,7 +196,7 @@ export const resolvers = {
 					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
 					async () => {
 						await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70),
-						await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
+							await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
 						fs.unlinkSync(tmpResizeFile1024);
 					},
 					async () => {
@@ -207,7 +208,7 @@ export const resolvers = {
 
 				// cleanup original after resizes are complete
 				fs.unlinkSync(tmpLocalFile);
-				
+
 				// db
 				const id = await fileModel.insert(
 					uid,
@@ -245,10 +246,27 @@ export const resolvers = {
 
 		updateFrameSideCells: async (_, { cells }, { uid }) => {
 			await frameSideCellsModel.updateRelativeCells(cells, uid, cells.id);
-			console.log('updateFrameSideFile called', cells)
 			return true
 		}
 	},
 	Upload: GraphQLUpload,
+}
+
+function getRequestedParams(info: any): string[] {
+	const { fields } = simplifyParsedResolveInfoFragmentWithType(
+		//@ts-ignore
+		parseResolveInfo(info),
+		info.returnType
+	);
+
+	// collect field names
+	let fieldsRequested = [];
+	for (let field in fields) {
+		if (field !== '__typename') {
+			//@ts-ignore
+			fieldsRequested.push(field?.name);
+		}
+	}
+	return fieldsRequested;
 }
 

@@ -20,6 +20,7 @@
     "fastify-multipart": "5.3.1",
     "fastify-raw-body": "3.2.0",
     "graphql": "15.6.1",
+    "graphql-parse-resolve-info": "4.13.0",
     "graphql-tag": "2.12.6",
     "graphql-upload": "13.0.0",
     "image-size": "1.0.1",
