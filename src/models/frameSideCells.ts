@@ -18,6 +18,21 @@ export type CellCounts = {
 	empty: number
 }
 
+export type FirstUnprocessedFile = {
+	user_id: number,
+	file_id: number,
+	frame_side_id: number,
+	filename: string,
+	width: number,
+	height: number,
+	hash: string,
+	url_version: number,
+	ext: string,
+	hive_id: number,
+	url: string,
+	localFilePath: string
+}
+
 const cellModel = {
 	startDetection: async function (fileId, frameSideId) {
 		logger.info(`starting bee detection for fileid`, { fileId, frameSideId });
@@ -28,12 +43,14 @@ const cellModel = {
 		);
 	},
 
-	getFirstUnprocessedCells: async function () {
+	getFirstUnprocessedCells: async function () : Promise<FirstUnprocessedFile | null>{
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.file_id, t1.frame_side_id, 
-					t2.filename, t2.width, t2.height, t2.hash, t2.url_version, t2.ext
+					t2.filename, t2.width, t2.height, t2.hash, t2.url_version, t2.ext,
+					t3.hive_id
 				FROM files_frame_side_cells t1
 				LEFT JOIN files t2 ON t1.file_id = t2.id
+				LEFT JOIN files_hive_rel t3 ON t1.file_id = t3.file_id
 				WHERE t1.process_start_time IS NULL
 				ORDER BY t1.added_time ASC
 				LIMIT 1`
