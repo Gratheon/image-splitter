@@ -5,13 +5,13 @@ import { logger } from '../logger';
 import config from '../config';
 import { publisher, generateChannelName } from '../redisPubSub';
 
-import frameSideCells from "../models/frameSideCells";
+import frameSideCells, { FirstUnprocessedFile } from "../models/frameSideCells";
 
 import { DetectedFrameResource } from './types';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
 import { roundToDecimal } from './common';
 
-export async function detectCells(file) {
+export async function detectCells(file: FirstUnprocessedFile) {
 	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
 
 	logger.info(`Detecting frame resources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
@@ -70,18 +70,38 @@ export async function detectCells(file) {
 			file.frame_side_id
 		);
 
-
 		const ch = generateChannelName(
 			file.user_id, 'frame_side',
 			file.frame_side_id, 'frame_resources_detected'
 		);
 
-		logger.info("Publishing frame resources to redis channel", ch);
+		logger.info("Publishing frame resources to redis channel " + ch);
 		await publisher.publish(
 			ch,
 			JSON.stringify({
 				delta,
 				isCellsDetectionComplete: true,
+
+				broodPercent: relativeCounts.brood,
+				cappedBroodPercent: relativeCounts.capped_brood,
+				eggsPercent: relativeCounts.eggs,
+				pollenPercent: relativeCounts.pollen,
+				honeyPercent: relativeCounts.honey
+			})
+		);
+
+		const ch2 = generateChannelName(
+			file.user_id, 'hive',
+			file.hive_id, 'frame_resources_detected'
+		);
+
+		logger.info("Publishing frame resources to redis channel " + ch2);
+		await publisher.publish(
+			ch2,
+			JSON.stringify({
+				delta,
+				isCellsDetectionComplete: true,
+				frameSideId: file.frame_side_id,
 
 				broodPercent: relativeCounts.brood,
 				cappedBroodPercent: relativeCounts.capped_brood,
