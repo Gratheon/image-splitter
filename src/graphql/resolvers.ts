@@ -188,23 +188,28 @@ export const resolvers = {
 				let ext = fileModel.getFileExtension(filename)
 
 				// resize
+				
+				
 				const tmpResizeFile1024 = `${rootPath}tmp/${uid}_${filename}_1024`
 				const tmpResizeFile512 = `${rootPath}tmp/${uid}_${filename}_512`
+				const tmpResizeFile128 = `${rootPath}tmp/${uid}_${filename}_128`
 
 				// 3 heavier jobs to run in parallel
-				const [originalResult] = await Promise.all([
-					upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`),
-					async () => {
-						await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70),
-							await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
-						fs.unlinkSync(tmpResizeFile1024);
-					},
-					async () => {
-						await imageModel.resizeImage(tmpLocalFile, tmpResizeFile512, 512, 70)
-						await upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
-						fs.unlinkSync(tmpResizeFile512);
-					}
-				]);
+				const originalResult = await upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`)
+
+				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70),
+				await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
+				
+				await imageModel.resizeImage(tmpResizeFile1024, tmpResizeFile512, 512, 70)
+				await upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
+
+				await imageModel.resizeImage(tmpResizeFile512, tmpResizeFile128, 128, 70)
+				await upload(tmpResizeFile128, `${uid}/${hash}/128${ext ? "." + ext : ''}`)
+
+				fs.unlinkSync(tmpResizeFile1024);
+				fs.unlinkSync(tmpResizeFile512);
+				fs.unlinkSync(tmpResizeFile128);
+
 
 				// cleanup original after resizes are complete
 				fs.unlinkSync(tmpLocalFile);
@@ -219,8 +224,10 @@ export const resolvers = {
 					dimensions.height
 				);
 
-				await fileResizeModel.insertResize(id, 1024);
+				await fileResizeModel.insertResize(id, 128);
 				await fileResizeModel.insertResize(id, 512);
+				await fileResizeModel.insertResize(id, 1024);
+				
 
 				logger.info('uploaded original and resized version', { uid, filename });
 				logger.info('File uploaded to S3', { uid, originalResult });

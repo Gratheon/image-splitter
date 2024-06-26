@@ -28,6 +28,7 @@ export function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
 
 export async function resizeImage(inputPath: string, outputPath: string, maxDimension: number, quality = 95) {
 	try {
+		logger.info('resizing image', { inputPath, outputPath, maxDimension, quality })
 		// Open the image using Jimp
 		const image = await Jimp.read(inputPath);
 
@@ -46,16 +47,14 @@ export async function resizeImage(inputPath: string, outputPath: string, maxDime
 		}
 
 		// Resize the image
-		image.resize(newWidth, newHeight);
+		await image.resize(newWidth, newHeight).quality(quality).write(outputPath);
 
-		// Save the resized image to the output path
-		await image.quality(quality).writeAsync(outputPath);
-
-		console.log(`Image resized and saved`, { outputPath });
+		logger.info(`Image resized and saved`, { outputPath });
 	} catch (error) {
-		console.error('Error:', error);
+		logger.error(error);
 	}
 }
+
 
 export function getImageSize(filepath) {
 	return sizeOf(filepath)
