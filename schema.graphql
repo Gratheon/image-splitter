@@ -79,6 +79,7 @@ type File{
 
 type FileResize {
 	id: ID!
+	file_id: ID!
 	max_dimension_px: Int!
 	url: URL!
 }

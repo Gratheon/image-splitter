@@ -52,7 +52,7 @@ export const resolvers = {
 		}
 	},
 	File: {
-		__resolveReference: async ({ id }, { uid }) => {
+		__resolveReference: async ({id}, { uid }) => {
 			return fileModel.getById(id, uid)
 		},
 		resizes: async ({ id }, __, { uid }) => {
@@ -77,7 +77,10 @@ export const resolvers = {
 		},
 
 		frameSideFile: async ({ frameSideId }, __, { uid }) => {
-			return ({ frameSideId })
+			return ({
+				__typename: 'FrameSideFile',
+				frameSideId
+			})
 		}
 	},
 	FrameSideInspection: {
@@ -188,31 +191,13 @@ export const resolvers = {
 				let ext = fileModel.getFileExtension(filename)
 
 
-				const tmpResizeFile1024 = `${rootPath}tmp/${uid}_${filename}_1024`
-				const tmpResizeFile512 = `${rootPath}tmp/${uid}_${filename}_512`
-				// const tmpResizeFile128 = `${rootPath}tmp/${uid}_${filename}_128`
+				const tmpResizeFile1024 = `${rootPath}tmp/${uid}_1024_${filename}`
+				const tmpResizeFile512 = `${rootPath}tmp/${uid}_512_${filename}`
+				const tmpResizeFile128 = `${rootPath}tmp/${uid}_128_${filename}`
 
 				// 3 heavier jobs to run in parallel
 				const originalResult = await upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`)
 
-				await imageModel.resizeImage(tmpLocalFile, tmpResizeFile1024, 1024, 70),
-				await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
-				
-				await imageModel.resizeImage(tmpResizeFile1024, tmpResizeFile512, 512, 70)
-				await upload(tmpResizeFile512, `${uid}/${hash}/512${ext ? "." + ext : ''}`)
-
-				// await imageModel.resizeImage(tmpResizeFile512, tmpResizeFile128, 128, 70)
-				// await upload(tmpResizeFile128, `${uid}/${hash}/128${ext ? "." + ext : ''}`)
-
-				fs.unlinkSync(tmpResizeFile1024);
-				fs.unlinkSync(tmpResizeFile512);
-				// fs.unlinkSync(tmpResizeFile128);
-
-
-				// cleanup original after resizes are complete
-				fs.unlinkSync(tmpLocalFile);
-
-				// db
 				const id = await fileModel.insert(
 					uid,
 					filename,
@@ -222,10 +207,26 @@ export const resolvers = {
 					dimensions.height
 				);
 
-				// await fileResizeModel.insertResize(id, 128);
-				await fileResizeModel.insertResize(id, 512);
-				await fileResizeModel.insertResize(id, 1024);
-				
+				// define map
+				let resizeMap: imageModel.SizePath[] = []
+				resizeMap.push([1024, tmpResizeFile1024])
+				resizeMap.push([512, tmpResizeFile512])
+				resizeMap.push([128, tmpResizeFile128])
+
+
+				let resultMap = await imageModel.resizeImages(tmpLocalFile, resizeMap)
+				console.log({resultMap})
+
+				if (resultMap !== null) {
+					for await (let [maxDimension, outputPath] of resultMap) {
+						await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
+						await fileResizeModel.insertResize(id, maxDimension);
+						fs.unlinkSync(outputPath)
+					}
+				}
+
+				// cleanup original after resizes are complete
+				fs.unlinkSync(tmpLocalFile);
 
 				logger.info('uploaded original and resized version', { uid, filename });
 				logger.info('File uploaded to S3', { uid, originalResult });
@@ -233,7 +234,7 @@ export const resolvers = {
 				return {
 					id,
 					url: originalResult.Location,
-					sizes: fileResizeModel.getResizes(id, uid)
+					resizes: await fileResizeModel.getResizes(id, uid)
 				}
 
 			} catch (err) {

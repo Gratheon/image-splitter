@@ -8,9 +8,9 @@ export default {
 	insertResize: async function (file_id, max_dimension_px) {
 		// @ts-ignore
 		return (await storage().query(sql`
-		INSERT INTO files_resized (file_id, max_dimension_px) 
-		VALUES (${file_id}, ${max_dimension_px});
-		SELECT LAST_INSERT_ID() as id;
+			INSERT INTO files_resized (file_id, max_dimension_px) 
+			VALUES (${file_id}, ${max_dimension_px});
+			SELECT LAST_INSERT_ID() as id;
 		`))[0].id;
 	},
 
@@ -28,6 +28,7 @@ export default {
 			result.push({
 				__typename: "FileResize",
 				id: row.id,
+				file_id: file_id,
 				max_dimension_px: row.max_dimension_px,
 				url: `${config.files_base_url}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
 			});

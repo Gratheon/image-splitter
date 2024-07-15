@@ -20,13 +20,10 @@ const fileModel = {
 
   getByFrameSideId: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, 
-      t2.id, t2.width, t2.height, t2.url_version, t2.ext,
-      t3.cells
+      sql`SELECT t2.id, t2.width, t2.height, t2.url_version, t2.ext, t2.hash, t2.user_id
 
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
-      LEFT JOIN files_frame_side_cells t3 ON t1.file_id=t3.file_id AND t1.inspection_id = t3.inspection_id
 			WHERE t1.frame_side_id = ${id} AND t1.user_id = ${uid} AND t1.inspection_id IS NULL
 			LIMIT 1`
     );
