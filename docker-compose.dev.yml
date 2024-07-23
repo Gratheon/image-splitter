@@ -8,6 +8,7 @@ services:
       - ENV_ID=dev
       - DD_ENV=dev
       - DD_PROFILING_ENABLED=true
+      - NODE_OPTIONS=--max-old-space-size=4096
     tty: true
     ports:
       - 8800:8800
