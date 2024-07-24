@@ -18,4 +18,4 @@ COPY config /app/config
 RUN npm install
 RUN npm run build
 
-CMD node ./app/image-splitter.js
+CMD node --max-old-space-size=4096 ./app/image-splitter.js

@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     command:
-      node /app/app/image-splitter.js
+      node --max-old-space-size=4096 /app/app/image-splitter.js
     environment:
       - ENV_ID=prod
       - DD_ENV=prod
