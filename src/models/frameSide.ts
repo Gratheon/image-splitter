@@ -3,6 +3,7 @@ import { sql } from "@databases/mysql";
 import { logger } from '../logger';
 import { storage } from "./storage";
 import fileModel from './file';
+
 import { MIN_VARROA_CONFIDENCE } from "../workers/detectVarroa";
 import { roundToDecimal } from "../workers/common";
 
@@ -465,7 +466,6 @@ export default frameSideModel
 
 
 export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPosition): DetectedObject[] {
-	logger.info('Converting JSON to more compact format');
 	const result: DetectedObject[] = [];
 	const lines = txt.split("\n");
 

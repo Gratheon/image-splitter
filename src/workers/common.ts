@@ -1,7 +1,7 @@
 import { logger } from "../logger";
 import { CutPosition } from "../models/frameSide";
 
-export async function retryAsyncFunction(asyncFunction, maxRetries) {
+export async function retryAsyncFunction(asyncFunction, maxRetries, DELAY_SEC=60) {
 	let retries = 0;
 	while (retries < maxRetries) {
 		try {
@@ -11,7 +11,7 @@ export async function retryAsyncFunction(asyncFunction, maxRetries) {
 			logger.warn(error);
 			retries++;
 			if (retries < maxRetries) {
-				await sleep(60)
+				await sleep(DELAY_SEC)
 			}
 		}
 	}
@@ -31,8 +31,6 @@ export function roundToDecimal(num: number, decimalPlaces: number): number {
 
 export function convertClarifaiCoords(bounding_box, cutPosition: CutPosition): any {
 	const { top_row, left_col, bottom_row, right_col } = bounding_box
-
-	logger.info("varroa coords", bounding_box)
 
 	let h = bottom_row - top_row;
 	let w = right_col - left_col;

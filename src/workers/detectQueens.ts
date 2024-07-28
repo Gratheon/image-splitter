@@ -35,7 +35,7 @@ export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]
         file.user_id
     );
 
-    publisher.publish(
+    publisher().publish(
         generateChannelName(
             file.user_id, 'frame_side',
             file.frame_side_id, 'queens_detected'

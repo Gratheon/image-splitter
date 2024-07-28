@@ -41,7 +41,7 @@ export async function detectQueenCups(file) {
 
     log('Publishing queen cup detection results to redis:', detectionResult)
 
-    publisher.publish(
+    publisher().publish(
         generateChannelName(
             file.user_id, 'frame_side',
             file.frame_side_id, 'queen_cups_detected'

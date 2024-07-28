@@ -67,7 +67,7 @@ export async function splitIn9ImagesAndDetect(file) {
 		await frameSideModel.endDetection(file.file_id, file.frame_side_id);
 
 		// push isBeeDetectionComplete
-		publisher.publish(
+		publisher().publish(
 			generateChannelName(
 				file.user_id,
 				'frame_side',
@@ -143,7 +143,7 @@ async function runDetectionOnSplitImage(
 			);
 
 			logger.info('Publishing results to redis');
-			publisher.publish(
+			publisher().publish(
 				generateChannelName(
 					file.user_id, 'frame_side',
 					file.frame_side_id, 'bees_partially_detected'

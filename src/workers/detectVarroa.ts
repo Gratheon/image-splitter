@@ -7,9 +7,7 @@ import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import { generateChannelName, publisher } from '../redisPubSub';
 
-// import { generateChannelName, publisher } from '../redisPubSub';
 import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
-import { DetectedRectangle } from './types';
 
 const PAT = config.clarifai.PAT;
 const USER_ID = 'artjom-clarify';
@@ -36,7 +34,7 @@ export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
 		file.user_id
 	);
 
-	publisher.publish(
+	publisher().publish(
 		generateChannelName(
 			file.user_id, 'frame_side',
 			file.frame_side_id, 'varroa_detected'

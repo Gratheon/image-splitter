@@ -76,7 +76,7 @@ export async function detectCells(file: FirstUnprocessedFile) {
 		);
 
 		logger.info("Publishing frame resources to redis channel " + ch);
-		await publisher.publish(
+		await publisher().publish(
 			ch,
 			JSON.stringify({
 				delta,
@@ -96,7 +96,7 @@ export async function detectCells(file: FirstUnprocessedFile) {
 		);
 
 		logger.info("Publishing frame resources to redis channel " + ch2);
-		await publisher.publish(
+		await publisher().publish(
 			ch2,
 			JSON.stringify({
 				delta,
