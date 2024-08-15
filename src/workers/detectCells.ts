@@ -21,7 +21,11 @@ export async function detectCells(file: FirstUnprocessedFile) {
 
 		const fileContents = fs.readFileSync(file.localFilePath);
 		const formData = new FormData();
-		formData.append('file', fileContents, { type: 'application/octet-stream', filename: file.filename });
+		formData.append('file', fileContents, { 
+			// @ts-ignore
+			type: 'application/octet-stream', 
+			filename: file.filename 
+		});
 
 		let delta:any = [];
 		// in dev skip cell analysis as this model is too heavy
@@ -48,6 +52,7 @@ export async function detectCells(file: FirstUnprocessedFile) {
 			logger.info("fileContents length is " + fileContents.length);
 			const response = await fetch(config.models_frame_resources_url, {
 				method: 'POST',
+				// @ts-ignore
 				body: formData,
 			});
 

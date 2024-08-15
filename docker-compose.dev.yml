@@ -21,7 +21,6 @@ services:
       - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
-    network_mode: bridge
     networks:
       - gratheon
 networks:

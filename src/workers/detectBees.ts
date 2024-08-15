@@ -93,7 +93,11 @@ async function subImageDetect(file: any, partialFilePath: any, cutPosition: CutP
 	try {
 		file.imageBytes = fs.readFileSync(partialFilePath);
 		const formData = new FormData();
-		formData.append('file', file.imageBytes, { type: 'application/octet-stream', filename: file.filename });
+		formData.append('file', file.imageBytes, { 
+			// @ts-ignore
+			type: 'application/octet-stream', 
+			filename: file.filename 
+		});
 
 		await runDetectionOnSplitImage(file, cutPosition, formData);
 	}
