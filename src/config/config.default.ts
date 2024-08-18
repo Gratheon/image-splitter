@@ -1,7 +1,7 @@
 export default {
     // this should match signature in graphql-router remote-data-source.js
     // and is meant for securing traffic, because image-splitter is also publicly accessible for direct file uploads
-    routerSignature: "",
+    routerSignature: "a239vmwoeifworg",
 
     // we use sentry for error tracking
     sentryDsn: "",
