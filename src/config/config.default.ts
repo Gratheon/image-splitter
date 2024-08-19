@@ -37,7 +37,8 @@ export default {
     "files_base_url": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
 
     jwt: {
-        privateKey: "",
+        // this must match user-cycle JWT_KEY
+        privateKey: "okzfERFAXXbRTQWkGFfjo3EcAXjRijnGnaAMEsTXnmdjAVDkQrfyLzscPwUiymbj",
     },
 
     // please set own Clarifai API credentials
