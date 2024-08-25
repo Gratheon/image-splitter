@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="986" lines-covered="132" line-rate="0.1338" branches-valid="169" branches-covered="17" branch-rate="0.1005" timestamp="1724052175862" complexity="0" version="0.1">
+<coverage lines-valid="984" lines-covered="132" line-rate="0.1341" branches-valid="167" branches-covered="17" branch-rate="0.1017" timestamp="1724547044658" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
@@ -1518,7 +1518,7 @@
         </class>
       </classes>
     </package>
-    <package name="src.workers" line-rate="0.1104" branch-rate="0.0689">
+    <package name="src.workers" line-rate="0.11109999999999999" branch-rate="0.07400000000000001">
       <classes>
         <class name="common.ts" filename="src/workers/common.ts" line-rate="0.6333" branch-rate="0.4">
           <methods>
@@ -1712,8 +1712,6 @@
             <line number="23" hits="0" branch="false"/>
             <line number="24" hits="0" branch="false"/>
             <line number="30" hits="0" branch="false"/>
-            <line number="32" hits="0" branch="true" condition-coverage="0% (0/2)"/>
-            <line number="33" hits="0" branch="false"/>
             <line number="51" hits="0" branch="false"/>
             <line number="52" hits="0" branch="false"/>
             <line number="53" hits="0" branch="false"/>
