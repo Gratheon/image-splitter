@@ -51,7 +51,7 @@ const cellModel = {
 				FROM files_frame_side_cells t1
 				LEFT JOIN files t2 ON t1.file_id = t2.id
 				LEFT JOIN files_hive_rel t3 ON t1.file_id = t3.file_id
-				WHERE t1.process_start_time IS NULL
+				WHERE t1.process_start_time IS NULL AND t1.inspection_id IS NULL
 				ORDER BY t1.added_time ASC
 				LIMIT 1`
 		);
@@ -149,7 +149,7 @@ const cellModel = {
 	},
 
 	endDetection: async function (fileId, frameSideId) {
-		logger.info(`ending bee detection for fileid`, { fileId, frameSideId });
+		logger.info(`ending frame cell detection for fileid`, { fileId, frameSideId });
 		await storage().query(
 			sql`UPDATE files_frame_side_cells 
 			SET process_end_time=NOW() 

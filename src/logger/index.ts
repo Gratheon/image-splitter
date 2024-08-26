@@ -2,6 +2,7 @@ import config from "../config/index";
 import Transport from 'winston-transport';
 import winston, { transports, format } from 'winston';
 import createConnectionPool, { sql } from "@databases/mysql";
+import jsonStringify from 'fast-safe-stringify'
 
 class CustomMySQLLogTransport extends Transport {
   conn: any;
@@ -35,7 +36,16 @@ export const logger = winston.createLogger({
       format: format.combine(
         format.timestamp({format: 'HH:mm:ss'}),
         format.colorize({all: true}),
-        format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+        format.printf(info => {
+
+          const args = info[Symbol.for('splat')];
+          let strArgs = '';
+          if(args) {
+            strArgs = args.map(jsonStringify).join(' ');
+          }
+
+          return `${info.timestamp} ${info.level}: ${info.message} ${strArgs}`
+        })
       ),
       handleExceptions: true
     }),

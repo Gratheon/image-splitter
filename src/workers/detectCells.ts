@@ -115,12 +115,10 @@ export async function detectCells(file: FirstUnprocessedFile) {
 				honeyPercent: relativeCounts.honey
 			})
 		);
+		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
 	catch (e) {
-		logger.error("Frame resource detection failed");
-		console.error(e);
-	}
-	finally {
+		logger.error("Frame resource detection failed", e);
 		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
 }
@@ -144,8 +142,9 @@ export function convertDetectedResourcesStorageFormat(detectedResources, width, 
 export async function analyzeCells() {
 	const file = await frameSideCells.getFirstUnprocessedCells();
 
+	// ask again in 2 sec if nothing is present
 	if (file == null) {
-		setTimeout(analyzeCells, 10000);
+		setTimeout(analyzeCells, 2000);
 		return;
 	}
 
