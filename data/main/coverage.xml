@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage lines-valid="984" lines-covered="132" line-rate="0.1341" branches-valid="167" branches-covered="17" branch-rate="0.1017" timestamp="1724547044658" complexity="0" version="0.1">
+<coverage lines-valid="989" lines-covered="133" line-rate="0.1344" branches-valid="168" branches-covered="17" branch-rate="0.1011" timestamp="1724631284699" complexity="0" version="0.1">
   <sources>
     <source>/home/runner/work/image-splitter/image-splitter</source>
   </sources>
@@ -580,33 +580,33 @@
         </class>
       </classes>
     </package>
-    <package name="src.logger" line-rate="0.6428" branch-rate="1">
+    <package name="src.logger" line-rate="0.5263" branch-rate="0">
       <classes>
-        <class name="index.ts" filename="src/logger/index.ts" line-rate="0.6428" branch-rate="1">
+        <class name="index.ts" filename="src/logger/index.ts" line-rate="0.5263" branch-rate="0">
           <methods>
             <method name="(anonymous_8)" hits="3" signature="()V">
               <lines>
-                <line number="8" hits="3"/>
+                <line number="9" hits="3"/>
               </lines>
             </method>
             <method name="(anonymous_9)" hits="0" signature="()V">
               <lines>
-                <line number="16" hits="0"/>
+                <line number="17" hits="0"/>
               </lines>
             </method>
             <method name="(anonymous_10)" hits="0" signature="()V">
               <lines>
-                <line number="38" hits="0"/>
+                <line number="39" hits="0"/>
               </lines>
             </method>
             <method name="(anonymous_11)" hits="0" signature="()V">
               <lines>
-                <line number="52" hits="0"/>
+                <line number="62" hits="0"/>
               </lines>
             </method>
             <method name="(anonymous_12)" hits="0" signature="()V">
               <lines>
-                <line number="54" hits="0"/>
+                <line number="64" hits="0"/>
               </lines>
             </method>
           </methods>
@@ -615,16 +615,21 @@
             <line number="2" hits="3" branch="false"/>
             <line number="3" hits="3" branch="false"/>
             <line number="4" hits="3" branch="false"/>
-            <line number="9" hits="3" branch="false"/>
-            <line number="11" hits="3" branch="false"/>
-            <line number="17" hits="0" branch="false"/>
-            <line number="20" hits="0" branch="false"/>
-            <line number="24" hits="0" branch="false"/>
-            <line number="28" hits="3" branch="false"/>
-            <line number="38" hits="0" branch="false"/>
-            <line number="52" hits="3" branch="false"/>
-            <line number="54" hits="3" branch="false"/>
-            <line number="55" hits="0" branch="false"/>
+            <line number="5" hits="3" branch="false"/>
+            <line number="10" hits="3" branch="false"/>
+            <line number="12" hits="3" branch="false"/>
+            <line number="18" hits="0" branch="false"/>
+            <line number="21" hits="0" branch="false"/>
+            <line number="25" hits="0" branch="false"/>
+            <line number="29" hits="3" branch="false"/>
+            <line number="41" hits="0" branch="false"/>
+            <line number="42" hits="0" branch="false"/>
+            <line number="43" hits="0" branch="true" condition-coverage="0% (0/1)"/>
+            <line number="44" hits="0" branch="false"/>
+            <line number="47" hits="0" branch="false"/>
+            <line number="62" hits="3" branch="false"/>
+            <line number="64" hits="3" branch="false"/>
+            <line number="65" hits="0" branch="false"/>
           </lines>
         </class>
       </classes>
@@ -1685,12 +1690,12 @@
             </method>
             <method name="convertDetectedResourcesStorageFormat" hits="0" signature="()V">
               <lines>
-                <line number="128" hits="0"/>
+                <line number="126" hits="0"/>
               </lines>
             </method>
             <method name="analyzeCells" hits="0" signature="()V">
               <lines>
-                <line number="144" hits="0"/>
+                <line number="142" hits="0"/>
               </lines>
             </method>
           </methods>
@@ -1729,27 +1734,27 @@
             <line number="98" hits="0" branch="false"/>
             <line number="103" hits="0" branch="false"/>
             <line number="104" hits="0" branch="false"/>
-            <line number="120" hits="0" branch="false"/>
+            <line number="118" hits="0" branch="false"/>
             <line number="121" hits="0" branch="false"/>
-            <line number="124" hits="0" branch="false"/>
-            <line number="128" hits="0" branch="false"/>
+            <line number="122" hits="0" branch="false"/>
+            <line number="126" hits="0" branch="false"/>
+            <line number="127" hits="0" branch="false"/>
             <line number="129" hits="0" branch="false"/>
-            <line number="131" hits="0" branch="false"/>
-            <line number="132" hits="0" branch="false"/>
-            <line number="141" hits="0" branch="false"/>
-            <line number="144" hits="0" branch="false"/>
-            <line number="145" hits="0" branch="false"/>
-            <line number="147" hits="0" branch="true" condition-coverage="0% (0/1)"/>
+            <line number="130" hits="0" branch="false"/>
+            <line number="139" hits="0" branch="false"/>
+            <line number="142" hits="0" branch="false"/>
+            <line number="143" hits="0" branch="false"/>
+            <line number="146" hits="0" branch="true" condition-coverage="0% (0/1)"/>
+            <line number="147" hits="0" branch="false"/>
             <line number="148" hits="0" branch="false"/>
-            <line number="149" hits="0" branch="false"/>
-            <line number="152" hits="0" branch="false"/>
+            <line number="151" hits="0" branch="false"/>
+            <line number="153" hits="0" branch="false"/>
             <line number="154" hits="0" branch="false"/>
-            <line number="155" hits="0" branch="false"/>
+            <line number="156" hits="0" branch="false"/>
             <line number="157" hits="0" branch="false"/>
-            <line number="158" hits="0" branch="false"/>
-            <line number="160" hits="0" branch="false"/>
-            <line number="163" hits="0" branch="false"/>
-            <line number="166" hits="0" branch="false"/>
+            <line number="159" hits="0" branch="false"/>
+            <line number="162" hits="0" branch="false"/>
+            <line number="165" hits="0" branch="false"/>
           </lines>
         </class>
         <class name="detectQueenCups.ts" filename="src/workers/detectQueenCups.ts" line-rate="0" branch-rate="0">
