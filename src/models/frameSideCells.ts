@@ -19,6 +19,7 @@ export type CellCounts = {
 }
 
 export type FirstUnprocessedFile = {
+	id: number,
 	user_id: number,
 	file_id: number,
 	frame_side_id: number,
@@ -34,24 +35,18 @@ export type FirstUnprocessedFile = {
 }
 
 const cellModel = {
-	startDetection: async function (fileId, frameSideId) {
-		logger.info(`starting bee detection for fileid`, { fileId, frameSideId });
-		await storage().query(
-			sql`UPDATE files_frame_side_cells 
-			SET process_start_time=NOW() 
-			WHERE file_id=${fileId} AND frame_side_id=${frameSideId} AND inspection_id IS NULL`
-		);
-	},
-
 	getFirstUnprocessedCells: async function () : Promise<FirstUnprocessedFile | null>{
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t1.file_id, t1.frame_side_id, 
+			sql`SELECT t1.id, t1.user_id, t1.file_id, t1.frame_side_id, 
 					t2.filename, t2.width, t2.height, t2.hash, t2.url_version, t2.ext,
 					t3.hive_id
 				FROM files_frame_side_cells t1
+				INNER JOIN jobs t4 ON t4.ref_id = t1.id AND t4.type='cells'
 				LEFT JOIN files t2 ON t1.file_id = t2.id
 				LEFT JOIN files_hive_rel t3 ON t1.file_id = t3.file_id
-				WHERE t1.process_start_time IS NULL AND t1.inspection_id IS NULL
+				WHERE t4.process_start_time IS NULL
+				  AND t4.retries < 3
+				  AND t1.inspection_id IS NULL
 				ORDER BY t1.added_time ASC
 				LIMIT 1`
 		);
@@ -146,38 +141,6 @@ const cellModel = {
 			nectar: Math.floor(100 * c.nectar / total),
 			empty: Math.floor(100 * c.empty / total)
 		}
-	},
-
-	endDetection: async function (fileId, frameSideId) {
-		logger.info(`ending frame cell detection for fileid`, { fileId, frameSideId });
-		await storage().query(
-			sql`UPDATE files_frame_side_cells 
-			SET process_end_time=NOW() 
-			WHERE 
-				file_id=${fileId} AND 
-				frame_side_id=${frameSideId} AND 
-				inspection_id IS NULL`
-		);
-	},
-
-	isComplete: async function (frameSideId, uid) {
-		const result = await storage().query(
-			sql`SELECT process_end_time
-			FROM files_frame_side_cells t1
-			WHERE 
-				frame_side_id = ${frameSideId} AND 
-				user_id = ${uid} AND 
-				inspection_id IS NULL
-			LIMIT 1`
-		);
-
-		const rel = result[0];
-
-		if (!rel) {
-			return true;
-		}
-
-		return rel.process_end_time ? true : false;
 	},
 
 	addFrameCells: async function (file_id, frame_side_id, user_id) {

@@ -1,3 +1,5 @@
+import jobs, {TYPE_QUEENS, TYPE_VARROA} from "../models/jobs";
+
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
@@ -23,7 +25,7 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
-	await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+	await jobs.startDetection(TYPE_VARROA, file.id);
 
 	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
 
@@ -33,6 +35,8 @@ export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
 		file.frame_side_id,
 		file.user_id
 	);
+
+	await jobs.endDetection(TYPE_VARROA, file.id);
 
 	publisher().publish(
 		generateChannelName(

@@ -71,19 +71,14 @@ const frameSideModel = {
 		return result;
 	},
 
-	startDetection: async function (fileId, frameSideId) {
-		logger.info(`updating DB to start bee detection for fileid`, { fileId, frameSideId });
-		await storage().query(
-			sql`UPDATE files_frame_side_rel SET process_start_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-		);
-	},
-
 	getFirstUnprocessedBees: async function () {
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
+			sql`SELECT t1.id, t1.user_id, t2.filename, t2.width, t2.height, t1.file_id, t1.frame_side_id, t2.hash, t2.url_version, t2.ext
 			FROM files_frame_side_rel t1
+			INNER JOIN jobs t3 ON t3.ref_id = t1.id AND t3.type='bees'
 			LEFT JOIN files t2 ON t1.file_id = t2.id
-			WHERE t1.process_start_time IS NULL
+			WHERE t3.process_start_time IS NULL
+				AND t3.retries < 3
 			ORDER BY t1.added_time ASC
 			LIMIT 1`
 		);
@@ -102,17 +97,10 @@ const frameSideModel = {
 		return file;
 	},
 
-	endDetection: async function (fileId, frameSideId) {
-		logger.info(`bee detections complete`, { fileId, frameSideId });
-		await storage().query(
-			sql`UPDATE files_frame_side_rel SET process_end_time=NOW() WHERE file_id=${fileId} AND frame_side_id=${frameSideId}`
-		);
-	},
-
 	getLastestByFrameSideId: async function (frameSideId, uid) {
 		//t1.detected_bees
 		const result = await storage().query(
-			sql`SELECT t1.user_id, t1.strokeHistory, t1.queen_detected,
+			sql`SELECT t1.id, t1.user_id, t1.strokeHistory, t1.queen_detected,
 				t2.filename, t2.width, t2.height, t2.id as fileId,
 				t4.cups
 			FROM files_frame_side_rel t1
@@ -135,6 +123,7 @@ const frameSideModel = {
 
 		return {
 			__typename: 'FrameSideFile',
+			id: rel.id,
 			frameSideId,
 			strokeHistory: rel.strokeHistory,
 			file: file,
@@ -353,23 +342,6 @@ const frameSideModel = {
 		}
 
 		return rel.queen_detected ? true : false;
-	},
-
-	isComplete: async function (frameSideId, uid) {
-		const result = await storage().query(
-			sql`SELECT t1.process_end_time
-			FROM files_frame_side_rel t1
-			WHERE t1.frame_side_id = ${frameSideId} AND t1.user_id = ${uid}
-			LIMIT 1`
-		);
-
-		const rel = result[0];
-
-		if (!rel) {
-			return true;
-		}
-
-		return rel.process_end_time ? true : false;
 	},
 
 	countDetectedVarroa: function (detectedVarroa: DetectedObject[]): number {

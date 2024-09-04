@@ -21,7 +21,3 @@ services:
       - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
-#    networks:
-#      - gratheon
-#networks:
-#  gratheon:

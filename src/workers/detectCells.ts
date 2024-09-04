@@ -1,4 +1,6 @@
+// @ts-ignore
 import fs from 'fs';
+// @ts-ignore
 import FormData from 'form-data';
 
 import { logger } from '../logger';
@@ -10,9 +12,10 @@ import frameSideCells, { FirstUnprocessedFile } from "../models/frameSideCells";
 import { DetectedFrameResource } from './types';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
 import { roundToDecimal } from './common';
+import jobs, {TYPE_CELLS} from "../models/jobs";
 
 export async function detectCells(file: FirstUnprocessedFile) {
-	await frameSideCells.startDetection(file.file_id, file.frame_side_id);
+	await jobs.startDetection(TYPE_CELLS, file.id);
 
 	logger.info(`Detecting frame resources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
 
@@ -28,26 +31,6 @@ export async function detectCells(file: FirstUnprocessedFile) {
 		});
 
 		let delta:any = [];
-		// in dev skip cell analysis as this model is too heavy
-		// if (process.env.ENV_ID === 'dev') {
-		// 	delta = [
-		// 		[5, 0.3852, 0.6097, 0.0044, 75],
-		// 		[5, 0.2828, 0.5689, 0.0044, 100],
-		// 		[4, 0.3829, 0.5298, 0.0044, 85],
-		// 		[5, 0.2174, 0.5515, 0.0044, 100],
-		// 		[5, 0.2822, 0.4907, 0.0044, 100],
-		// 		[5, 0.5189, 0.2737, 0.0044, 100],
-		// 		[5, 0.6069, 0.3814, 0.0044, 100],
-		// 		[6, 0.3673, 0.5185, 0.0044, 79],
-		// 		[4, 0.3412, 0.4829, 0.0044, 100],
-		// 		[5, 0.3893, 0.3492, 0.0044, 100],
-		// 		[4, 0.4315, 0.4742, 0.0044, 100],
-		// 		[5, 0.4541, 0.4065, 0.0044, 100],
-		// 		[6, 0.3164, 0.4465, 0.0044, 50],
-		// 		[4, 0.3551, 0.3649, 0.0044, 99]
-		// 	]
-		// }
-		// else {
 			logger.info("Making request to " + config.models_frame_resources_url);
 			logger.info("fileContents length is " + fileContents.length);
 			const response = await fetch(config.models_frame_resources_url, {
@@ -115,12 +98,12 @@ export async function detectCells(file: FirstUnprocessedFile) {
 				honeyPercent: relativeCounts.honey
 			})
 		);
-		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
 	catch (e) {
 		logger.error("Frame resource detection failed", e);
-		await frameSideCells.endDetection(file.file_id, file.frame_side_id);
 	}
+
+	await jobs.endDetection(TYPE_CELLS, file.id);
 }
 
 export function convertDetectedResourcesStorageFormat(detectedResources, width, height): DetectedFrameResource[] {

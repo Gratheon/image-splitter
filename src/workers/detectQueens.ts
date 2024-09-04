@@ -1,3 +1,5 @@
+import jobs, {TYPE_QUEENS} from "../models/jobs";
+
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
@@ -23,7 +25,7 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]> {
-    await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+    await jobs.startDetection(TYPE_QUEENS, file.id);
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
 
@@ -34,6 +36,8 @@ export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]
         file.frame_side_id,
         file.user_id
     );
+
+    await jobs.endDetection(TYPE_QUEENS, file.id);
 
     publisher().publish(
         generateChannelName(

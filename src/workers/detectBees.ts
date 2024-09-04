@@ -1,4 +1,6 @@
+// @ts-ignore
 import fs from 'fs';
+// @ts-ignore
 import FormData from 'form-data';
 
 import { logger } from '../logger';
@@ -11,6 +13,7 @@ import { publisher, generateChannelName } from '../redisPubSub';
 import { analyzeAndUpdateVarroa } from './detectVarroa';
 import { analyzeQueens as analyzeAndUpdateQueens } from './detectQueens';
 import { downloadAndUpdateResolutionInDB } from './downloadFile';
+import jobs, {TYPE_BEES} from "../models/jobs";
 
 const SUB_IMAGE_DIMENSION = 512
 
@@ -18,7 +21,7 @@ export async function splitIn9ImagesAndDetect(file) {
 	let width, height, partialFilePath;
 
 	try {
-		await frameSideModel.startDetection(file.file_id, file.frame_side_id);
+		await jobs.startDetection(TYPE_BEES, file.id);
 
 		let maxCutsX = 1;
 		let maxCutsY = 1;
@@ -64,7 +67,7 @@ export async function splitIn9ImagesAndDetect(file) {
 			}
 		}
 
-		await frameSideModel.endDetection(file.file_id, file.frame_side_id);
+		await jobs.endDetection(TYPE_BEES, file.id);
 
 		// push isBeeDetectionComplete
 		publisher().publish(
@@ -157,7 +160,7 @@ async function runDetectionOnSplitImage(
 					detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
 					detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
 					detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-					isBeeDetectionComplete: await frameSideModel.isComplete(file.frame_side_id, file.user_id)
+					isBeeDetectionComplete: await jobs.isComplete(TYPE_BEES, file.id)
 				})
 			);
 		}

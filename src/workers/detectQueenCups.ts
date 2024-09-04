@@ -1,3 +1,5 @@
+import jobs, {TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS} from "../models/jobs";
+
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
@@ -24,7 +26,7 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
-    await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+    await jobs.startDetection(TYPE_CUPS, file.id);
 
     const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
 
@@ -37,7 +39,7 @@ export async function detectQueenCups(file) {
         file.frame_side_id
     );
 
-    await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
+    await jobs.endDetection(TYPE_CUPS, file.id);
 
     log('Publishing queen cup detection results to redis:', detectionResult)
 
