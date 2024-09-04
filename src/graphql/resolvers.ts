@@ -16,6 +16,7 @@ import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS} from "../models/jobs";
 
 export const resolvers = {
     Query: {
+        hello_image_splitter: () => 'hi',
         file: async (_, {id}, {uid}) => {
             return await fileModel.getById(id, uid)
         },

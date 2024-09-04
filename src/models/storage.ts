@@ -22,6 +22,7 @@ export function storage() {
 }
 
 export async function initStorage(logger) {
+  console.log('config loaded', config)
   const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
   const conn = createConnectionPool(dsn);
 

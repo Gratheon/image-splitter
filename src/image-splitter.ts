@@ -111,7 +111,12 @@ async function startApolloServer(app, typeDefs, resolvers) {
 
   try {
     let schemaString = schema()
-    await registerSchema(schemaString);
+
+    // no need to register schema in integration test mode
+    if (process.env.ENV_ID != "testing") {
+      await registerSchema(schemaString);
+    }
+
     const relPath = await startApolloServer(app, schemaString, resolvers);
     await app.listen(8800, "0.0.0.0");
 

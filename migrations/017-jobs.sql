@@ -1,6 +1,5 @@
 -- add primary id for referencing
-ALTER TABLE `files_frame_side_cells` ADD `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY  AFTER `frame_side_id`;
-ALTER TABLE `files_frame_side_cells` MODIFY COLUMN `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT FIRST;
+ALTER TABLE `files_frame_side_cells` ADD COLUMN`id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY FIRST;
 
 -- create new table for async processing
 CREATE TABLE `jobs`
@@ -32,8 +31,7 @@ ALTER TABLE `files_frame_side_cells` DROP `process_end_time`;
 
 
 -- add primary id for referencing
-ALTER TABLE `files_frame_side_queen_cups` ADD `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY  AFTER `process_end_time`;
-ALTER TABLE `files_frame_side_queen_cups` MODIFY COLUMN `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT FIRST;
+ALTER TABLE `files_frame_side_queen_cups` ADD `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY  FIRST;
 
 INSERT INTO `jobs` (`type`, `process_start_time`, `last_retry_time`, `retries`, `process_end_time`, `ref_id`)
 SELECT 'cups', process_start_time, NULL, 0, process_end_time, id
@@ -45,8 +43,7 @@ ALTER TABLE `files_frame_side_queen_cups` DROP `process_end_time`;
 
 
 -- bees
-ALTER TABLE `files_frame_side_rel` ADD `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY  AFTER `process_end_time`;
-ALTER TABLE `files_frame_side_rel` MODIFY COLUMN `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT FIRST;
+ALTER TABLE `files_frame_side_rel` ADD `id` INT  UNSIGNED  NOT NULL  AUTO_INCREMENT  PRIMARY KEY FIRST;
 
 INSERT INTO `jobs` (`type`, `process_start_time`, `last_retry_time`, `retries`, `process_end_time`, `ref_id`)
 SELECT 'bees', process_start_time, NULL, 0, process_end_time, id

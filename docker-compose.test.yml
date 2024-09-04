@@ -1,12 +1,10 @@
 services:
-  image-splitter-test:
+  image-splitter:
     build: 
       context: .
       dockerfile: Dockerfile.dev
     environment:
-      - ENV_ID=dev
-      - DD_ENV=dev
-      - DD_PROFILING_ENABLED=true
+      - ENV_ID=testing
       - NODE_OPTIONS=--max-old-space-size=4096
     tty: true
     ports:
@@ -20,3 +18,22 @@ services:
       - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
+    depends_on:
+      - mysql-test
+
+  mysql-test:
+    image: mysql:8.2
+    command: mysqld --default-authentication-plugin=mysql_native_password --skip-mysqlx --sort_buffer_size=512K
+    environment:
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: image-splitter
+    mem_limit: 1G
+    ports:
+      - 5101:3306
+    volumes:
+      - ./test/mysql82:/var/lib/mysql
+
+volumes:
+  mysql82:
