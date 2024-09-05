@@ -1,6 +1,6 @@
-CREATE DATABASE logs;
+CREATE DATABASE IF NOT EXISTS logs;
 
-create table logs.logs
+create table IF NOT EXISTS logs.logs
 (
     id        int auto_increment
         primary key,

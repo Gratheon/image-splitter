@@ -35,18 +35,15 @@ export type FirstUnprocessedFile = {
 }
 
 const cellModel = {
-	getFirstUnprocessedCells: async function () : Promise<FirstUnprocessedFile | null>{
+	getCellsByFileId: async function (file_id:number) : Promise<FirstUnprocessedFile | null>{
 		const result = await storage().query(
-			sql`SELECT t1.id, t1.user_id, t1.file_id, t1.frame_side_id, 
+			sql`SELECT t1.user_id, t1.file_id, t1.frame_side_id, 
 					t2.filename, t2.width, t2.height, t2.hash, t2.url_version, t2.ext,
 					t3.hive_id
 				FROM files_frame_side_cells t1
-				INNER JOIN jobs t4 ON t4.ref_id = t1.id AND t4.type='cells'
 				LEFT JOIN files t2 ON t1.file_id = t2.id
 				LEFT JOIN files_hive_rel t3 ON t1.file_id = t3.file_id
-				WHERE t4.process_start_time IS NULL
-				  AND t4.retries < 3
-				  AND t1.inspection_id IS NULL
+				WHERE t1.file_id = ${file_id} AND t1.inspection_id IS NULL
 				ORDER BY t1.added_time ASC
 				LIMIT 1`
 		);

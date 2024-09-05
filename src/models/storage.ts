@@ -15,14 +15,12 @@ const { files, files_hive_rel, files_frame_side_rel } = tables<DatabaseSchema>({
 
 export { files, files_hive_rel, files_frame_side_rel };
 
-// ${sql.join(cols.map(c => sql.ident(c)), `, `)}
 let db;
 export function storage() {
   return db;
 }
 
 export async function initStorage(logger) {
-  console.log('config loaded', config)
   const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
   const conn = createConnectionPool(dsn);
 
@@ -37,14 +35,15 @@ export async function initStorage(logger) {
     },
   });
 
+  // close connections on exit
+  process.once('SIGTERM', () => {
+    db.dispose().catch((ex) => {
+      console.error(ex);
+    });
+  });
+
   await migrate(logger);
 }
-
-process.once("SIGTERM", () => {
-  db?.dispose().catch((ex) => {
-    console.error(ex);
-  });
-});
 
 async function migrate(logger) {
   try {
@@ -82,7 +81,9 @@ async function migrate(logger) {
 
       // If the hash is not in the table, execute the SQL and store the hash in the table
       if (rows.length === 0) {
-        await db.query(sql.file(`./migrations/${file}`));
+        await db.tx(async (dbi) => {
+          await dbi.query(sql.file(`./migrations/${file}`));
+        })
 
         logger.info(`Successfully executed SQL from ${file}.`);
 

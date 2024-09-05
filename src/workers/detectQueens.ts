@@ -5,14 +5,16 @@ const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 import config from '../config';
 import { logger } from '../logger';
 
-import { DetectedObject } from '../models/frameSide';
+import frameSideModel, {CutPosition, DetectedObject} from '../models/frameSide';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import fileSideModel from '../models/frameSide';
 
 import { generateChannelName, publisher } from '../redisPubSub';
 import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
+import {downloadAndUpdateResolutionInDB} from "./downloadFile";
+import {splitIn9ImagesAndDetect} from "./detectBees";
 
-const PAT = config.clarifai.PAT;
+const PAT = config.clarifai.queen_app.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-detection';
 const MODEL_ID = 'queen-bee';
@@ -24,9 +26,23 @@ const grpcClient = ClarifaiStub.grpc();
 const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
-export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]> {
-    await jobs.startDetection(TYPE_QUEENS, file.id);
+export async function detectQueens(ref_id, payload) {
+    const file = await frameSideModel.getFrameSideByFileId(ref_id);
 
+    if (file == null) {
+        throw new Error(`frameSideModel.getFrameSideByFileId failed and did not find any file ${ref_id} not found`)
+    }
+
+    logger.info('AnalyzeBeesAndVarroa - processing file', file);
+    await downloadAndUpdateResolutionInDB(file);
+
+    logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
+    await splitIn9ImagesAndDetect(file, 800, async (file: any, cutPosition: CutPosition, formData: any)=>{
+        await analyzeQueens(file, cutPosition)
+    });
+}
+
+export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]> {
     const detectionResult = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
 
     logger.info("Queen detection result:", detectionResult)
@@ -36,8 +52,6 @@ export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]
         file.frame_side_id,
         file.user_id
     );
-
-    await jobs.endDetection(TYPE_QUEENS, file.id);
 
     publisher().publish(
         generateChannelName(
@@ -57,7 +71,7 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
     const result: DetectedObject[] = [];
 
     const url = file.url
-    logger.info("Asking clarifai to detect cups on URL:", { url })
+    logger.info("Asking clarifai to detect queen URL:", { url })
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {

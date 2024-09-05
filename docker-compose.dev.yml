@@ -1,5 +1,5 @@
 services:
-  image-splitter-test:
+  image-splitter:
     build: 
       context: .
       dockerfile: Dockerfile.dev

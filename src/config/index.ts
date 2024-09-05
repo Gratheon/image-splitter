@@ -10,7 +10,6 @@ function loadConfig<T>(filePath: string): T | undefined {
 }
 
 const env = process.env.ENV_ID || "default";
-console.log('using env:', env)
 const customConfig = loadConfig<typeof config>(`./config.${env}`);
 
 const currentConfig = { ...config, ...customConfig };

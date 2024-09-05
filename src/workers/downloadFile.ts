@@ -1,5 +1,8 @@
+// @ts-ignore
 import Jimp from 'jimp';
+// @ts-ignore
 import fs from 'fs';
+// @ts-ignore
 import https from 'https';
 
 import { logger } from '../logger';

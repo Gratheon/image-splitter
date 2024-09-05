@@ -1,4 +1,6 @@
 export default {
+    rootPath: "/app/",
+
     // this should match signature in graphql-router remote-data-source.js
     // and is meant for securing traffic, because image-splitter is also publicly accessible for direct file uploads
     routerSignature: "test-signature",
@@ -29,9 +31,12 @@ export default {
 
     // please set own AWS S3 bucket credentials
     aws: {
+        // minio
         "bucket": "gratheon-test",
-        "key": "",
-        "secret": ""
+        "key": "minio-admin",
+        "secret": "minio-admin",
+
+        "endpoint": "http://minio:9000",
     },
 
     "files_base_url": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
@@ -44,6 +49,15 @@ export default {
     // please set own Clarifai API credentials
     clarifai: {
         PAT: "",
+        varroa_app: {
+            PAT: ""
+        },
+        queen_app: {
+            PAT: ""
+        },
+        cup_app: {
+            PAT: ""
+        },
         beekeeper_app: {
             PAT: "",
             USER_ID: "openai",

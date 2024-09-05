@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import config from "../config/index";
 
 export default {
-	insertResize: async function (file_id, max_dimension_px) {
+	insertResize: async function (file_id:number, max_dimension_px:number) {
 		// @ts-ignore
 		return (await storage().query(sql`
 			INSERT INTO files_resized (file_id, max_dimension_px) 
