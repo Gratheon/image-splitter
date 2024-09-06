@@ -8,13 +8,7 @@ import fetch from 'node-fetch';
 import {logger} from '../logger';
 import config from '../config';
 
-import * as imageModel from '../models/image';
-import frameSideModel, {
-    convertDetectedBeesStorageFormat,
-    CutPosition,
-    DetectedObject,
-    FrameSideFetchedByFileId
-} from '../models/frameSide';
+import frameSideModel, {convertDetectedBeesStorageFormat, CutPosition, DetectedObject,} from '../models/frameSide';
 
 import {generateChannelName, publisher} from '../redisPubSub';
 import {downloadAndUpdateResolutionInDB} from './common/downloadFile';
@@ -31,9 +25,12 @@ export async function detectWorkerBees(ref_id, payload) {
     logger.info('detectWorkerBees - processing file', file);
     await downloadAndUpdateResolutionInDB(file);
 
-    await splitIn9ImagesAndDetect(file, 1024, async (file: any, cutPosition: CutPosition, formData: any)=>{
-        await runDetectionOnSplitImage(file, cutPosition, formData)
-    });
+    await splitIn9ImagesAndDetect(file, 1024,
+        // async processor for every split sub-image
+        // all we need to do is take formData and send it to the model, store the results
+        async (file: any, cutPosition: CutPosition, formData: any) => {
+            await runDetectionOnSplitImage(file, cutPosition, formData)
+        });
 }
 
 async function runDetectionOnSplitImage(file: any, cutPosition: CutPosition, formData: any) {
@@ -46,8 +43,7 @@ async function runDetectionOnSplitImage(file: any, cutPosition: CutPosition, for
         const res = await detectedBees.json();
         // log('Parsed response from yolo v5 model to JSON', res);
 
-        let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(
-            res.result, cutPosition);
+        let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(res.result, cutPosition);
 
         await frameSideModel.updateDetectedBees(
             newDetectedBees,

@@ -54,7 +54,6 @@ export type FrameSideFetchedByFileId = {
     url: URL
 
     imageBytes?: Buffer
-    partialImageBytes?: Buffer
 }
 
 // Beehive frames have sides
@@ -168,27 +167,33 @@ const frameSideModel = {
         const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
         const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
 
-        let exDetectedBees = await frameSideModel.getDetectedBees(frameSideId, fileId, uid)
+        // update detected bees in transaction in case of parallelization
+        await storage().tx(async (tx) => {
+            let exDetectedBees = await frameSideModel.getDetectedBees(tx, frameSideId, fileId, uid)
 
-        exDetectedBees.push(...detectedBees)
+            logger.info(`updating detected bees in DB, setting counts`, {
+                fileId,
+                frameSideId,
+                uid,
+                workerBeeCount,
+                detectedDrones,
+                // exDetectedBees,
+                // detectedBees
+            })
 
-        logger.info(`updating detected bees in DB, setting counts`, {
-            fileId,
-            frameSideId,
-            uid,
-            workerBeeCount,
-            detectedDrones
+
+            exDetectedBees.push(...detectedBees)
+
+            await tx.query(
+                sql`UPDATE files_frame_side_rel
+                    SET detected_bees=${JSON.stringify(exDetectedBees)},
+                        worker_bee_count = IFNULL(worker_bee_count, 0) + ${workerBeeCount},
+                        drone_count      = IFNULL(drone_count, 0) + ${detectedDrones}
+                    WHERE file_id = ${fileId}
+                      AND frame_side_id = ${frameSideId}
+                      AND user_id = ${uid}`
+            );
         })
-        const db = storage()
-        await db.query(
-            sql`UPDATE files_frame_side_rel
-                SET detected_bees=${JSON.stringify(exDetectedBees)},
-                    worker_bee_count = IFNULL(worker_bee_count, 0) + ${workerBeeCount},
-                    drone_count      = IFNULL(drone_count, 0) + ${detectedDrones}
-                WHERE file_id = ${fileId}
-                  AND frame_side_id = ${frameSideId}
-                  AND user_id = ${uid}`
-        );
         return true;
     },
 
@@ -214,8 +219,8 @@ const frameSideModel = {
         return true;
     },
 
-    getDetectedBees: async function (frameSideId, fileId, uid): Promise<DetectedObject[]> {
-        const result = await storage().query(
+    getDetectedBees: async function (tx, frameSideId, fileId, uid): Promise<DetectedObject[]> {
+        const result = await tx.query(
             sql`SELECT detected_bees
                 FROM files_frame_side_rel
                 WHERE file_id = ${fileId}

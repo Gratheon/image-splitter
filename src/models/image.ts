@@ -9,7 +9,7 @@ import {CutPosition, FrameSideFetchedByFileId} from "./frameSide";
 
 webp.grant_permission();
 
-export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutPosition, partialFilePath: Path) {
+export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutPosition, partialFilePath: Path): Promise<Buffer> {
 
     // @ts-ignore
     let j1 = await Jimp.fromBuffer(file.imageBytes);
@@ -23,9 +23,10 @@ export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutP
 
     logger.info(`Writing file cut`, {cutPosition, partialFilePath});
     // @ts-ignore
-    await j2.write(partialFilePath);
+    // await j2.write(partialFilePath);
+    return j2.getBuffer("image/jpeg")
 
-    return partialFilePath
+    // return partialFilePath
 }
 
 export function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
