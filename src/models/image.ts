@@ -1,5 +1,5 @@
 // @ts-ignore
-import Jimp from 'jimp';
+import { Jimp } from "jimp";
 import sizeOf from 'image-size';
 import webp from 'webp-converter';
 
@@ -10,14 +10,20 @@ import {CutPosition, FrameSideFetchedByFileId} from "./frameSide";
 webp.grant_permission();
 
 export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutPosition, partialFilePath: Path) {
-    let j1 = await Jimp.read(file.localFilePath);
-    let j2 = j1.crop(
-        cutPosition.left, cutPosition.top,
-        cutPosition.width, cutPosition.height
-    );
+
+    // @ts-ignore
+    let j1 = await Jimp.fromBuffer(file.imageBytes);
+
+    let j2 = j1.crop({
+        x: cutPosition.left,
+        y: cutPosition.top,
+        w: cutPosition.width,
+        h: cutPosition.height
+    });
 
     logger.info(`Writing file cut`, {cutPosition, partialFilePath});
-    await j2.writeAsync(partialFilePath);
+    // @ts-ignore
+    await j2.write(partialFilePath);
 
     return partialFilePath
 }
@@ -32,11 +38,12 @@ export type SizePath = [number, Path]
 export async function resizeImages(inputPath: string, map: SizePath[], quality = 70): Promise<SizePath[] | null> {
     logger.info('resizing image', {inputPath})
     // Open the image using Jimp
+    // @ts-ignore
     const image = await Jimp.read(inputPath);
 
     // Get the image dimensions
-    const width = image.getWidth();
-    const height = image.getHeight();
+    const width = image.bitmap.width;
+    const height = image.bitmap.height;
 
     let result: SizePath[] = [];
 
@@ -44,9 +51,8 @@ export async function resizeImages(inputPath: string, map: SizePath[], quality =
         // Calculate new dimensions while maintaining the aspect ratio
         let {newWidth, newHeight} = calculateProportionalSizes(width, height, +maxDimension);
 
-        await image.resize(newWidth, newHeight)
-            .quality(quality)
-            .write(outputPath);
+        // @ts-ignore
+        await image.resize({w:newWidth, h:newHeight}).write(outputPath);
 
         logger.info(`Image resized and saved`, {outputPath});
 

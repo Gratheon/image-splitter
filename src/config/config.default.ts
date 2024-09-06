@@ -32,14 +32,18 @@ export default {
     // please set own AWS S3 bucket credentials
     aws: {
         "bucket": "gratheon-test",
-        "key": "",
-        "secret": "",
+        "key": "minio-admin",
+        "secret": "minio-admin",
 
-        // used in test env only
-        "endpoint":"",
+        // used in dev/test env only
+        "target_upload_endpoint": "http://minio:9000/",
+
+        "url": {
+            "public": "http://localhost:9000/"
+            // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
+        },
+
     },
-
-    "files_base_url": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
 
     jwt: {
         // this must match user-cycle JWT_KEY

@@ -6,9 +6,9 @@ import config from "../config/index";
 const fileModel = {
   getUrl(file) {
     if (file.url_version == 1) {
-      return `${config.files_base_url}${file.user_id}/${file.filename}`
+      return `${config.aws.url.public}${file.user_id}/${file.filename}`
     } else {
-      return `${config.files_base_url}${file.user_id}/${file.hash}/original${file.ext ? "." + file.ext : ''}`
+      return `${config.aws.url.public}${file.user_id}/${file.hash}/original${file.ext ? "." + file.ext : ''}`
     }
   },
 

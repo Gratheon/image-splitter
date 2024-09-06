@@ -1,11 +1,11 @@
 // @ts-ignore
 import fs from "fs";
 
-import config from "../config";
+import config from "../../config";
 
-import * as imageModel from "../models/image";
-import fileResizeModel from "../models/fileResize";
-import upload from "../models/s3";
+import * as imageModel from "../../models/image";
+import fileResizeModel from "../../models/fileResize";
+import upload from "../../models/s3";
 
 export type ResizeJobPayload = {
     file_id: string,
@@ -28,13 +28,16 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
     let tmpLocalFile = `${config.rootPath}tmp/${uid}_${filename}`
 
     let resultMap = await imageModel.resizeImages(tmpLocalFile, resizeMap)
-    console.log({resultMap})
+    // console.log({resultMap})
+
+    // await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
+    // await fileResizeModel.insertResize(file_id, 1024);
+
 
     if (resultMap !== null) {
         for await (let [maxDimension, outputPath] of resultMap) {
             await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
             await fileResizeModel.insertResize(file_id, maxDimension);
-            fs.unlinkSync(outputPath)
         }
     }
 }

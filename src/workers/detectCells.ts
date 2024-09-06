@@ -10,8 +10,8 @@ import {generateChannelName, publisher} from '../redisPubSub';
 import frameSideCells, {FirstUnprocessedFile} from "../models/frameSideCells";
 
 import {DetectedFrameResource} from './types';
-import {downloadAndUpdateResolutionInDB} from './downloadFile';
-import {roundToDecimal} from './common';
+import {downloadAndUpdateResolutionInDB} from './common/downloadFile';
+import {roundToDecimal} from './common/common';
 import jobs, {TYPE_CELLS} from "../models/jobs";
 import fileSideQueenCupsModel from "../models/frameSideQueenCups";
 

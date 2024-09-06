@@ -130,6 +130,7 @@ const jobsModel = {
             logger.info(`starting job ${type} loop`);
             await fn(job.ref_id, job.payload);
         } catch (e) {
+            console.error(e)
             logger.error(`processing job ${type} with ref_id=${job.ref_id} failed`, e);
             await jobsModel.fail(job, e);
 

@@ -1,5 +1,3 @@
-import "./tracer"; // must come before importing any instrumented module.
-
 import { ApolloServer } from "apollo-server-fastify";
 import {
   ApolloServerPluginDrainHttpServer,

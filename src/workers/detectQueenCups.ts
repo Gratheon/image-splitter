@@ -1,8 +1,7 @@
-import jobs, {TYPE_CUPS} from "../models/jobs";
 import config from '../config';
 import {logger} from '../logger';
 
-import {retryAsyncFunction} from './common';
+import {retryAsyncFunction} from './common/common';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 
 import {generateChannelName, publisher} from '../redisPubSub';
@@ -25,7 +24,7 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
-    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
+    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 3)
 
     // logger.info("Queen cups detection result:")
     // logger.info(detectionResult)

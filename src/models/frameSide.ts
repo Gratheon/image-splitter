@@ -5,9 +5,10 @@ import {storage} from "./storage";
 import fileModel from './file';
 
 import {MIN_VARROA_CONFIDENCE} from "../workers/detectVarroa";
-import {roundToDecimal} from "../workers/common";
+import {roundToDecimal} from "../workers/common/common";
 import {Path} from "../path";
 import URL from "../url";
+import config from "../config";
 
 
 let typeMap = {
@@ -53,6 +54,7 @@ export type FrameSideFetchedByFileId = {
     url: URL
 
     imageBytes?: Buffer
+    partialImageBytes?: Buffer
 }
 
 // Beehive frames have sides
@@ -110,7 +112,7 @@ const frameSideModel = {
         }
 
         file.url = fileModel.getUrl(file);
-        file.localFilePath = `tmp/${file.user_id}_bees_${file.filename}`;
+        file.localFilePath = `${config.rootPath}tmp/${file.user_id}_bees_${file.filename}`;
         file.width = Number(file.width);
         file.height = Number(file.height);
 

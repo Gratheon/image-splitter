@@ -29,7 +29,7 @@ export default {
 				id: row.id,
 				file_id: file_id,
 				max_dimension_px: row.max_dimension_px,
-				url: `${config.files_base_url}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
+				url: `${config.aws.url.public}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
 			});
 		}
 		return result;

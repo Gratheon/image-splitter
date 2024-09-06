@@ -13,7 +13,7 @@ import fileResizeModel from "../models/fileResize";
 import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_RESIZE, TYPE_VARROA} from "../models/jobs";
 
 import config from "../config";
-import {ResizeJobPayload} from "../workers/resizeOriginalToThumbnails";
+import {ResizeJobPayload} from "../workers/common/resizeOriginalToThumbnails";
 
 export default async function uploadFrameSide (_, {file}, {uid}) {
     if (!uid) {

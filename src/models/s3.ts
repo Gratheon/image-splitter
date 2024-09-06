@@ -20,21 +20,27 @@ export default async function upload(sourceLocalFilePath: AbsolutePath, targetS3
         region,
     }
 
+
     // use minio in test env
-    if (process.env.ENV_ID === 'testing') {
-        awsConfig.endpoint = process.env.ENDPOINT
+    if (process.env.ENV_ID === 'testing' || process.env.ENV_ID === 'dev') {
+        awsConfig.forcePathStyle = true
+        awsConfig.endpoint = config.aws.target_upload_endpoint
     }
 
     const s3 = new S3Client(awsConfig);
 
     logger.info('Uploading file to S3', {sourceLocalFilePath, targetS3FilePath})
+
+    const data = fs.readFileSync(sourceLocalFilePath, { flag: 'r' });
+
     await s3.send(
         new PutObjectCommand({
             Bucket: bucketName,
             Key: targetS3FilePath,
-            Body: fs.readFileSync(sourceLocalFilePath)
+            Body: data
         })
     );
 
-    return `https://${bucketName}.s3.${region}.amazonaws.com/${targetS3FilePath}`
+    return `${config.aws.url.public}/${targetS3FilePath}`
+    // return `https://${bucketName}.s3.${region}.amazonaws.com/${targetS3FilePath}`
 }

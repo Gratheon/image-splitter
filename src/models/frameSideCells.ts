@@ -3,6 +3,7 @@ import { sql } from "@databases/mysql";
 import { storage } from "./storage";
 import { logger } from "../logger";
 import fileModel from './file';
+import config from "../config";
 
 // Beehive frame has sides
 // For every side, we try to detect types of cells
@@ -55,7 +56,7 @@ const cellModel = {
 		}
 
 		file.url = fileModel.getUrl(file);
-		file.localFilePath = `tmp/${file.user_id}_cells_${file.filename}`;
+		file.localFilePath = `${config.rootPath}tmp/${file.user_id}_cells_${file.filename}`;
 
 		return file;
 	},

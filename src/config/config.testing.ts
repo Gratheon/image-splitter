@@ -36,10 +36,13 @@ export default {
         "key": "minio-admin",
         "secret": "minio-admin",
 
-        "endpoint": "http://minio:9000",
-    },
+        "target_upload_endpoint": "http://minio:9000/",
 
-    "files_base_url": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
+        "url": {
+            "public": "http://localhost:9000/gratheon-test/"
+            // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
+        },
+    },
 
     jwt: {
         // this must match user-cycle JWT_KEY

@@ -1,17 +1,13 @@
-import jobs, {TYPE_QUEENS, TYPE_VARROA} from "../models/jobs";
-
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 
 import config from '../config';
 import { logger } from '../logger';
 import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
 
-import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import { generateChannelName, publisher } from '../redisPubSub';
 
-import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
-import {downloadAndUpdateResolutionInDB} from "./downloadFile";
-import {splitIn9ImagesAndDetect} from "./detectBees";
+import {convertClarifaiCoords, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect} from './common/common';
+import {downloadAndUpdateResolutionInDB} from "./common/downloadFile";
 
 const PAT = config.clarifai.varroa_app.PAT;
 const USER_ID = 'artjom-clarify';
@@ -37,13 +33,13 @@ export async function detectVarroa(ref_id, payload) {
 	await downloadAndUpdateResolutionInDB(file);
 
 	logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
-	await splitIn9ImagesAndDetect(file, 800, async (file: any, cutPosition: CutPosition, formData: any)=>{
+	await splitIn9ImagesAndDetect(file, 512, async (file: any, cutPosition: CutPosition, formData: any)=>{
 		await analyzeAndUpdateVarroa(file, cutPosition)
 	});
 }
 
 export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
-	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
+	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 3)
 
 	await frameSideModel.updateDetectedVarroa(
 		detectedVarroa,
