@@ -5,7 +5,6 @@ import {storage} from "./storage";
 import fileModel from './file';
 import URL from '../url'
 import {Path} from "../path";
-import config from "../config";
 
 // Beehive frame has sides
 // For every side, we try to detect types of cells
