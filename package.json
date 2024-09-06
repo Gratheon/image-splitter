@@ -7,8 +7,6 @@
     "@apollo/federation": "0.33.9",
     "@aws-sdk/client-s3": "3.637.0",
     "@databases/mysql": "6.0.0",
-    "@databases/mysql-schema-cli": "1.1.1",
-    "@databases/mysql-typed": "1.0.0",
     "@sendgrid/mail": "7.7.0",
     "@sentry/node": "7.119.0",
     "@sentry/tracing": "7.114.0",

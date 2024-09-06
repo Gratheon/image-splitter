@@ -1,19 +1,11 @@
 import createConnectionPool, {sql, SQLQuery} from "@databases/mysql";
-import tables from "@databases/mysql-typed";
 import * as fs from "fs";
 import * as crypto from "crypto";
 
-import DatabaseSchema, { serializeValue } from "./__generated__";
 import config from "../config/index";
 
 export { sql };
 
-// You can list whatever tables you actually have here:
-const { files, files_hive_rel, files_frame_side_rel } = tables<DatabaseSchema>({
-  serializeValue,
-});
-
-export { files, files_hive_rel, files_frame_side_rel };
 
 let db;
 export function storage() {

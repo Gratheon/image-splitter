@@ -75,7 +75,7 @@ type ImageDimensions = {
 }
 export async function getImageDimensions(filepath: Path): Promise<ImageDimensions> {
     // @ts-ignore
-    const image = await Jimp.read(file.localFilePath);
+    const image = await Jimp.read(filepath);
     return {
         width: image.bitmap.width,
         height: image.bitmap.height
