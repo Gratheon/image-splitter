@@ -1,10 +1,10 @@
 services:
   image-splitter:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.dev
     environment:
-      - ENV_ID=dev
+      - ENV_ID=testing
       - NODE_OPTIONS=--max-old-space-size=4096
     tty: true
     ports:
@@ -18,12 +18,24 @@ services:
       - ./src:/app/src
       - ./tmp:/app/tmp
     restart: always
-    mem_limit: 1g
-    cpus: 1.0
-#    deploy:
-#      replicas: 3
+    depends_on:
+      - mysql-test
 
-  minio:
+  mysql-test:
+    image: mysql:8.2
+    command: mysqld --default-authentication-plugin=mysql_native_password --skip-mysqlx --sort_buffer_size=512K
+    environment:
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: image-splitter
+    mem_limit: 1G
+    ports:
+      - 5101:3306
+    volumes:
+      - ./test/mysql82:/var/lib/mysql
+
+  minio: &minio-common
     image: minio/minio
     ports:
       - 9000:9000
@@ -31,11 +43,9 @@ services:
     environment:
       MINIO_ROOT_USER: minio-admin
       MINIO_ROOT_PASSWORD: minio-admin
-      MINIO_ACCESS_KEY: minio-admin
-      MINIO_SECRET_KEY: minio-admin
     command: server /data --console-address :9001
     volumes:
-      - ./minio:/data
+      - ./test/minio:/data
     healthcheck:
       test: [ "CMD", "mc", "ready", "local" ]
       interval: 5s
@@ -44,12 +54,12 @@ services:
 
   create-bucket:
     image: minio/mc:latest
-    container_name: create-minio-bucket-dev
+    container_name: create-minio-bucket
     environment:
       MINIO_HOST: minio
       MINIO_ACCESS_KEY: minio-admin
       MINIO_SECRET_KEY: minio-admin
     entrypoint: ["sh", "-c"]
-    command: mc alias set minio $MINIO_HOST $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc mb gratheon-test || true
-    depends_on:
-      - minio
+    command: "mc mb gratheon-test || true"
+volumes:
+  mysql82:

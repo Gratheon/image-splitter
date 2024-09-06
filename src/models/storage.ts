@@ -1,4 +1,4 @@
-import createConnectionPool, { sql } from "@databases/mysql";
+import createConnectionPool, {sql, SQLQuery} from "@databases/mysql";
 import tables from "@databases/mysql-typed";
 import * as fs from "fs";
 import * as crypto from "crypto";
@@ -15,7 +15,6 @@ const { files, files_hive_rel, files_frame_side_rel } = tables<DatabaseSchema>({
 
 export { files, files_hive_rel, files_frame_side_rel };
 
-// ${sql.join(cols.map(c => sql.ident(c)), `, `)}
 let db;
 export function storage() {
   return db;
@@ -26,24 +25,52 @@ export async function initStorage(logger) {
   const conn = createConnectionPool(dsn);
 
   await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
+  const startTimes = new Map<SQLQuery, number>();
+  let connectionsCount = 0;
 
   db = createConnectionPool({
     connectionString: `${dsn}${config.mysql.database}`,
-    onQueryError: (_query, { text }, err) => {
+    onQueryError: (query, { text }, err) => {
+      startTimes.delete(query);
       logger.error(
         `DB error ${text} - ${err.message}`
       );
     },
+
+    onQueryStart: (query) => {
+      startTimes.set(query, Date.now());
+    },
+    onQueryResults: (query, {text}, results) => {
+      const start = startTimes.get(query);
+      startTimes.delete(query);
+
+      if (start) {
+        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Date.now() - start}ms`);
+      } else {
+        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')}`);
+      }
+    },
+    onConnectionOpened: () => {
+      logger.info(
+          `Opened connection. Active connections = ${++connectionsCount}`,
+      );
+    },
+    onConnectionClosed: () => {
+      logger.info(
+          `Closed connection. Active connections = ${--connectionsCount}`,
+      );
+    },
+  });
+
+  // close connections on exit
+  process.once('SIGTERM', () => {
+    db.dispose().catch((ex) => {
+      console.error(ex);
+    });
   });
 
   await migrate(logger);
 }
-
-process.once("SIGTERM", () => {
-  db?.dispose().catch((ex) => {
-    console.error(ex);
-  });
-});
 
 async function migrate(logger) {
   try {
@@ -81,7 +108,9 @@ async function migrate(logger) {
 
       // If the hash is not in the table, execute the SQL and store the hash in the table
       if (rows.length === 0) {
-        await db.query(sql.file(`./migrations/${file}`));
+        await db.tx(async (dbi) => {
+          await dbi.query(sql.file(`./migrations/${file}`));
+        })
 
         logger.info(`Successfully executed SQL from ${file}.`);
 

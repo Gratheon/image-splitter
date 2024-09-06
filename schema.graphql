@@ -5,6 +5,7 @@ scalar ID
 scalar URL
 
 type Query {
+    hello_image_splitter: String
 	file(id:ID!): File
 	hiveFiles(hiveId:ID!): [FrameSideFile]
 	getExistingHiveAdvice(hiveID: ID): String

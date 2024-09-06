@@ -1,16 +1,16 @@
-const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
-
 import config from '../config';
-import { logger } from '../logger';
+import {logger} from '../logger';
 
-import { retryAsyncFunction } from './common';
+import {retryAsyncFunction} from './common/common';
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 
-import { generateChannelName, publisher } from '../redisPubSub';
-import { DetectedRectangle } from './types';
-import { log } from 'console';
+import {generateChannelName, publisher} from '../redisPubSub';
+import {DetectedRectangle} from './types';
+import {log} from 'console';
 
-const PAT = config.clarifai.PAT;
+const {ClarifaiStub, grpc} = require("clarifai-nodejs-grpc");
+
+const PAT = config.clarifai.cup_app.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-cup-detection';
 // Change these to whatever model and image URL you want to use
@@ -24,9 +24,7 @@ const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
 export async function detectQueenCups(file) {
-    await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
-
-    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 10)
+    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 3)
 
     // logger.info("Queen cups detection result:")
     // logger.info(detectionResult)
@@ -36,8 +34,6 @@ export async function detectQueenCups(file) {
         file.file_id,
         file.frame_side_id
     );
-
-    await fileSideQueenCupsModel.endDetection(file.file_id, file.frame_side_id);
 
     log('Publishing queen cup detection results to redis:', detectionResult)
 
@@ -68,7 +64,7 @@ async function askClarifai(file) {
                 model_id: MODEL_ID,
                 version_id: MODEL_VERSION_ID, // This is optional. Defaults to the latest model version
                 inputs: [
-                    { data: { image: { url, allow_duplicate_url: true } } }
+                    {data: {image: {url, allow_duplicate_url: true}}}
                 ]
             },
             metadata,
@@ -90,7 +86,7 @@ async function askClarifai(file) {
                 for (let i = 0; i < regions.length; i++) {
                     const c = regions[i].value // confidence
                     if (c > 0.5) {
-                        const { top_row, left_col, bottom_row, right_col } = regions[i].region_info.bounding_box
+                        const {top_row, left_col, bottom_row, right_col} = regions[i].region_info.bounding_box
 
                         // const h = bottom_row - top_row;
                         // const w = right_col - left_col;
@@ -106,29 +102,17 @@ async function askClarifai(file) {
                 }
                 resolve(result)
             }
-
         );
     })
 }
 
-export async function analyzeQueenCups() {
-	const file = await fileSideQueenCupsModel.getFirstUnprocessedCups();
+export async function analyzeQueenCups(ref_id, payload) {
+    const file = await fileSideQueenCupsModel.getQueenCupsByFileId(ref_id);
 
-	if (file == null) {
-		setTimeout(analyzeQueenCups, 10000);
-		return;
-	}
+    if (file == null) {
+        throw new Error(`Queen cups entry with file_id ${ref_id} not found`)
+    }
 
-	logger.info('starting processing file', { file });
-
-	try {
-		// no need to download file, clarifai will do it for us
-		logger.info(`making parallel requests to detect queen cups for file ${file.file_id}`);
-		await detectQueenCups(file);
-	}
-	catch (e) {
-		logger.error(e);
-	}
-
-	setTimeout(analyzeQueenCups, 500);
+    logger.info('starting analyzeQueenCups', {file});
+    await detectQueenCups(file);
 }

@@ -3,14 +3,14 @@ export default {
 
     // this should match signature in graphql-router remote-data-source.js
     // and is meant for securing traffic, because image-splitter is also publicly accessible for direct file uploads
-    routerSignature: "a239vmwoeifworg",
+    routerSignature: "test-signature",
 
     // we use sentry for error tracking
     sentryDsn: "",
 
     // schema registry is used for graphql schema updates
     schema_registry_url: process.env.NATIVE ? 'http://localhost:6001/schema/push' :'http://gql-schema-registry:3000/schema/push',
-    
+
     // schema-registry needs to know the url of current service for graphql-router to route traffic
     selfUrl: "image-splitter:8800",
 
@@ -22,8 +22,8 @@ export default {
 
     // DB connection details, used also for migrations
     mysql: {
-        host: process.env.NATIVE ? 'localhost': 'mysql',
-        port: process.env.NATIVE ? '60003' :'3306',
+        host: 'mysql-test',
+        port: '3306',
         user: 'root',
         password: 'test',
         database: 'image-splitter',
@@ -31,29 +31,29 @@ export default {
 
     // please set own AWS S3 bucket credentials
     aws: {
+        // minio
         "bucket": "gratheon-test",
         "key": "minio-admin",
         "secret": "minio-admin",
 
-        // used in dev/test env only
         "target_upload_endpoint": "http://minio:9000/",
 
         "url": {
-            "public": "http://localhost:9000/"
+            "public": "http://localhost:9000/gratheon-test/"
             // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
         },
-
     },
 
     jwt: {
         // this must match user-cycle JWT_KEY
-        privateKey: "okzfERFAXXbRTQWkGFfjo3EcAXjRijnGnaAMEsTXnmdjAVDkQrfyLzscPwUiymbj",
+        privateKey: "",
     },
 
     // please set own Clarifai API credentials
     clarifai: {
+        PAT: "",
         varroa_app: {
-          PAT: "",
+            PAT: ""
         },
         queen_app: {
             PAT: ""

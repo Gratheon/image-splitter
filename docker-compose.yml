@@ -8,8 +8,6 @@ services:
       node --max-old-space-size=4096 /app/app/image-splitter.js
     environment:
       - ENV_ID=prod
-      - DD_ENV=prod
-      - DD_PROFILING_ENABLED=true
       - NODE_OPTIONS=--max-old-space-size=4096
     ports:
       - 8800:8800

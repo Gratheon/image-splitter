@@ -4,8 +4,7 @@ import { storage } from "./storage";
 import config from "../config/index";
 
 export default {
-
-	insertResize: async function (file_id, max_dimension_px) {
+	insertResize: async function (file_id:number, max_dimension_px:number) {
 		// @ts-ignore
 		return (await storage().query(sql`
 			INSERT INTO files_resized (file_id, max_dimension_px) 
@@ -30,7 +29,7 @@ export default {
 				id: row.id,
 				file_id: file_id,
 				max_dimension_px: row.max_dimension_px,
-				url: `${config.files_base_url}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
+				url: `${config.aws.url.public}${row.user_id}/${row.hash}/${row.max_dimension_px}${row.ext ? "." + row.ext : ''}`,
 			});
 		}
 		return result;

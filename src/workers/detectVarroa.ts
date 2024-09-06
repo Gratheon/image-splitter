@@ -4,12 +4,12 @@ import config from '../config';
 import { logger } from '../logger';
 import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
 
-import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 import { generateChannelName, publisher } from '../redisPubSub';
 
-import { convertClarifaiCoords, retryAsyncFunction, roundToDecimal } from './common';
+import {convertClarifaiCoords, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect} from './common/common';
+import {downloadS3FileToLocalTmp} from "./common/downloadFile";
 
-const PAT = config.clarifai.PAT;
+const PAT = config.clarifai.varroa_app.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'varroa-mites';
 // Change these to whatever model and image URL you want to use
@@ -22,10 +22,24 @@ const grpcClient = ClarifaiStub.grpc();
 const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
-export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
-	await fileSideQueenCupsModel.startDetection(file.file_id, file.frame_side_id);
+export async function detectVarroa(ref_id, payload) {
+	const file = await frameSideModel.getFrameSideByFileId(ref_id);
 
-	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 10)
+	if (file == null) {
+		throw new Error(`File ${ref_id} not found`)
+	}
+
+	logger.info('AnalyzeBeesAndVarroa - processing file', file);
+	await downloadS3FileToLocalTmp(file);
+
+	logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
+	await splitIn9ImagesAndDetect(file, 512, async (file: any, cutPosition: CutPosition, formData: any)=>{
+		await analyzeAndUpdateVarroa(file, cutPosition)
+	});
+}
+
+export async function analyzeAndUpdateVarroa(file, cutPosition: CutPosition) {
+	const detectedVarroa = await retryAsyncFunction(() => askClarifai(file, cutPosition), 3)
 
 	await frameSideModel.updateDetectedVarroa(
 		detectedVarroa,
@@ -76,8 +90,9 @@ async function askClarifai(file, cutPosition: CutPosition) {
 					return reject(new Error(err));
 				}
 
-				console.log('varroa response', response)
 				if (response.status.code !== 10000) {
+					logger.error('varroa response', response)
+
 					return reject(new Error("Post model outputs failed, status: " + response.status.description));
 				}
 

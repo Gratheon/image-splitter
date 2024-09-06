@@ -52,3 +52,8 @@ To add migration, just add new file. Try to keep same naming convention.
 ### Roadmap / ToDo
 - Change processing mechanism from polling to a queue (kafka?) to initiate processing faster
 - Add more test coverage & improve types
+
+### Testing
+Minio is available at:
+http://localhost:9001/buckets
+minio-admin:minio-admin

@@ -1,5 +1,5 @@
 import { convertClarifaiCoords, roundToDecimal } from './common';
-import { CutPosition } from "../models/frameSide"; // Adjust the import path
+import { CutPosition } from "../../models/frameSide"; // Adjust the import path
 
 describe('roundToDecimal', () => {
     test('rounds number to specified decimal places', () => {
