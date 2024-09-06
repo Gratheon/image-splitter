@@ -41,6 +41,6 @@ export default async function upload(sourceLocalFilePath: AbsolutePath, targetS3
         })
     );
 
-    return `${config.aws.url.public}/${targetS3FilePath}`
+    return `${config.aws.url.public}${targetS3FilePath}`
     // return `https://${bucketName}.s3.${region}.amazonaws.com/${targetS3FilePath}`
 }
