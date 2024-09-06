@@ -11,7 +11,7 @@ import {generateChannelName, publisher} from '../redisPubSub';
 import frameSideCells, {FirstUnprocessedFile} from "../models/frameSideCells";
 
 import {DetectedFrameResource} from './types';
-import {downloadAndUpdateResolutionInDB} from './common/downloadFile';
+import {downloadS3FileToLocalTmp} from './common/downloadFile';
 import {roundToDecimal} from './common/common';
 
 export async function detectCells(file: FirstUnprocessedFile)   {
@@ -120,7 +120,7 @@ export async function analyzeCells(ref_id, payload) {
 
     logger.info('starting detecting cells for file', {file});
 
-    await downloadAndUpdateResolutionInDB(file);
+    await downloadS3FileToLocalTmp(file);
 
     logger.info(`making parallel requests to detect cells for file ${file.file_id}`);
     await detectCells(file);

@@ -8,7 +8,7 @@ import fileSideModel from '../models/frameSide';
 
 import { generateChannelName, publisher } from '../redisPubSub';
 import {convertClarifaiCoords, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect} from './common/common';
-import {downloadAndUpdateResolutionInDB} from "./common/downloadFile";
+import {downloadS3FileToLocalTmp} from "./common/downloadFile";
 
 const PAT = config.clarifai.queen_app.PAT;
 const USER_ID = 'artjom-clarify';
@@ -30,7 +30,7 @@ export async function detectQueens(ref_id, payload) {
     }
 
     logger.info('AnalyzeBeesAndVarroa - processing file', file);
-    await downloadAndUpdateResolutionInDB(file);
+    await downloadS3FileToLocalTmp(file);
 
     logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
     await splitIn9ImagesAndDetect(file, 1024, async (file: any, cutPosition: CutPosition, formData: any)=>{

@@ -35,7 +35,7 @@ async function downloadFile(url: URL, localPath: Path) {
 	});
 }
 
-export async function downloadAndUpdateResolutionInDB(file: any) {
+export async function downloadS3FileToLocalTmp(file: any) {
 	if (fs.existsSync(file.localFilePath)) {
 		logger.info(`file already exists ${file.localFilePath}`);
 	} else {
@@ -53,19 +53,6 @@ export async function downloadAndUpdateResolutionInDB(file: any) {
 
 		await downloadFile(file.url, file.localFilePath);
 		logger.info(`download complete ${file.url} -> ${file.localFilePath}`);
-	}
-
-	if (file.width === null || file.height === null) {
-		// @ts-ignore
-		const image = await Jimp.read(file.localFilePath);
-		file.width = image.bitmap.width;
-		file.height = image.bitmap.height;
-
-		logger.info(`updating DB of file dimensions ${file.file_id}`);
-		await fileModel.updateDimentions({
-			width: file.width,
-			height: file.height,
-		}, file.file_id);
 	}
 }
 

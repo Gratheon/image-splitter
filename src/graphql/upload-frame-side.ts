@@ -48,7 +48,7 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             fs.unlinkSync(webpFilePath);
         }
 
-        const dimensions = imageModel.getImageSize(tmpLocalFilePath);
+        const dimensions = await imageModel.getImageDimensions(tmpLocalFilePath);
 
         // hash
         const fileBuffer = fs.readFileSync(tmpLocalFilePath);

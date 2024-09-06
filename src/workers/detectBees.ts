@@ -11,7 +11,7 @@ import config from '../config';
 import frameSideModel, {convertDetectedBeesStorageFormat, CutPosition, DetectedObject,} from '../models/frameSide';
 
 import {generateChannelName, publisher} from '../redisPubSub';
-import {downloadAndUpdateResolutionInDB} from './common/downloadFile';
+import {downloadS3FileToLocalTmp} from './common/downloadFile';
 import jobs, {TYPE_BEES} from "../models/jobs";
 import {splitIn9ImagesAndDetect} from "./common/common";
 
@@ -23,7 +23,7 @@ export async function detectWorkerBees(ref_id, payload) {
     }
 
     logger.info('detectWorkerBees - processing file', file);
-    await downloadAndUpdateResolutionInDB(file);
+    await downloadS3FileToLocalTmp(file);
 
     await splitIn9ImagesAndDetect(file, 1024,
         // async processor for every split sub-image
