@@ -1,6 +1,5 @@
 // @ts-ignore
 import {Jimp} from "jimp";
-import sizeOf from 'image-size';
 import webp from 'webp-converter';
 
 import {logger} from '../logger';
@@ -70,22 +69,17 @@ function calculateProportionalSizes(width: number, height: number, maxDimension:
     return {newWidth, newHeight};
 }
 
-
 type ImageDimensions = {
     width: number,
     height: number
 }
 export async function getImageDimensions(filepath: Path): Promise<ImageDimensions> {
-    let size = sizeOf(filepath)
-
-    if (size.width === null || size.height === null) {
-        // @ts-ignore
-        const image = await Jimp.read(file.localFilePath);
-        size.width = image.bitmap.width;
-        size.height = image.bitmap.height;
+    // @ts-ignore
+    const image = await Jimp.read(file.localFilePath);
+    return {
+        width: image.bitmap.width,
+        height: image.bitmap.height
     }
-
-    return size
 }
 
 export function getOriginalFileLocalPath(uid: string, uploadedOriginalFileName: string): AbsolutePath {

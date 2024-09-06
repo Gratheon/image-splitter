@@ -24,7 +24,6 @@
     "graphql-parse-resolve-info": "4.13.0",
     "graphql-tag": "2.12.6",
     "graphql-upload": "13.0.0",
-    "image-size": "1.0.1",
     "ioredis": "5.4.1",
     "jimp": "1.2.0",
     "jsonwebtoken": "8.5.1",
