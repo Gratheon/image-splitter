@@ -113,7 +113,6 @@ export async function analyzeQueenCups(ref_id, payload) {
         throw new Error(`Queen cups entry with file_id ${ref_id} not found`)
     }
 
-    logger.info('starting processing file', {file});
-
+    logger.info('starting analyzeQueenCups', {file});
     await detectQueenCups(file);
 }

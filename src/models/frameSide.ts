@@ -3,12 +3,12 @@ import {sql} from "@databases/mysql";
 import {logger} from '../logger';
 import {storage} from "./storage";
 import fileModel from './file';
+import * as imageModel from "../models/image";
 
 import {MIN_VARROA_CONFIDENCE} from "../workers/detectVarroa";
 import {roundToDecimal} from "../workers/common/common";
 import {Path} from "../path";
 import URL from "../url";
-import config from "../config";
 
 
 let typeMap = {
@@ -111,7 +111,7 @@ const frameSideModel = {
         }
 
         file.url = fileModel.getUrl(file);
-        file.localFilePath = `${config.rootPath}tmp/${file.user_id}_bees_${file.filename}`;
+        file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename)
         file.width = Number(file.width);
         file.height = Number(file.height);
 

@@ -3,6 +3,7 @@ import { sql } from "@databases/mysql";
 import { storage } from "./storage";
 import { logger } from "../logger";
 import fileModel from './file';
+import * as imageModel from "./image";
 import config from "../config";
 
 // Beehive frame has sides
@@ -56,7 +57,7 @@ const cellModel = {
 		}
 
 		file.url = fileModel.getUrl(file);
-		file.localFilePath = `${config.rootPath}tmp/${file.user_id}_cells_${file.filename}`;
+		file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename)
 
 		return file;
 	},

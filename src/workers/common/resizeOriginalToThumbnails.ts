@@ -25,19 +25,16 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
     resizeMap.push([512, tmpResizeFile512])
     resizeMap.push([128, tmpResizeFile128])
 
-    let tmpLocalFile = `${config.rootPath}tmp/${uid}_${filename}`
-
+    let tmpLocalFile =  imageModel.getOriginalFileLocalPath(uid, filename)
     let resultMap = await imageModel.resizeImages(tmpLocalFile, resizeMap)
-    // console.log({resultMap})
-
-    // await upload(tmpResizeFile1024, `${uid}/${hash}/1024${ext ? "." + ext : ''}`)
-    // await fileResizeModel.insertResize(file_id, 1024);
-
 
     if (resultMap !== null) {
         for await (let [maxDimension, outputPath] of resultMap) {
             await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
             await fileResizeModel.insertResize(file_id, maxDimension);
+
+            // delete resized file
+            fs.unlinkSync(outputPath);
         }
     }
 }

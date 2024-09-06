@@ -1,9 +1,11 @@
 import {sql} from "@databases/mysql";
 
+import * as imageModel from "../models/image";
 import {storage} from "./storage";
 import fileModel from './file';
 import URL from '../url'
 import {Path} from "../path";
+import config from "../config";
 
 // Beehive frame has sides
 // For every side, we try to detect types of cells
@@ -49,7 +51,7 @@ export default {
         }
 
         file.url = fileModel.getUrl(file);
-        file.localFilePath = `tmp/${file.user_id}_cups_${file.filename}`;
+        file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename);
 
         return file;
     },

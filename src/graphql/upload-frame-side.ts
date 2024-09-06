@@ -11,11 +11,12 @@ import fileModel from "../models/file";
 import upload from "../models/s3";
 import fileResizeModel from "../models/fileResize";
 import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_RESIZE, TYPE_VARROA} from "../models/jobs";
-
-import config from "../config";
 import {ResizeJobPayload} from "../workers/common/resizeOriginalToThumbnails";
 
-export default async function uploadFrameSide (_, {file}, {uid}) {
+// 10 min should be enough to process the file
+const DELETE_UPLOADED_FILE_AFTER_MS = 1000 * 60 * 10;
+
+export default async function uploadFrameSide(_, {file}, {uid}) {
     if (!uid) {
         logger.error('Attempt to upload file without uid')
         return null
@@ -27,43 +28,38 @@ export default async function uploadFrameSide (_, {file}, {uid}) {
 
         logger.info("received file", {filename})
         const stream = createReadStream();
-        let tmpLocalFile = `${config.rootPath}tmp/${uid}_${filename}`
+        let tmpLocalFilePath = imageModel.getOriginalFileLocalPath(uid, filename)
 
-        // copy stream to tmp folder
-        const out = fs.createWriteStream(tmpLocalFile);
+        // store original file to disk to be reused later on by workers
+        const out = fs.createWriteStream(tmpLocalFilePath);
         stream.pipe(out);
         await finished(out);
 
         // convert webp to jpg because jimp does not handle webp
         if (mimetype === 'image/webp') {
-            const webpFilePath = tmpLocalFile;
-            const jpgFilePath = tmpLocalFile.replace('.webp', '.jpg');
+            const webpFilePath = tmpLocalFilePath;
+            const jpgFilePath = tmpLocalFilePath.replace('.webp', '.jpg');
             filename = filename.replace('.webp', '.jpg');
             const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
             logger.info('converted webp to jpg', {uid, filename, result});
-            tmpLocalFile = jpgFilePath;
+            tmpLocalFilePath = jpgFilePath;
 
             // delete webp
             fs.unlinkSync(webpFilePath);
         }
 
-        const dimensions = imageModel.getImageSize(tmpLocalFile);
+        const dimensions = imageModel.getImageSize(tmpLocalFilePath);
 
         // hash
-        const fileBuffer = fs.readFileSync(tmpLocalFile);
+        const fileBuffer = fs.readFileSync(tmpLocalFilePath);
         const hashSum = crypto.createHash('sha256');
         hashSum.update(fileBuffer);
         const hash = hashSum.digest('hex')
 
         let ext = fileModel.getFileExtension(filename)
 
-
-        // const tmpResizeFile1024 = `${rootPath}tmp/${uid}_1024_${filename}`
-        // const tmpResizeFile512 = `${rootPath}tmp/${uid}_512_${filename}`
-        // const tmpResizeFile128 = `${rootPath}tmp/${uid}_128_${filename}`
-
         // 3 heavier jobs to run in parallel
-        const originalResult = await upload(tmpLocalFile, `${uid}/${hash}/original${ext ? "." + ext : ''}`)
+        const originalResult = await upload(tmpLocalFilePath, `${uid}/${hash}/original${ext ? "." + ext : ''}`)
 
         const id = await fileModel.insert(
             uid,
@@ -73,30 +69,7 @@ export default async function uploadFrameSide (_, {file}, {uid}) {
             dimensions.width,
             dimensions.height
         );
-
-        // define map
-        // let resizeMap: imageModel.SizePath[] = []
-        // resizeMap.push([1024, tmpResizeFile1024])
-        // resizeMap.push([512, tmpResizeFile512])
-        // resizeMap.push([128, tmpResizeFile128])
-        //
-        //
-        // let resultMap = await imageModel.resizeImages(tmpLocalFile, resizeMap)
-        // console.log({resultMap})
-        //
-        // if (resultMap !== null) {
-        //     for await (let [maxDimension, outputPath] of resultMap) {
-        //         await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
-        //         await fileResizeModel.insertResize(id, maxDimension);
-        //         fs.unlinkSync(outputPath)
-        //     }
-        // }
-
-        // cleanup original after resizes are complete
-        // fs.unlinkSync(tmpLocalFile);
-
-        logger.info('uploaded original and resized version', {uid, filename});
-        logger.info('File uploaded to S3', {uid, originalResult});
+        logger.info('File uploaded to S3', {uid, filename, originalResult});
 
         let resizePayload: ResizeJobPayload = {
             file_id: id,
@@ -105,12 +78,22 @@ export default async function uploadFrameSide (_, {file}, {uid}) {
             hash,
             ext
         }
-        await jobs.addJob(TYPE_RESIZE, id, resizePayload);
-        await jobs.addJob(TYPE_BEES, id);
-        await jobs.addJob(TYPE_CELLS, id);
-        await jobs.addJob(TYPE_CUPS, id);
-        await jobs.addJob(TYPE_QUEENS, id);
-        await jobs.addJob(TYPE_VARROA, id);
+
+        // add async jobs
+        await Promise.all([
+            jobs.addJob(TYPE_RESIZE, id, resizePayload),
+            jobs.addJob(TYPE_BEES, id),
+            jobs.addJob(TYPE_CELLS, id),
+            jobs.addJob(TYPE_CUPS, id),
+            jobs.addJob(TYPE_QUEENS, id),
+            jobs.addJob(TYPE_VARROA, id)
+        ])
+
+        // cleanup after 10 min
+        setTimeout(() => {
+            logger.info('Deleting uploaded file', {tmpLocalFilePath});
+            fs.unlinkSync(tmpLocalFilePath);
+        }, DELETE_UPLOADED_FILE_AFTER_MS);
 
         return {
             id,

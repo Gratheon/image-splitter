@@ -151,7 +151,7 @@ const jobsModel = {
 }
 
 const ERROR_TIME_RETRY_MS = 30 * 1000;
-const IDLE_TIME_RETRY_MS = 5 * 1000;
+const IDLE_TIME_RETRY_MS = 1000;
 const WORK_TIME_RETRY_MS = 10;
 
 export default jobsModel;

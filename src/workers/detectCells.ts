@@ -2,6 +2,7 @@
 import fs from 'fs';
 // @ts-ignore
 import FormData from 'form-data';
+import fetch from 'node-fetch';
 
 import {logger} from '../logger';
 import config from '../config';
@@ -12,8 +13,6 @@ import frameSideCells, {FirstUnprocessedFile} from "../models/frameSideCells";
 import {DetectedFrameResource} from './types';
 import {downloadAndUpdateResolutionInDB} from './common/downloadFile';
 import {roundToDecimal} from './common/common';
-import jobs, {TYPE_CELLS} from "../models/jobs";
-import fileSideQueenCupsModel from "../models/frameSideQueenCups";
 
 export async function detectCells(file: FirstUnprocessedFile)   {
     logger.info(`Detecting frame resources of file id ${file.file_id}, frameside ${file.frame_side_id}`);
@@ -30,6 +29,8 @@ export async function detectCells(file: FirstUnprocessedFile)   {
     let delta: any = [];
     logger.info("Making request to " + config.models_frame_resources_url);
     logger.info("fileContents length is " + fileContents.length);
+
+    // must use fetch from node-fetch, otherwise it will fail with TypeError: fetch failed + SocketError: other side closed
     const response = await fetch(config.models_frame_resources_url, {
         method: 'POST',
         // @ts-ignore

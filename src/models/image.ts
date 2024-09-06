@@ -4,8 +4,9 @@ import sizeOf from 'image-size';
 import webp from 'webp-converter';
 
 import {logger} from '../logger';
-import {Path} from "../path";
+import {AbsolutePath, Path} from "../path";
 import {CutPosition, FrameSideFetchedByFileId} from "./frameSide";
+import config from "../config";
 
 webp.grant_permission();
 
@@ -27,7 +28,6 @@ export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutP
 export function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
     return webp.dwebp(webpFilePath, jpgFilePath, "-o");
 }
-
 
 export type SizePath = [number, Path]
 
@@ -58,7 +58,6 @@ export async function resizeImages(inputPath: string, map: SizePath[], quality =
     return result;
 }
 
-
 function calculateProportionalSizes(width: number, height: number, maxDimension: number) {
     let newWidth, newHeight;
     if (width > height) {
@@ -73,4 +72,8 @@ function calculateProportionalSizes(width: number, height: number, maxDimension:
 
 export function getImageSize(filepath) {
     return sizeOf(filepath)
+}
+
+export function getOriginalFileLocalPath(uid: string, uploadedOriginalFileName: string) : AbsolutePath{
+    return `${config.rootPath}tmp/${uid}_${uploadedOriginalFileName}`
 }
