@@ -41,7 +41,6 @@ async function runDetectionOnSplitImage(file: any, cutPosition: CutPosition, for
 
     if (detectedBees.ok) {
         const res = await detectedBees.json();
-        // log('Parsed response from yolo v5 model to JSON', res);
 
         let newDetectedBees: DetectedObject[] = convertDetectedBeesStorageFormat(res.result, cutPosition);
 
@@ -52,12 +51,13 @@ async function runDetectionOnSplitImage(file: any, cutPosition: CutPosition, for
             file.user_id
         );
 
-        logger.info('Publishing results to redis');
+        const redisChannelName = generateChannelName(
+            file.user_id, 'frame_side',
+            file.frame_side_id, 'bees_partially_detected'
+        )
+        logger.info(`Publishing detectBees results to redis ${redisChannelName}`);
         publisher().publish(
-            generateChannelName(
-                file.user_id, 'frame_side',
-                file.frame_side_id, 'bees_partially_detected'
-            ),
+            redisChannelName,
             JSON.stringify({
                 delta: newDetectedBees,
                 detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),

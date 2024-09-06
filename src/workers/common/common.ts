@@ -32,16 +32,10 @@ export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, su
     }
 
     const processCut = async (x,y, file) => {
-        let width, height, partialFilePath;
+        let width, height;
 
         width = Math.floor(file.width / maxCutsX);
         height = Math.floor(file.height / maxCutsY);
-        partialFilePath = `/app/tmp/${file.user_id}_${file.file_id}_${subImageDimensionPx}_${x}${y}_${file.filename}`;
-
-        if (fs.existsSync(partialFilePath)) {
-            logger.info('Cut file already exists, skipping resizing', partialFilePath);
-            return;
-        }
 
         const cutPosition: CutPosition = {
             x, y,
@@ -52,13 +46,9 @@ export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, su
 
         logger.info(`Cutting file ${file.localFilePath}, at ${x}x${y}`, cutPosition);
 
-        let partialImageBytes: Buffer = await imageModel.cutImage(file, cutPosition, partialFilePath);
+        let partialImageBytes: Buffer = await imageModel.cutImage(file, cutPosition);
 
-        // logger.info(`Reading partial file ${partialFilePath}`);
-
-        // let partialImageBytes: Buffer = fs.readFileSync(partialFilePath);
         logger.info(`Read ${partialImageBytes.length} bytes`);
-
         const formData = new FormData();
         formData.append('file', partialImageBytes, {
             // @ts-ignore
@@ -66,16 +56,12 @@ export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, su
             filename: file.filename
         });
 
-
         logger.info(`splitIn9ImagesAndDetect - calling subImageHandler`, {
             filename: file.filename,
             file_id: file.file_id
         });
 
-
         await subImageHandler(file, cutPosition, formData);
-        // logger.info('Removing temp file');
-        // fs.unlinkSync(partialFilePath);
     }
 
     const parallelPromises = []
