@@ -1,66 +1,76 @@
 import config from "../config/index";
-import Transport from 'winston-transport';
-import winston, { transports, format } from 'winston';
-import createConnectionPool, { sql } from "@databases/mysql";
+
+import createConnectionPool, {sql} from "@databases/mysql";
 import jsonStringify from 'fast-safe-stringify'
 
-class CustomMySQLLogTransport extends Transport {
-  conn: any;
-  constructor(opts) {
-    super(opts);
 
-    this.conn = createConnectionPool(
-      `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/logs`
-    );
-  }
+const conn = createConnectionPool(
+    `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/logs`
+);
 
-  log(info, callback) {
-    const { level, message, ...winstonMeta } = info;
+function log(level: string, message: string, meta?: any) {
+    let time = new Date().toISOString();
+    let hhMMTime = time.slice(11, 19);
+    // colorize time to have ansi blue color
+    hhMMTime = `\x1b[34m${hhMMTime}\x1b[0m`;
 
-    // Perform the writing to the remote service
-    this.conn.query(sql`
-      INSERT INTO logs (level, message, meta, timestamp)
-      VALUES (${level}, ${message}, ${JSON.stringify(winstonMeta)}, NOW())
+    // colorize level to have ansi red color for errors
+    meta = meta ? jsonStringify(meta) : ''
+
+    if (level === 'error') {
+        level = `\x1b[31m${level}\x1b[0m`;
+        meta = `\x1b[35m${meta}\x1b[0m`;
+    } else if (level === 'info') {
+        level = `\x1b[32m${level}\x1b[0m`;
+        meta = `\x1b[35m${meta}\x1b[0m`;
+    } else if (level === 'debug') {
+        level = `\x1b[90m${level}\x1b[0m`;
+        message = `\x1b[90m${message}\x1b[0m`;
+        meta = `\x1b[90m${meta}\x1b[0m`;
+    } else if (level === 'warn') {
+        level = `\x1b[33m${level}\x1b[0m`;
+        meta = `\x1b[35m${meta}\x1b[0m`;
+    }
+
+    console.log(`${hhMMTime} [${level}]: ${message} ${meta}`);
+}
+
+function storeInDB(level: string, message: string, meta?: any){
+    if(!meta) meta = ""
+    conn.query(sql`
+        INSERT INTO logs (level, message, meta, timestamp)
+        VALUES (${level}, ${message}, ${JSON.stringify(meta)}, NOW())
     `);
-    callback();
-  }
+}
+
+export const logger = {
+    info: (message: string, meta?: any) => {
+        log('info', message, meta)
+        storeInDB('info', message, meta)
+    },
+    error: (message: string | Error | any, meta?: any) => {
+        if (message.message && message.stack) {
+            storeInDB('error', message, meta)
+            return log('error', message.message, {
+                stack: message.stack,
+                ...meta
+            });
+        }
+        log('error', String(message), meta)
+        storeInDB('error', message, meta)
+    },
+    warn: (message: string, meta?: any) => {
+        log('warn', message, meta)
+        storeInDB('warn', message, meta)
+    },
+
+    // do not store debug logs in DB
+    debug: (message: string, meta?: any) => {
+        log('debug', message, meta)
+    },
 };
 
-export const logger = winston.createLogger({
-  level: 'info',
-  levels: Object.assign({ 'fatal': 0, 'warn': 4, 'trace': 7 }, winston.config.syslog.levels),
-  format: format.json(),
-  defaultMeta: { service: 'user-cycle' },
-  transports: [
-    new transports.Console({
-      format: format.combine(
-        format.timestamp({format: 'HH:mm:ss'}),
-        format.colorize({all: true}),
-        format.printf(info => {
-
-          const args = info[Symbol.for('splat')];
-          let strArgs = '';
-          if(args) {
-            strArgs = args.map(jsonStringify).join(' ');
-          }
-
-          return `${info.timestamp} ${info.level}: ${info.message} ${strArgs}`
-        })
-      ),
-      handleExceptions: true
-    }),
-    new CustomMySQLLogTransport({
-      host: config.mysql.host,
-      user: config.mysql.user,
-      password: config.mysql.password,
-      database: 'logs',
-      table: 'logs'
-    }),
-  ],
-});
-
-logger.child = function () { return winston.loggers.get("default") };
 
 process.on('uncaughtException', function (err) {
-  console.log("UncaughtException processing: %s", err);
+    console.log("UncaughtException processing: %s", err);
 });

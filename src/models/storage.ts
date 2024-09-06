@@ -1,4 +1,4 @@
-import createConnectionPool, { sql } from "@databases/mysql";
+import createConnectionPool, {sql, SQLQuery} from "@databases/mysql";
 import tables from "@databases/mysql-typed";
 import * as fs from "fs";
 import * as crypto from "crypto";
@@ -25,12 +25,39 @@ export async function initStorage(logger) {
   const conn = createConnectionPool(dsn);
 
   await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
+  const startTimes = new Map<SQLQuery, number>();
+  let connectionsCount = 0;
 
   db = createConnectionPool({
     connectionString: `${dsn}${config.mysql.database}`,
-    onQueryError: (_query, { text }, err) => {
+    onQueryError: (query, { text }, err) => {
+      startTimes.delete(query);
       logger.error(
         `DB error ${text} - ${err.message}`
+      );
+    },
+
+    onQueryStart: (query) => {
+      startTimes.set(query, Date.now());
+    },
+    onQueryResults: (query, {text}, results) => {
+      const start = startTimes.get(query);
+      startTimes.delete(query);
+
+      if (start) {
+        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Date.now() - start}ms`);
+      } else {
+        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')}`);
+      }
+    },
+    onConnectionOpened: () => {
+      logger.info(
+          `Opened connection. Active connections = ${++connectionsCount}`,
+      );
+    },
+    onConnectionClosed: () => {
+      logger.info(
+          `Closed connection. Active connections = ${--connectionsCount}`,
       );
     },
   });

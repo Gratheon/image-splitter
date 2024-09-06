@@ -106,7 +106,7 @@ export async function retryAsyncFunction(asyncFunction, maxRetries, DELAY_SEC = 
             return await asyncFunction();
         } catch (error) {
             logger.warn(`Attempt ${retries + 1} failed`);
-            logger.warn(error);
+            logger.error(error);
             retries++;
             if (retries < maxRetries) {
                 await sleep(DELAY_SEC)
