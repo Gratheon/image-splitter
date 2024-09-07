@@ -14,7 +14,7 @@ test-integration:
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down
 	rm -rf ./app
 	source $(HOME)/.nvm/nvm.sh && nvm use && npm i && npm run build
-	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d --build
+	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	sleep 10
 	npm run test:integration
 	
