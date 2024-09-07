@@ -3,6 +3,7 @@ import { sql } from "@databases/mysql";
 
 import { storage } from "./storage";
 import config from '../config/index'
+import {logger} from "../logger";
 
 
 export default {
@@ -75,7 +76,6 @@ export default {
             ORDER BY added_time DESC
             LIMIT 1`
         ));
-        console.log({ result })
 
         if (!result[0]) {
             return null
@@ -98,8 +98,6 @@ export default {
             //         RAW_TEXT += `\nFile "${msg.path}" contents: \n\n ${msg.object.text.substring(0, 10000)}`
             //     }
             // }
-
-            console.log("Sending:" + prompt)
 
             const raw = JSON.stringify({
                 "user_app_id": {
@@ -130,17 +128,17 @@ export default {
             let clarifaiData = await response.json()
 
             if (clarifaiData?.status?.code != 10000) {
-                console.error("Unexpected response code", clarifaiData.status);
+                logger.error("Unexpected response code", clarifaiData.status);
                 return
             }
 
-            console.log("clarifai response:", clarifaiData)
+            logger.debug("clarifai response", clarifaiData)
             const clarifaiResponse = clarifaiData['outputs'][0]['data']['text']['raw']
 
             return clarifaiResponse
 
         } catch (error) {
-            console.error(error)
+            logger.error(error)
         }
     }
 }

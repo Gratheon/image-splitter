@@ -57,7 +57,7 @@ export async function initStorage(logger) {
   // close connections on exit
   process.once('SIGTERM', () => {
     db.dispose().catch((ex) => {
-      console.error(ex);
+      logger.error(ex);
     });
   });
 
@@ -116,6 +116,6 @@ async function migrate(logger) {
       }
     }
   } catch (err) {
-    console.error(err);
+    logger.error(err);
   }
 }

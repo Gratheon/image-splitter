@@ -103,6 +103,5 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
 
     } catch (err) {
         logger.error(err);
-        console.error(err);
     }
 }

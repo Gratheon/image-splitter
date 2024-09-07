@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import sha1 from 'sha1';
 
 import config from "../config/index";
+import {logger} from "../logger";
 
 const packageJson = JSON.parse(
   fs.readFileSync(path.resolve("package.json"), "utf8")
@@ -35,13 +36,13 @@ async function postData(url = "", data:SchemaRegistryInput) {
 
     if (!response.ok) {
       const result = await response.text();
-      console.error(result);
+      logger.error(result);
       return false;
     }
 
     return await response.json(); // parses JSON response into native JavaScript objects
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     return false;
   }
 }
