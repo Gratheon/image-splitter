@@ -26,12 +26,24 @@ flowchart LR
 ```
 
 ### Async worker processing / data flow
+We use pure mysql DB for processing async jobs instead of redis pubsub and kafka (at least for now) because
+- we want to have persistance and to query state of async jobs
+- we want to have control over retries and error failure states
+
 ```mermaid
 flowchart LR
-analyzeBeesAndVarroa --"re-run in 10 sec"--> analyzeBeesAndVarroa --> detectBeesAndVarroa
-analyzeQueenCups --> detectQueenCups
-analyzeCells --"re-run in 10 sec"--> analyzeCells
-analyzeCells --> downloadAndUpdateResolutionInDB
+
+upload --"insert new job"--> DB[("DB\njobs table")]
+orchestrator --> jobsModel.processJobInLoop --> jobsModel.fetchUnprocessed --"fetch queued jobs"--> DB
+jobsModel.processJobInLoop --> startDetection --"mark job as started"--> DB
+jobsModel.processJobInLoop --> handler --> resizeOriginalToThumbnails
+handler --> detectWorkerBees
+handler --> analyzeCells
+handler --> detectVarroa
+handler --> analyzeQueenCups
+handler --> detectQueens
+jobsModel.processJobInLoop --"fail job if handler failed"> jobsModel.fail
+jobsModel.processJobInLoop --> jobsModel.endDetection --"mark job as complete"--> DB
 ```
 
 ### Development
