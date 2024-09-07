@@ -1,11 +1,10 @@
 import config from "./config.default";
-import {logger} from "../logger";
 
 function loadConfig<T>(filePath: string): T | undefined {
   try {
     return require(filePath).default;
   } catch (error) {
-    logger.error(`Failed to load config '${filePath}':`, error);
+    console.error(`Failed to load config '${filePath}':`, error);
     return undefined;
   }
 }
@@ -16,7 +15,7 @@ const customConfig = loadConfig<typeof config>(`./config.${env}`);
 const currentConfig = { ...config, ...customConfig };
 
 export function get<T extends keyof typeof config>(
-  key: T
+    key: T
 ): typeof config[T] {
   return currentConfig[key];
 }
