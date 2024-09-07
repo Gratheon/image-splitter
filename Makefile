@@ -17,6 +17,14 @@ test-integration:
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	sleep 10
 	npm run test:integration
+
+test-integration-ci:
+	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down
+	rm -rf ./app
+	npm i && npm run build
+	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
+	sleep 10
+	npm run test:integration
 	
 deploy-clean:
 	ssh root@gratheon.com 'rm -rf /www/image-splitter/app/*;'

@@ -32,7 +32,7 @@ jobs:
 
       - run: npm install
       - run: npm run test:unit
-      - run: make test-integration
+      - run: make test-integration-ci
 
       - name: Produce the coverage report
         uses: insightsengineering/coverage-action@v2
