@@ -69,3 +69,13 @@ To add migration, just add new file. Try to keep same naming convention.
 Minio is available at:
 http://localhost:9001/buckets
 minio-admin:minio-admin
+
+Unit tests are executed with jest:
+```bash
+npm run test:unit
+```
+
+Integration tests spin up local docker containers and test against them:
+```bash
+make test-integration
+```

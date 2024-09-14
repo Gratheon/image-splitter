@@ -35,7 +35,7 @@ services:
     volumes:
       - ./test/mysql82:/var/lib/mysql
 
-  minio: &minio-common
+  minio:
     image: minio/minio
     ports:
       - 9000:9000
@@ -47,7 +47,7 @@ services:
     volumes:
       - ./test/minio:/data
     healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,3 +63,4 @@ services:
     command: "mc mb gratheon-test || true"
 volumes:
   mysql82:
+
