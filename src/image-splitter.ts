@@ -15,8 +15,8 @@ import { resolvers } from "./graphql/resolvers";
 import { initStorage } from "./models/storage";
 import { registerSchema } from "./graphql/schema-registry";
 import config from "./config/index";
-import {logger} from "./logger";
-import './sentry';
+import { logger, fastifyLogger } from "./logger";
+import "./sentry";
 
 function fastifyAppClosePlugin(app) {
   return {
@@ -70,15 +70,15 @@ async function startApolloServer(app, typeDefs, resolvers) {
       // allow direct access in case of upload
       else {
         const token = req.request.raw.headers.token;
-        const decoded = await new Promise((resolve, reject) =>
+        const decoded = (await new Promise((resolve, reject) =>
           jwt.verify(token, config.jwt.privateKey, function (err, decoded) {
             if (err) {
               reject(err);
             }
             resolve(decoded);
-          })
-        ) as {
-          user_id: string
+          }),
+        )) as {
+          user_id: string;
         };
 
         uid = decoded?.user_id;
@@ -97,18 +97,17 @@ async function startApolloServer(app, typeDefs, resolvers) {
 }
 
 (async function main() {
-  logger.info('Starting service...');
+  logger.info("Starting service...");
 
   await initStorage(logger);
   orchestrator();
 
   const app = fastify({
-    // @ts-ignore
-    logger,
+    logger: fastifyLogger,
   });
 
   try {
-    let schemaString = schema()
+    let schemaString = schema();
 
     // no need to register schema in integration test mode
     if (process.env.ENV_ID != "testing") {
@@ -118,7 +117,9 @@ async function startApolloServer(app, typeDefs, resolvers) {
     const relPath = await startApolloServer(app, schemaString, resolvers);
     await app.listen(8800, "0.0.0.0");
 
-    logger.info(`image-splitter service is ready at http://localhost:8800${relPath}`);
+    logger.info(
+      `image-splitter service is ready at http://localhost:8800${relPath}`,
+    );
   } catch (e) {
     logger.error(e);
   }
