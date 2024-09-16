@@ -1,0 +1,2 @@
+ALTER TABLE jobs CHANGE COLUMN `type` `name` VARCHAR(255) NOT NULL;
+
