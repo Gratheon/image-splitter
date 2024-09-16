@@ -23,5 +23,5 @@ test-integration-ci:
 	rm -rf ./app
 	npm i && npm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
-	sleep 10
+	sleep 30
 	npm run test:integration
