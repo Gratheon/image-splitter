@@ -8,12 +8,14 @@ on:
     branches:
       - main
 
-
 jobs:
   test:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
+      - uses: extractions/setup-just@v1
+        with:
+          just-version: 1.5.0 # optional semver specification, otherwise latest
       - uses: actions/checkout@v2
 
       - name: Read .nvmrc
@@ -22,17 +24,17 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: '${{ steps.nvm.outputs.NVMRC }}'
-          cache: 'npm'
+          node-version: "${{ steps.nvm.outputs.NVMRC }}"
+          cache: "npm"
 
       - uses: actions/cache@v2
         with:
-          path: '**/node_modules'
+          path: "**/node_modules"
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
       - run: npm install
       - run: npm run test:unit
-      - run: make test-integration-ci
+      - run: just test-integration-ci
 
       - name: Produce the coverage report
         uses: insightsengineering/coverage-action@v2
