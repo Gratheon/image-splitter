@@ -17,7 +17,12 @@ In production its upload traffic is not going via graphql-router as federated gr
 ```mermaid
 flowchart LR
     web-app("<a href='https://github.com/Gratheon/web-app'>web-app</a>\n:8080") --> graphql-router("<a href='https://github.com/Gratheon/graphql-router'>graphql-router</a>") --> image-splitter("<a href='https://github.com/Gratheon/image-splitter'>image-splitter</a>\n:8800") --"poll images for processing every 500ms-10s\nstore inference results"--> mysql
-    graphql-router --upload--> image-splitter --"store original upload, download for inference"--> aws-s3
+    
+    graphql-router --upload--> image-splitter
+
+    image-splitter --"store original upload\n download for inference (prod)"--> aws-s3
+    image-splitter -."store original upload\n download for inference (dev)".-> minio["minio\n:9000"]
+    
 	image-splitter --"detect bees"--> models-bee-detector("<a href='https://github.com/Gratheon/models-bee-detector'>models-bee-detector</a>\n:8700")
 	image-splitter --"detect frame cells"--> models-frame-resources("<a href='https://github.com/Gratheon/models-frame-resources'>models-frame-resources</a>\n:8540")
 	image-splitter --"detect queen cups\ndetect varroa\ndetect queens"--> clarifai("<a href='https://clarifai.com'>clarifai</a>")
