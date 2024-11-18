@@ -26,8 +26,8 @@ services:
   minio:
     image: minio/minio
     ports:
-      - 9000:9000
-      - 9001:9001
+      - 19000:9000
+      - 19001:9001
     environment:
       MINIO_ROOT_USER: minio-admin
       MINIO_ROOT_PASSWORD: minio-admin
