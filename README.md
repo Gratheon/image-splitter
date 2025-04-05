@@ -8,6 +8,7 @@ In production its upload traffic is not going via graphql-router as federated gr
 ### URLs
 
 - Dev: http://localhost:8800
+- Dev Minio: http://localhost:19001 (minio-admin as username and password)
 - Prod: https://image.gratheon.com/graphql
 
 ## Architecture
