@@ -101,4 +101,47 @@ describe('POST /graphql', () => {
         expect(result.data.uploadFrameSide).toHaveProperty('id');
         expect(result.data.uploadFrameSide).toHaveProperty('url');
     });
+
+    it('uploadFrameSide unauthenticated', async () => {
+        const filePath = './test/integration/fixture/IMG_4368.JPG';
+        const fileBuffer = fs.readFileSync(filePath);
+        const fileName = filePath.split('/').pop() || 'upload.jpg';
+
+        const form = new FormData(); // Use global FormData
+        form.append('operations', JSON.stringify({
+            query: `
+                mutation($file: Upload!) {
+                    uploadFrameSide(file: $file) {
+                        __typename
+                        id
+                        url
+                    }
+                }
+            `,
+            variables: { file: null }
+        }));
+        form.append('map', JSON.stringify({ "0": ["variables.file"] }));
+        form.append('0', new Blob([fileBuffer]), fileName);
+
+        // Send request WITHOUT authentication headers
+        const response = await fetch(URL, {
+            method: 'POST',
+            body: form // Send the global FormData object
+        });
+
+        // Expect 401 Unauthorized due to the httpStatusPlugin
+        expect(response.status).toBe(401);
+
+        const result = await response.json(); // Use .json() directly for native fetch
+
+        // Expect the top-level errors array
+        expect(result).toHaveProperty('errors');
+        expect(Array.isArray(result.errors)).toBe(true);
+        expect(result.errors.length).toBeGreaterThan(0);
+
+        // Check for the specific authentication error
+        const authError = result.errors.find(err => err?.extensions?.code === 'UNAUTHENTICATED');
+        expect(authError).toBeDefined();
+        expect(authError.message).toEqual('Authentication required');
+    });
 });

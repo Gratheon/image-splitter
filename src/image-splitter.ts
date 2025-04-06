@@ -1,5 +1,9 @@
-import {ApolloServer} from "apollo-server-fastify";
-import {ApolloServerPluginDrainHttpServer, ApolloServerPluginLandingPageGraphQLPlayground,} from "apollo-server-core";
+import {ApolloServer} from "apollo-server-fastify"; // Remove BaseContext import
+import {
+    ApolloServerPluginDrainHttpServer,
+    ApolloServerPluginLandingPageGraphQLPlayground,
+} from "apollo-server-core";
+import { GraphQLRequestListener } from "apollo-server-plugin-base"; // Import from plugin-base
 import fastify from "fastify";
 import fastifyMultipart from "fastify-multipart"; // Import fastify-multipart
 import {buildSubgraphSchema} from "@apollo/federation";
@@ -15,6 +19,27 @@ import {registerSchema} from "./graphql/schema-registry";
 import config from "./config/index";
 import {fastifyLogger, logger} from "./logger";
 import "./sentry";
+
+// Plugin to set HTTP status code based on GraphQL error codes
+const httpStatusPlugin = {
+    // Define requestDidStart without the problematic generic constraint
+    async requestDidStart(): Promise<GraphQLRequestListener<any>> { // Use 'any' for context
+        return {
+            // Explicitly type requestContext parameter if needed, or rely on inference
+            async willSendResponse(requestContext: any) { // Use 'any' for requestContext
+                const { response, errors } = requestContext;
+                // Check if there are errors and the code is UNAUTHENTICATED
+                if (errors && errors.some(err => err.extensions?.code === 'UNAUTHENTICATED')) {
+                    // Modify the HTTP status code
+                    if (response.http) {
+                         response.http.status = 401;
+                    }
+                }
+            },
+        };
+    },
+};
+
 
 function fastifyAppClosePlugin(app) {
     return {
@@ -48,6 +73,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
         schema: buildSubgraphSchema({typeDefs: gql(typeDefs), resolvers}),
 
         plugins: [
+            httpStatusPlugin, // Add the custom plugin
             fastifyAppClosePlugin(app),
             ApolloServerPluginLandingPageGraphQLPlayground(),
             ApolloServerPluginDrainHttpServer({httpServer: app.server}),
@@ -88,29 +114,30 @@ async function startApolloServer(app, typeDefs, resolvers) {
         },
         context: async (req) => {
             let uid;
-            const headers = req.request.raw.headers; // Get headers
-            const signature = headers["internal-router-signature"];
+            // Correctly access headers via req.request.headers
+            const headers = req.request.headers;
+            const signature = headers["internal-router-signature"] as string; // Cast if needed
             const configSig = config.routerSignature;
 
             // Log received headers and comparison details
             logger.debug('Context Creation Headers:', {
                 'content-type': headers['content-type'], // Log content type for multipart debugging
                 'internal-router-signature': signature,
-                'internal-userid': headers["internal-userid"],
-                'token': headers.token,
+                'internal-userid': headers["internal-userid"] as string, // Cast if needed
+                'token': headers.token as string, // Cast if needed
                 'config.routerSignature': configSig,
                 'signatureMatch': signature === configSig
             });
 
             // signature sent by router so that it cannot be faked
             if (signature === configSig) {
-                uid = headers["internal-userid"];
+                uid = headers["internal-userid"] as string; // Cast if needed
                 logger.info('Context: Using internal-userid', { uid });
             }
             // allow direct access in case of upload
             else {
                 logger.info('Context: Signature mismatch or missing, attempting JWT');
-                const token = headers.token;
+                const token = headers.token as string; // Cast if needed
                 if (!token) {
                      logger.warn('Context: JWT token missing');
                      uid = undefined;

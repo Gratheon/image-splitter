@@ -16,10 +16,16 @@ import {ResizeJobPayload} from "../workers/common/resizeOriginalToThumbnails";
 // 10 min should be enough to process the file
 const DELETE_UPLOADED_FILE_AFTER_MS = 1000 * 60 * 10;
 
+import { GraphQLError } from 'graphql'; // Import GraphQLError
+
 export default async function uploadFrameSide(_, {file}, {uid}) {
     if (!uid) {
-        logger.error('Attempt to upload file without uid')
-        return null
+        logger.error('Attempt to upload file without uid');
+        // Throw an error instead of returning null
+        const error = new GraphQLError('Authentication required');
+        // Assign extensions separately
+        (error.extensions as any) = { code: 'UNAUTHENTICATED' };
+        throw error;
     }
 
     try {
