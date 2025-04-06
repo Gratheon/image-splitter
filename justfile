@@ -32,4 +32,5 @@ test-integration-ci:
 	  COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml logs; \
 	  exit 1; \
 	fi
-	@npm run test:integration
+	# Ensure test runner also uses testing config
+	@ENV_ID=testing npm run test:integration
