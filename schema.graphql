@@ -22,7 +22,6 @@ type Mutation {
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
-	# Removed updateFrameSideQueenPresense
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
 	confirmFrameSideQueen(frameSideId: ID!, isConfirmed: Boolean!): FrameSide # Added mutation
 
