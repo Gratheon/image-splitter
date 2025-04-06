@@ -27,11 +27,10 @@ export default function run() {
 
   // calling external services
   // only run these jobs in production because they are expensive
-  if (process.env.ENV_ID == "prod") {
-    jobsModel.processJobInLoop(TYPE_VARROA, detectVarroa);
-    jobsModel.processJobInLoop(TYPE_CUPS, analyzeQueenCups);
+  jobsModel.processJobInLoop(TYPE_VARROA, detectVarroa);
+  jobsModel.processJobInLoop(TYPE_CUPS, analyzeQueenCups);
+  
+  // and also because we use minio in dev/test and public url is localhost:9000 that clarifai can't access
+  jobsModel.processJobInLoop(TYPE_QUEENS, detectQueens);
 
-    // and also because we use minio in dev/test and public url is localhost:9000 that clarifai can't access
-    jobsModel.processJobInLoop(TYPE_QUEENS, detectQueens);
-  }
 }
