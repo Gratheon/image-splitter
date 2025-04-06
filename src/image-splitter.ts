@@ -1,8 +1,9 @@
 import {ApolloServer} from "apollo-server-fastify";
 import {ApolloServerPluginDrainHttpServer, ApolloServerPluginLandingPageGraphQLPlayground,} from "apollo-server-core";
 import fastify from "fastify";
+import fastifyMultipart from "fastify-multipart"; // Import fastify-multipart
 import {buildSubgraphSchema} from "@apollo/federation";
-import {processRequest} from "graphql-upload";
+import {processRequest} from "graphql-upload"; // Re-import processRequest
 import jwt from "jsonwebtoken";
 import gql from "graphql-tag";
 
@@ -28,18 +29,19 @@ function fastifyAppClosePlugin(app) {
 }
 
 async function startApolloServer(app, typeDefs, resolvers) {
-    app.addContentTypeParser("multipart", (request, payload, done) => {
-        request.isMultipart = true;
-        done();
-    });
-
-    // Format the request body to follow graphql-upload's
+    // Keep fastify-multipart registered (without attachFieldsToBody)
+    // Restore preValidation hook to use processRequest from graphql-upload
     app.addHook("preValidation", async function (request, reply) {
-        if (!request.isMultipart) {
+        // Check content-type header instead of custom flag
+        if (!request.headers['content-type']?.startsWith('multipart/form-data')) {
             return;
         }
-
-        request.body = await processRequest(request.raw, reply.raw);
+        // Process the request for graphql-upload compatibility
+        request.body = await processRequest(request.raw, reply.raw, {
+             // Pass upload options if needed, matching ApolloServer config
+             maxFileSize: 30000000,
+             maxFiles: 20,
+        });
     });
 
     const server = new ApolloServer({
@@ -131,6 +133,9 @@ async function startApolloServer(app, typeDefs, resolvers) {
     const app = fastify({
         logger: fastifyLogger,
     });
+
+    // Register fastify-multipart (still without attachFieldsToBody)
+    app.register(fastifyMultipart);
 
     // Add health check endpoint
     app.get('/healthz', async (request, reply) => {

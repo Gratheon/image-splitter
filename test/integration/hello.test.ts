@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import {expect, describe, it, beforeEach} from '@jest/globals'; // Import Jest globals explicitly
-import fetch from 'node-fetch';
+// Use global fetch, FormData, Blob instead of node-fetch and form-data packages
 import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 import config from '../../src/config';
 
@@ -11,14 +11,15 @@ describe('POST /graphql', () => {
     beforeEach(() => {
     });
 
-    it.skip('hello_image_splitter', async () => {
+    it('hello_image_splitter', async () => { // Remove .skip
         // make POST request
         // Send a POST request to the API endpoint
         const response = await fetch(URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'internal-router-signature': 'test-signature',
+                'internal-router-signature': config.routerSignature, // Use config value for consistency
+                'internal-userid': '1' // Add the user ID header
             },
             body: JSON.stringify({
                 query: '{ hello_image_splitter }',
@@ -43,9 +44,9 @@ describe('POST /graphql', () => {
     it('uploadFrameSide', async () => {
         const filePath = './test/integration/fixture/IMG_4368.JPG';
         const fileBuffer = fs.readFileSync(filePath);
-        const fileName = filePath.split('/').pop();
+        const fileName = filePath.split('/').pop() || 'upload.jpg'; // Provide default filename
 
-        const form = new FormData();
+        const form = new FormData(); // Use global FormData
         form.append('operations', JSON.stringify({
             query: `
                 mutation($file: Upload!) {
@@ -59,6 +60,7 @@ describe('POST /graphql', () => {
             variables: { file: null }
         }));
         form.append('map', JSON.stringify({ "0": ["variables.file"] }));
+        // Use Blob with global FormData
         form.append('0', new Blob([fileBuffer]), fileName);
 
         // Generate JWT
@@ -72,11 +74,10 @@ describe('POST /graphql', () => {
                 'internal-router-signature': config.routerSignature,
                 'internal-userid' : '1',
                 'token': token // Add the JWT token header
+                // Native fetch handles FormData headers automatically
             },
-            body: form
+            body: form // Send the global FormData object
         });
-
-        console.log('Raw Response Status:', response.status); // Log status first
 
         // Check status and log errors if not 200
         if (response.status !== 200) {
@@ -92,8 +93,8 @@ describe('POST /graphql', () => {
         expect(response.status).toBe(200); // Keep the assertion
 
         // Proceed to parse and check data if status was 200
-        const result = await response.json();
-        console.log('Parsed Response Body:', JSON.stringify(result, null, 2)); // Log parsed body
+        const bodyText = await response.text(); // Consume body as text first
+        const result = JSON.parse(bodyText); // Then parse the text
 
         expect(result).toHaveProperty('data');
         expect(result.data).toHaveProperty('uploadFrameSide');

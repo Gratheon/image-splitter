@@ -45,8 +45,8 @@ export default {
     },
 
     jwt: {
-        // this must match user-cycle JWT_KEY
-        privateKey: "",
+        // this must match user-cycle JWT_KEY and config.default.ts for tests
+        privateKey: "somerandomtoken",
     },
 
     // please set own Clarifai API credentials
