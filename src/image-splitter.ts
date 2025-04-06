@@ -132,7 +132,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
             // signature sent by router so that it cannot be faked
             if (signature === configSig) {
                 uid = headers["internal-userid"] as string; // Cast if needed
-                logger.info('Context: Using internal-userid', { uid });
+                logger.info('Context: Assigning uid from internal-userid', { uid });
             }
             // allow direct access in case of upload
             else {

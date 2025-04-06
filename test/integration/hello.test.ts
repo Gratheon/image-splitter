@@ -95,6 +95,8 @@ describe('POST /graphql', () => {
         // Proceed to parse and check data if status was 200
         const bodyText = await response.text(); // Consume body as text first
         const result = JSON.parse(bodyText); // Then parse the text
+        // Log the parsed body regardless of assertion outcomes (if status was 200)
+        console.log('Parsed Response Body (uploadFrameSide - authenticated):', JSON.stringify(result, null, 2));
 
         expect(result).toHaveProperty('data');
         expect(result.data).toHaveProperty('uploadFrameSide');
@@ -133,6 +135,8 @@ describe('POST /graphql', () => {
         expect(response.status).toBe(401);
 
         const result = await response.json(); // Use .json() directly for native fetch
+        // Log the error response body
+        console.log('Parsed Response Body (uploadFrameSide - unauthenticated):', JSON.stringify(result, null, 2));
 
         // Expect the top-level errors array
         expect(result).toHaveProperty('errors');
