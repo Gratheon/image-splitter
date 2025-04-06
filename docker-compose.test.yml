@@ -21,6 +21,9 @@ services:
     depends_on:
       mysql-test: # Wait for mysql-test to be healthy
         condition: service_healthy
+      minio: # Wait for minio to be healthy
+        condition: service_healthy
+      # We don't explicitly wait for create-bucket as it's quick and idempotent
 
   mysql-test:
     image: mysql:8.2
@@ -67,6 +70,9 @@ services:
       MINIO_HOST: minio
       MINIO_ACCESS_KEY: minio-admin
       MINIO_SECRET_KEY: minio-admin
+    depends_on: # Make sure minio is healthy before trying to create bucket
+      minio:
+        condition: service_healthy
     entrypoint: ["sh", "-c"]
     command: "mc mb gratheon-test || true"
 volumes:

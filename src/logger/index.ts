@@ -96,18 +96,22 @@ export const logger = {
 };
 
 export const fastifyLogger = {
+  // Stringify potential objects passed to info/warn
   info: (msg) => {
-    log("info", msg);
-    //    storeInDB("info", message, meta);
+    const messageString = typeof msg === 'object' ? jsonStringify(msg) : String(msg);
+    log("info", messageString);
+    // storeInDB("info", messageString); // Keep commented out as original
   },
   error: (message: string | Error | any, meta?: any) => {
     const errorMessage = (message && message.message) ? message.message : String(message);
     log("error", errorMessage, meta);
-    storeInDB("error", errorMessage, meta);
+    // Ensure string is passed to storeInDB
+    storeInDB("error", typeof message === 'object' ? jsonStringify(message) : errorMessage, meta);
   },
   warn: (msg) => {
-    log("warn", msg);
-    storeInDB("warn", msg);
+    const messageString = typeof msg === 'object' ? jsonStringify(msg) : String(msg);
+    log("warn", messageString);
+    storeInDB("warn", messageString); // Pass stringified message
   },
 
   // do not store debug logs in DB
