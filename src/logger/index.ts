@@ -40,8 +40,12 @@ function storeInDB(level: string, message: string, meta?: any) {
         INSERT INTO \`logs\` (\`level\`, \`message\`, \`meta\`, \`timestamp\`)
         VALUES (${level}, ${message}, ${JSON.stringify(meta)}, NOW())
     `).catch(err => {
-      // Add basic error handling for the log insertion itself
-      console.error(`\x1b[31mFailed to store log in DB:\x1b[0m ${err.message}`);
+      // Log connection errors to console only, don't crash
+      console.error(`\x1b[31m[Logger DB Error] Failed to store log in DB:\x1b[0m ${err.message}`);
+      // Optionally check if it's a connection error vs. other query error
+      if (err.code && (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT')) {
+          console.warn(`\x1b[33m[Logger DB Warning] Logger DB connection failed (${err.code}). Is the DB ready?\x1b[0m`);
+      }
     });
 }
 
