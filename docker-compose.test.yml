@@ -59,7 +59,8 @@ services:
     volumes:
       - ./test/minio:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # Use curl to check the Minio health endpoint directly
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -75,7 +76,7 @@ services:
       minio:
         condition: service_healthy
     entrypoint: ["sh", "-c"]
-    # First set alias for the minio service, then create bucket using the alias
-    command: "mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb local/gratheon-test || true"
+    # Add set -e, sleep, set alias, make bucket (without || true)
+    command: "set -e && sleep 2 && mc alias set --api S3v4 local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb local/gratheon-test"
 volumes:
   mysql82:
