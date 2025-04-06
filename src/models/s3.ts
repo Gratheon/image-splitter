@@ -29,7 +29,10 @@ export default async function upload(sourceLocalFilePath: AbsolutePath, targetS3
 
     const s3 = new S3Client(awsConfig);
 
-    logger.info('Uploading file to S3', {sourceLocalFilePath, targetS3FilePath})
+    logger.info('Uploading file to S3', {sourceLocalFilePath, targetS3FilePath});
+    // Add detailed logging before the send command
+    logger.info('S3 Client Config used:', awsConfig);
+    logger.info('S3 PutObjectCommand params:', { Bucket: bucketName, Key: targetS3FilePath });
 
     const data = fs.readFileSync(sourceLocalFilePath, { flag: 'r' });
 
