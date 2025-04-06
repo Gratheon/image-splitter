@@ -22,8 +22,9 @@ type Mutation {
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
-	updateFrameSideQueenPresense(frameSideId: ID!, isPresent: Boolean!): Boolean!
+	# Removed updateFrameSideQueenPresense
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
+	confirmFrameSideQueen(frameSideId: ID!, isConfirmed: Boolean!): FrameSide # Added mutation
 
 	"""
 	On inspection creation, we want to clone frames from current state (NULL references) and set inspectionId
@@ -118,6 +119,7 @@ type FrameSideInspection {
 
 extend type FrameSide @key(fields: "id") {
 	id: ID @external
+	isQueenConfirmed: Boolean # Added field
 	file: File
 	cells: FrameSideCells
 	frameSideFile: FrameSideFile

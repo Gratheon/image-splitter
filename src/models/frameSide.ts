@@ -9,6 +9,7 @@ import {MIN_VARROA_CONFIDENCE} from "../workers/detectVarroa";
 import {roundToDecimal} from "../workers/common/common";
 import {Path} from "../path";
 import URL from "../url";
+import { generateChannelName, publisher } from '../redisPubSub'; // Added import
 
 
 let typeMap = {
@@ -59,7 +60,7 @@ export type FrameSideFetchedByFileId = {
 // Beehive frames have sides
 // For every side we detect bees
 // We also allow drawing with ipad pencil on it - strokeHistory
-// 
+//
 const frameSideModel = {
     getFrameSides: async function (frameSideIds = [], inspectionId, uid) {
         let result;
@@ -86,7 +87,7 @@ const frameSideModel = {
         return result;
     },
 
-    getFrameSideByFileId: async function (file_id: string) : Promise<FrameSideFetchedByFileId> {
+    getFrameSideByFileId: async function (file_id: string) : Promise<FrameSideFetchedByFileId | null> { // Allow null return type
         const result = await storage().query(
             sql`SELECT t1.user_id,
                        t1.file_id,
@@ -124,6 +125,7 @@ const frameSideModel = {
             sql`SELECT t1.user_id,
                        t1.strokeHistory,
                        t1.queen_detected,
+                       t1.is_queen_confirmed, -- Fetch the new column
                        t2.filename,
                        t2.width,
                        t2.height,
@@ -149,17 +151,16 @@ const frameSideModel = {
         const detectedBees = await frameSideModel.getDetectedBeesAndQueensFromLatestFile(frameSideId, uid)
 
         return {
-            __typename: 'FrameSideFile',
-            id: rel.id,
+            __typename: 'FrameSideFile', // This might need adjustment if the resolver returns FrameSide now
+            id: rel.id, // This ID might be ambiguous (files_frame_side_rel.id vs frame_side.id)
             frameSideId,
             strokeHistory: rel.strokeHistory,
             file: file,
-
-            detectedBees: detectedBees, // rel.detected_bees,
-            detectedCells: rel.cells,
+            detectedBees: detectedBees,
+            detectedCells: rel.cells, // cells not selected
             detectedQueenCups: rel.cups,
-
-            queenDetected: rel.queen_detected,
+            queenDetected: !!rel.queen_detected, // Ensure boolean
+            isQueenConfirmed: !!rel.is_queen_confirmed // Ensure boolean
         };
     },
 
@@ -177,10 +178,7 @@ const frameSideModel = {
                 uid,
                 workerBeeCount,
                 detectedDrones,
-                // exDetectedBees,
-                // detectedBees
             })
-
 
             exDetectedBees.push(...detectedBees)
 
@@ -228,45 +226,26 @@ const frameSideModel = {
                   AND user_id = ${uid}
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel || !rel.detected_bees) {
-            return [];
-        }
-
+        if (!rel || !rel.detected_bees) { return []; }
         return rel.detected_bees;
     },
 
-    // frame side can have multiple versions/files attached due to inspections
     getDetectedBeesAndQueensFromLatestFile: async function (frameSideId, uid): Promise<DetectedObject[]> {
         const result = await storage().query(
             sql`SELECT detected_bees, detected_queens
                 FROM files_frame_side_rel
                 WHERE frame_side_id = ${frameSideId}
                   AND user_id = ${uid}
+                  AND inspection_id IS NULL
                 ORDER BY added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return [];
-        }
-
-        if (!rel.detected_queens) {
-            return rel.detected_bees
-        }
-
-        if (!rel.detected_bees) {
-            return rel.detected_queens
-        }
-
-        return [
-            ...rel.detected_queens,
-            ...rel.detected_bees,
-        ];
+        if (!rel) { return []; }
+        const bees = rel.detected_bees || [];
+        const queens = rel.detected_queens || [];
+        return [...queens, ...bees];
     },
 
     getDetectedVarroa: async function (frameSideId, uid) {
@@ -275,34 +254,27 @@ const frameSideModel = {
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.detected_varroa;
+        return rel ? rel.detected_varroa : null;
     },
 
     getDetectedCells: async function (frameSideId, uid) {
+        // This likely needs adjustment if cells are stored per file relation
         const result = await storage().query(
             sql`SELECT t1.cells
                 FROM files_frame_side_cells t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  -- AND t1.inspection_id IS NULL -- Assuming cells are linked to the latest
+                ORDER BY t1.added_time DESC -- Assuming added_time exists
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.cells;
+        return rel ? rel.cells : null;
     },
 
     getWorkerBeeCount: async function (frameSideId, uid) {
@@ -311,16 +283,12 @@ const frameSideModel = {
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.worker_bee_count;
+        return rel ? rel.worker_bee_count : null;
     },
 
     getVarroaCount: async function (frameSideId, uid) {
@@ -329,16 +297,12 @@ const frameSideModel = {
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.varroa_count;
+        return rel ? rel.varroa_count : null;
     },
 
     getDroneCount: async function (frameSideId, uid) {
@@ -347,16 +311,12 @@ const frameSideModel = {
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.drone_count;
+        return rel ? rel.drone_count : null;
     },
 
     getQueenCount: async function (frameSideId, uid) {
@@ -365,66 +325,67 @@ const frameSideModel = {
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
-
-        if (!rel) {
-            return null;
-        }
-
-        return rel.queen_count;
+        return rel ? rel.queen_count : null;
     },
 
-    isQueenDetected: async function (frameSideId, uid) {
+    // Fetches the AI detected status
+    getQueenPresence: async function (frameSideId, uid): Promise<boolean | null> {
         const result = await storage().query(
             sql`SELECT t1.queen_detected
                 FROM files_frame_side_rel t1
                 WHERE t1.frame_side_id = ${frameSideId}
                   AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
                 LIMIT 1`
         );
-
         const rel = result[0];
+        if (!rel) { return null; }
+        return !!rel.queen_detected;
+    },
 
-        if (!rel) {
-            return true;
-        }
-
-        return rel.queen_detected ? true : false;
+    // Fetches the user confirmation status from the new column
+    getQueenConfirmation: async function (frameSideId, uid): Promise<boolean | null> {
+        const result = await storage().query(
+            sql`SELECT t1.is_queen_confirmed
+                FROM files_frame_side_rel t1
+                WHERE t1.frame_side_id = ${frameSideId}
+                  AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
+                LIMIT 1`
+        );
+        const rel = result[0];
+        if (!rel) { return null; }
+        return !!rel.is_queen_confirmed;
     },
 
     countDetectedVarroa: function (detectedVarroa: DetectedObject[]): number {
         let cnt = 0
         for (let o of detectedVarroa) {
-            if (o.c > MIN_VARROA_CONFIDENCE) {
-                cnt++
-            }
+            if (o.c > MIN_VARROA_CONFIDENCE) { cnt++ }
         }
-
         return cnt;
     },
 
     countDetectedWorkerBees: function (detectedBees: DetectedObject[]): number {
         let cnt = 0
         for (let o of detectedBees) {
-            if (o.c > 0.5 && (o.n == typeMap.BEE_WORKER || o.n == typeMap.BEE_WORKER_ALTERNATE)) {
-                cnt++
-            }
+            if (o.c > 0.5 && (o.n == typeMap.BEE_WORKER || o.n == typeMap.BEE_WORKER_ALTERNATE)) { cnt++ }
         }
-
         return cnt;
     },
 
     countDetectedDrones: function (detectedBees: DetectedObject[]): number {
         let cnt = 0
         for (let o of detectedBees) {
-            if (o.c > 0.5 && o.n == typeMap.BEE_DRONE) {
-                cnt++
-            }
+            if (o.c > 0.5 && o.n == typeMap.BEE_DRONE) { cnt++ }
         }
-
         return cnt;
     },
 
@@ -438,44 +399,95 @@ const frameSideModel = {
                       AND user_id = ${uid}`
             );
         }
-
         return true;
     },
 
-    updateFrameSideQueenPresense: async function (frameSideId, isPresent, uid) {
+    // Updates the user confirmation status in the new column
+    updateQueenConfirmation: async function (frameSideId, isConfirmed, uid) {
+        // Update only the latest record for the frame side
         await storage().query(
             sql`UPDATE files_frame_side_rel
-                SET queen_detected=${isPresent}
-                WHERE frame_side_id = ${frameSideId}
-                  AND user_id = ${uid}`
+                SET is_queen_confirmed=${isConfirmed}
+                WHERE id = (
+                    SELECT id FROM (
+                        SELECT id
+                        FROM files_frame_side_rel
+                        WHERE frame_side_id = ${frameSideId}
+                          AND user_id = ${uid}
+                          AND inspection_id IS NULL
+                        ORDER BY added_time DESC
+                        LIMIT 1
+                    ) AS subquery
+                )`
         );
+
+        // Publish event after successful update
+        publisher().publish(
+            generateChannelName(uid, 'frame_side', String(frameSideId), 'queen_confirmation_updated'),
+            JSON.stringify({
+                frameSideId: String(frameSideId), // Ensure ID is string for consistency
+                isQueenConfirmed: isConfirmed
+            })
+        );
+
         return true;
     },
 
-    updateQueens: async function (queens, frameSideId, uid) {
-        const exQueensRes = await storage().query(
-            sql`SELECT detected_queens
-                FROM files_frame_side_rel
-                WHERE frame_side_id = ${frameSideId}
-                  AND user_id = ${uid}
-                ORDER BY added_time DESC
-                LIMIT 1`
+    // Updated to only set is_queen_confirmed to true if currently false
+    updateQueens: async function (queens: DetectedObject[], frameSideId, uid) {
+        // 1. Get the latest file relation record for this frameSideId to get file_id and current confirmation status
+        const latestRel = await storage().query(
+            sql`SELECT file_id, is_queen_confirmed, detected_queens
+                 FROM files_frame_side_rel
+                 WHERE frame_side_id = ${frameSideId}
+                   AND user_id = ${uid}
+                   AND inspection_id IS NULL
+                 ORDER BY added_time DESC
+                 LIMIT 1`
         );
 
-        let exQueens: DetectedObject[] = []
-        if (exQueensRes && exQueensRes[0] && exQueensRes[0].detected_queens) {
-            exQueens = exQueensRes[0].detected_queens
+        if (!latestRel || latestRel.length === 0) {
+            logger.error('updateQueens: Could not find latest record for frameSideId', { frameSideId, uid });
+            return false; // Or throw error
         }
-        exQueens.push(...queens)
+        const currentRecord = latestRel[0];
+        const fileId = currentRecord.file_id;
+        const isCurrentlyConfirmed = !!currentRecord.is_queen_confirmed;
 
+        // 2. Determine if AI found queens
+        const aiFoundQueen = queens && queens.length > 0;
+
+        // Log the values used for conditional update
+        logger.info('updateQueens: Checking conditions before update', { frameSideId, fileId, aiFoundQueen, isCurrentlyConfirmed });
+
+        // 3. Prepare updated detected_queens JSON
+        let exQueens: DetectedObject[] = currentRecord.detected_queens || [];
+        exQueens.push(...queens); // Add new detections
+
+        // 4. Construct and execute the UPDATE query targeting the specific row via file_id, frame_side_id, user_id
         await storage().query(
             sql`UPDATE files_frame_side_rel
                 SET detected_queens=${JSON.stringify(exQueens)},
-                    queen_count    = IFNULL(queen_count, 0) + ${exQueens.length},
-                    queen_detected = ${exQueens.length > 0}
-                WHERE frame_side_id = ${frameSideId}
+                    queen_count    = IFNULL(queen_count, 0) + ${queens.length},
+                    queen_detected = ${aiFoundQueen}
+                    ${(aiFoundQueen && isCurrentlyConfirmed === false) ? sql`, is_queen_confirmed = TRUE` : sql``}
+                WHERE file_id = ${fileId}
+                  AND frame_side_id = ${frameSideId}
                   AND user_id = ${uid}`
         );
+
+        // Publish event if the confirmation status was changed by this update
+        if (aiFoundQueen && isCurrentlyConfirmed === false) {
+             logger.info('Publishing queen_confirmation_updated event', { frameSideId, uid });
+             publisher().publish(
+                generateChannelName(uid, 'frame_side', String(frameSideId), 'queen_confirmation_updated'),
+                JSON.stringify({
+                    frameSideId: String(frameSideId),
+                    isQueenConfirmed: true // We just set it to true
+                })
+            );
+        }
+
         return true;
     },
 
@@ -487,7 +499,6 @@ const frameSideModel = {
                   AND frame_side_id IN (${frameSideIDs})
                   AND user_id = ${uid}`
         );
-
         return true
     }
 };

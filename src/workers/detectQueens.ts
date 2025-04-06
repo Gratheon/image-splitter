@@ -56,7 +56,7 @@ export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]
         ),
         JSON.stringify({
             delta: detectionResult,
-            isQueenCupsDetectionComplete: true
+            isQueenDetectionComplete: true
         })
     );
 

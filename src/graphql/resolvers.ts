@@ -59,11 +59,18 @@ export const resolvers = {
     },
     FrameSide: {
         __resolveReference: async ({id}, {uid}) => {
+            const isConfirmed = await frameSideModel.getQueenConfirmation(id, uid);
             return {
                 __typename: 'FrameSide',
                 id,
-                frameSideId: id
+                frameSideId: id,
+                isQueenConfirmed: isConfirmed ?? false
             };
+        },
+        
+        isQueenConfirmed: async (parent, _, {uid}) => {
+            const confirmationStatus = await frameSideModel.getQueenConfirmation(parent.id, uid);
+            return confirmationStatus ?? false;
         },
 
         file: async ({id}, __, {uid}) => {
@@ -96,10 +103,10 @@ export const resolvers = {
     },
     FrameSideFile: {
         queenDetected: async (parent, _, {uid}) => {
-            return frameSideModel.isQueenDetected(parent.frameSideId, uid)
+            const presence = await frameSideModel.getQueenPresence(parent.frameSideId, uid);
+            return presence === true;
         },
         isBeeDetectionComplete: async (parent, _, {uid}) => {
-            // Revert: Fetch fileId directly using frameSideId from parent
             const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
             const fileId = latestFileRel?.file?.id;
             if (!fileId) {
@@ -108,7 +115,6 @@ export const resolvers = {
             return jobs.isComplete(TYPE_BEES, fileId)
         },
         isCellsDetectionComplete: async (parent, _, {uid}) => {
-            // Revert: Fetch fileId directly using frameSideId from parent
             const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
             const fileId = latestFileRel?.file?.id;
             if (!fileId) {
@@ -117,7 +123,6 @@ export const resolvers = {
             return jobs.isComplete(TYPE_CELLS, fileId)
         },
         isQueenCupsDetectionComplete: async (parent, _, {uid}) => {
-            // Revert: Fetch fileId directly using frameSideId from parent
             const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
             const fileId = latestFileRel?.file?.id;
             if (!fileId) {
@@ -167,7 +172,7 @@ export const resolvers = {
             return true
         },
         generateHiveAdvice: async (_, {hiveID, adviceContext, langCode = 'en'}, {uid}) => {
-            langCode = langCode.substring(0, 2) // avoid injections
+            langCode = langCode.substring(0, 2)
             const question = beekeeper.generatePrompt(langCode, adviceContext)
             const answer = await beekeeper.generateHiveAdvice(question)
             beekeeper.insert(uid, hiveID, question, answer)
@@ -182,15 +187,16 @@ export const resolvers = {
             return true
         },
 
-        // main file upload function, see upload-frame-side.ts
         uploadFrameSide,
 
         filesStrokeEditMutation: async (_, {files}, {uid}) => {
             return await frameSideModel.updateStrokes(files, uid);
         },
 
-        updateFrameSideQueenPresense: async (_, {frameSideId, isPresent}, {uid}) => {
-            return await frameSideModel.updateFrameSideQueenPresense(frameSideId, isPresent, uid);
+        confirmFrameSideQueen: async (_, {frameSideId, isConfirmed}, {uid}) => {
+            await frameSideModel.updateQueenConfirmation(frameSideId, isConfirmed, uid);
+            const confirmationStatus = await frameSideModel.getQueenConfirmation(frameSideId, uid)
+            return { __typename: 'FrameSide', id: frameSideId, isQueenConfirmed: confirmationStatus ?? false };
         },
 
         updateFrameSideCells: async (_, {cells}, {uid}) => {
