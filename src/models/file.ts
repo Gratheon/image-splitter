@@ -124,9 +124,14 @@ const fileModel = {
     );
 
     const file = result[0];
+
+    if (!file) {
+      return null;
+    }
+
     return {
       __typename: "File",
-      id,
+      id: file.id,
       url: fileModel.getUrl(file),
     };
   },

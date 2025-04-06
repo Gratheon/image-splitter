@@ -110,7 +110,7 @@ const jobsModel = {
       return true;
     }
 
-    return rel.process_end_time ? true : false;
+    return rel.process_end_time !== null;
   },
 
   processJobInLoop: async function (name: string, fn: ProcessFn) {

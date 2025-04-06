@@ -11,7 +11,7 @@ import frameSideQueenCupsModel from '../models/frameSideQueenCups';
 import beekeeper from '../models/ai-beekeeper';
 
 import uploadFrameSide from "./upload-frame-side";
-import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS} from "../models/jobs";
+import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS} from "../models/jobs";
 
 
 export const resolvers = {
@@ -74,10 +74,12 @@ export const resolvers = {
             return await frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info))
         },
 
-        frameSideFile: async ({frameSideId}, __, {uid}) => {
+        frameSideFile: async ({id}, __, {uid}) => {
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(id, uid);
             return ({
                 __typename: 'FrameSideFile',
-                frameSideId
+                frameSideId: id,
+                fileId: latestFileRel?.file?.id
             })
         }
     },
@@ -97,27 +99,40 @@ export const resolvers = {
             return frameSideModel.isQueenDetected(parent.frameSideId, uid)
         },
         isBeeDetectionComplete: async (parent, _, {uid}) => {
-            let frameSide = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid)
-            if(!frameSide) {
-                return false
+            // Revert: Fetch fileId directly using frameSideId from parent
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fileId = latestFileRel?.file?.id;
+            if (!fileId) {
+                 return false;
             }
-            return jobs.isComplete(TYPE_BEES, frameSide?.id)
+            return jobs.isComplete(TYPE_BEES, fileId)
         },
         isCellsDetectionComplete: async (parent, _, {uid}) => {
-            let frameSide = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid)
-            if(!frameSide) {
-                return false
+            // Revert: Fetch fileId directly using frameSideId from parent
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fileId = latestFileRel?.file?.id;
+            if (!fileId) {
+                 return false;
             }
-
-            return jobs.isComplete(TYPE_CELLS, frameSide?.id)
+            return jobs.isComplete(TYPE_CELLS, fileId)
         },
         isQueenCupsDetectionComplete: async (parent, _, {uid}) => {
-            let frameSide = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid)
-            if(!frameSide) {
-                return false
+            // Revert: Fetch fileId directly using frameSideId from parent
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fileId = latestFileRel?.file?.id;
+            if (!fileId) {
+                 return false;
             }
-
-            return jobs.isComplete(TYPE_CUPS, frameSide?.id)
+            return jobs.isComplete(TYPE_CUPS, fileId)
+        },
+        isQueenDetectionComplete: async (parent, _, {uid}) => {
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fileId = latestFileRel?.file?.id;
+            if (!fileId) {
+                 return false;
+            }
+            const isCompleteResult = await jobs.isComplete(TYPE_QUEENS, fileId);
+            return isCompleteResult;
         },
 
         // todo add caching or dedicated column around this
@@ -203,4 +218,3 @@ function getRequestedParams(info: any): string[] {
     }
     return fieldsRequested;
 }
-

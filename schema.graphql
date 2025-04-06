@@ -61,9 +61,10 @@ type FrameSideFile {
 	""" regions of detected queen cups """
 	detectedQueenCups: JSON
 	isQueenCupsDetectionComplete: Boolean
+	isQueenDetectionComplete: Boolean
 
 	queenDetected: Boolean!
-  
+
 	workerCount: Int
 	droneCount: Int
 
