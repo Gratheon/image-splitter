@@ -56,8 +56,13 @@ export const logger = {
         ...meta,
       });
     }
-    log("error", String(message), meta);
-    storeInDB("error", message, meta);
+    // If message is not an Error object, check if it's another type of object
+    const messageString = typeof message === 'object' && message !== null && !Array.isArray(message)
+      ? jsonStringify(message) // Stringify if it's a plain object
+      : String(message);      // Otherwise, convert to string as before
+    log("error", messageString, meta);
+    // Store the original message or its stringified form in DB
+    storeInDB("error", typeof message === 'object' ? jsonStringify(message) : message, meta);
   },
   errorEnriched: (message: string, error: Error | any, meta?: any) => {
     const enrichedMessage = `${message}: ${error.message}`;
