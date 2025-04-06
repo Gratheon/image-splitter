@@ -36,7 +36,7 @@ test-integration-ci:
 	    exit 1; \
 	  fi; \
 	  sleep $$interval; \
-	  elapsed=$$((elapsed + interval)); \
+	  elapsed=`expr $$elapsed + $$interval`; \
 	done
 	echo "Service is ready."
 	npm run test:integration
