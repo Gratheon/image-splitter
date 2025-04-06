@@ -24,7 +24,7 @@ export default {
     mysql: {
         host: 'mysql-test',
         port: '3306',
-        user: 'root',
+        user: 'test',
         password: 'test',
         database: 'image-splitter',
     },
