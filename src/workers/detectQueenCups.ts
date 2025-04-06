@@ -1,12 +1,13 @@
 import config from '../config';
+import fs from 'fs'; // Import fs
 import {logger} from '../logger';
 
 import {retryAsyncFunction} from './common/common';
+import { downloadS3FileToLocalTmp } from './common/downloadFile'; // Import download function
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
 
 import {generateChannelName, publisher} from '../redisPubSub';
 import {DetectedRectangle} from './types';
-import {log} from 'console';
 
 const {ClarifaiStub, grpc} = require("clarifai-nodejs-grpc");
 
@@ -35,7 +36,7 @@ export async function detectQueenCups(file) {
         file.frame_side_id
     );
 
-    log('Publishing queen cup detection results to redis:', detectionResult)
+    logger.info('Publishing queen cup detection results to redis:', detectionResult)
 
     publisher().publish(
         generateChannelName(
@@ -52,30 +53,37 @@ export async function detectQueenCups(file) {
 async function askClarifai(file) {
     const result: DetectedRectangle[] = [];
 
-    const url = file.url
-    log("Asking clarifai to detect cups on URL:", url)
-    return new Promise((resolve, reject) => {
-        grpcClient.PostModelOutputs(
-            {
-                user_app_id: {
-                    "user_id": USER_ID,
-                    "app_id": APP_ID
-                },
-                model_id: MODEL_ID,
-                version_id: MODEL_VERSION_ID, // This is optional. Defaults to the latest model version
-                inputs: [
-                    {data: {image: {url, allow_duplicate_url: true}}}
-                ]
-            },
-            metadata,
-            (err, response) => {
-                if (err) {
-                    return reject(new Error(err));
-                }
+    logger.info("Reading image from local path:", file.localFilePath);
 
-                if (response.status.code !== 10000) {
-                    return reject(new Error("Post model outputs failed, status: " + response.status.description));
-                }
+    try {
+        const imageBuffer = fs.readFileSync(file.localFilePath);
+        const base64ImageData = imageBuffer.toString('base64');
+        logger.info(`Asking clarifai to detect cups using base64 data (length: ${base64ImageData.length})`); // Combined into one string
+
+        return new Promise((resolve, reject) => {
+            grpcClient.PostModelOutputs(
+                {
+                    user_app_id: {
+                        "user_id": USER_ID,
+                        "app_id": APP_ID
+                    },
+                    model_id: MODEL_ID,
+                    version_id: MODEL_VERSION_ID, // This is optional. Defaults to the latest model version
+                    inputs: [
+                        {data: {image: {base64: base64ImageData}}} // Use base64 instead of url
+                    ]
+                },
+                metadata,
+                (err, response) => {
+                    if (err) {
+                        return reject(new Error(err));
+                    }
+
+                    if (response.status.code !== 10000) {
+                        // Log the detailed error from Clarifai if available
+                        const errorDetails = response.status.details ? ` Details: ${response.status.details}` : '';
+                        return reject(new Error(`Post model outputs failed, status: ${response.status.description}.${errorDetails}`));
+                    }
 
                 // Since we have one input, one output will exist here
                 const output = response.outputs[0];
@@ -100,10 +108,14 @@ async function askClarifai(file) {
                         })
                     }
                 }
-                resolve(result)
-            }
-        );
-    })
+                    resolve(result)
+                }
+            );
+        });
+    } catch (error) { // Changed variable name back
+        logger.error("Error reading file or processing image for Clarifai:", error);
+        throw error; // Re-throw the error to be caught by retryAsyncFunction or caller
+    }
 }
 
 export async function analyzeQueenCups(ref_id, payload) {
@@ -114,5 +126,20 @@ export async function analyzeQueenCups(ref_id, payload) {
     }
 
     logger.info('starting analyzeQueenCups', {file});
+
+    // Download the file locally first
+    await downloadS3FileToLocalTmp(file);
+    logger.info(`File downloaded to ${file.localFilePath}`);
+
     await detectQueenCups(file);
+
+    // Clean up the temporary file (optional, but good practice)
+    try {
+        if (file.localFilePath) {
+            fs.unlinkSync(file.localFilePath);
+            logger.info(`Cleaned up temporary file: ${file.localFilePath}`);
+        }
+    } catch (cleanupError) {
+        logger.error(`Error cleaning up temporary file ${file.localFilePath}:`, cleanupError);
+    }
 }
