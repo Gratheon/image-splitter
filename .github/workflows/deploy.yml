@@ -1,14 +1,26 @@
-name: deploy
+name: Deploy
+
 on:
-  push:
-    branches: main
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Code Coverage"] # Matches the 'name' of test.yml
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   deploy:
     runs-on: self-hosted
+    # Only run this job if the triggering workflow (test.yml) completed successfully
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: pull
+      # Checkout the specific commit that triggered the successful test workflow
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: pull # This step might be redundant now if checkout handles it, but keeping for consistency with original logic
         working-directory: /www/image-splitter/
         run: git reset --hard && git pull
 

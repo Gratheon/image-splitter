@@ -1,5 +1,4 @@
 import config from "../config/index";
-
 import createConnectionPool, { sql } from "@databases/mysql";
 import jsonStringify from "fast-safe-stringify";
 
@@ -36,10 +35,14 @@ function log(level: string, message: string, meta?: any) {
 
 function storeInDB(level: string, message: string, meta?: any) {
   if (!meta) meta = "";
+  // Use the logger's dedicated connection pool
   conn.query(sql`
         INSERT INTO \`logs\` (\`level\`, \`message\`, \`meta\`, \`timestamp\`)
         VALUES (${level}, ${message}, ${JSON.stringify(meta)}, NOW())
-    `);
+    `).catch(err => {
+      // Add basic error handling for the log insertion itself
+      console.error(`\x1b[31mFailed to store log in DB:\x1b[0m ${err.message}`);
+    });
 }
 
 export const logger = {
