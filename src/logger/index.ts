@@ -37,7 +37,7 @@ function log(level: string, message: string, meta?: any) {
 function storeInDB(level: string, message: string, meta?: any) {
   if (!meta) meta = "";
   conn.query(sql`
-        INSERT INTO logs (level, message, meta, timestamp)
+        INSERT INTO \`logs\` (\`level\`, \`message\`, \`meta\`, \`timestamp\`)
         VALUES (${level}, ${message}, ${JSON.stringify(meta)}, NOW())
     `);
 }
@@ -49,7 +49,8 @@ export const logger = {
   },
   error: (message: string | Error | any, meta?: any) => {
     if (message.message && message.stack) {
-      storeInDB("error", message, meta);
+      // Pass the error message string, not the whole object, to storeInDB
+      storeInDB("error", message.message, meta);
       return log("error", message.message, {
         stack: message.stack,
         ...meta,
@@ -59,9 +60,11 @@ export const logger = {
     storeInDB("error", message, meta);
   },
   errorEnriched: (message: string, error: Error | any, meta?: any) => {
+    const enrichedMessage = `${message}: ${error.message}`;
     if (error.message && error.stack) {
-      storeInDB("error", message, meta);
-      return log("error", `${message}: ${error.message}`, {
+      // Store the combined error message in the DB
+      storeInDB("error", enrichedMessage, meta);
+      return log("error", enrichedMessage, {
         stack: error.stack,
         ...meta,
       });
@@ -86,8 +89,9 @@ export const fastifyLogger = {
     //    storeInDB("info", message, meta);
   },
   error: (message: string | Error | any, meta?: any) => {
-    log("error", String(message), meta);
-    storeInDB("error", message, meta);
+    const errorMessage = (message && message.message) ? message.message : String(message);
+    log("error", errorMessage, meta);
+    storeInDB("error", errorMessage, meta);
   },
   warn: (msg) => {
     log("warn", msg);
