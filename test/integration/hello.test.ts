@@ -69,9 +69,24 @@ describe('POST /graphql', () => {
             body: form
         });
 
-        console.log('Response:', response);
-        expect(response.status).toBe(200);
+        console.log('Raw Response Status:', response.status); // Log status first
+
+        // Check status and log errors if not 200
+        if (response.status !== 200) {
+            try {
+                const errorResult = await response.json();
+                console.error('GraphQL Errors:', JSON.stringify(errorResult.errors, null, 2));
+            } catch (e) {
+                console.error('Failed to parse error response JSON:', e);
+                console.error('Raw error response text:', await response.text());
+            }
+        }
+
+        expect(response.status).toBe(200); // Keep the assertion
+
+        // Proceed to parse and check data if status was 200
         const result = await response.json();
+        console.log('Parsed Response Body:', JSON.stringify(result, null, 2)); // Log parsed body
 
         expect(result).toHaveProperty('data');
         expect(result.data).toHaveProperty('uploadFrameSide');
