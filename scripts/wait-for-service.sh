@@ -6,9 +6,10 @@ URL=$1
 TIMEOUT=$2
 INTERVAL=$3
 
-echo "Waiting for service at $URL..."
+echo "Waiting for health check endpoint at $URL..."
 elapsed=0
 
+# Check the health check endpoint using a simple GET request
 while ! curl --fail --silent --output /dev/null "$URL"; do
   elapsed=$(expr $elapsed + $INTERVAL)
   if [ "$elapsed" -ge "$TIMEOUT" ]; then

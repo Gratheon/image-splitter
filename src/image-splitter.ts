@@ -103,6 +103,12 @@ async function startApolloServer(app, typeDefs, resolvers) {
         logger: fastifyLogger,
     });
 
+    // Add health check endpoint
+    app.get('/healthz', async (request, reply) => {
+      // Optionally add checks for DB connection, etc. here
+      return { status: 'ok' };
+    });
+
     try {
         let schemaString = schema();
 

@@ -25,9 +25,9 @@ test-integration-ci:
 	npm i && npm run build
 	# Start fresh
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
-	# Wait for the image-splitter service to be ready (increased timeout)
+	# Wait for the image-splitter health check endpoint to be ready (increased timeout)
 	# Run the wait script and capture its exit code. Dump logs on failure.
-	@if ! ./scripts/wait-for-service.sh http://localhost:8800 120 2; then \
+	@if ! ./scripts/wait-for-service.sh http://localhost:8800/healthz 120 2; then \
 	  echo "Wait script failed. Dumping logs..."; \
 	  COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml logs; \
 	  exit 1; \
