@@ -88,30 +88,55 @@ async function startApolloServer(app, typeDefs, resolvers) {
         },
         context: async (req) => {
             let uid;
-            let signature = req.request.raw.headers["internal-router-signature"];
+            const headers = req.request.raw.headers; // Get headers
+            const signature = headers["internal-router-signature"];
+            const configSig = config.routerSignature;
+
+            // Log received headers and comparison details
+            logger.debug('Context Creation Headers:', {
+                'content-type': headers['content-type'], // Log content type for multipart debugging
+                'internal-router-signature': signature,
+                'internal-userid': headers["internal-userid"],
+                'token': headers.token,
+                'config.routerSignature': configSig,
+                'signatureMatch': signature === configSig
+            });
 
             // signature sent by router so that it cannot be faked
-            if (signature === config.routerSignature) {
-                uid = req.request.raw.headers["internal-userid"];
+            if (signature === configSig) {
+                uid = headers["internal-userid"];
+                logger.info('Context: Using internal-userid', { uid });
             }
-
             // allow direct access in case of upload
             else {
-                const token = req.request.raw.headers.token;
-                const decoded = (await new Promise((resolve, reject) =>
-                    jwt.verify(token, config.jwt.privateKey, function (err, decoded) {
-                        if (err) {
-                            reject(err);
-                        }
-                        resolve(decoded);
-                    }),
-                )) as {
-                    user_id: string;
-                };
-
-                uid = decoded?.user_id;
+                logger.info('Context: Signature mismatch or missing, attempting JWT');
+                const token = headers.token;
+                if (!token) {
+                     logger.warn('Context: JWT token missing');
+                     uid = undefined;
+                } else {
+                    try {
+                        const decoded = (await new Promise((resolve, reject) =>
+                            jwt.verify(token, config.jwt.privateKey, function (err, decoded) {
+                                if (err) {
+                                    logger.error('Context: JWT verification failed', { error: err.message });
+                                    reject(err); // Reject the promise on error
+                                    return; // Stop execution here
+                                }
+                                resolve(decoded);
+                            }),
+                        )) as { user_id: string };
+                        uid = decoded?.user_id;
+                        logger.info('Context: Using JWT user_id', { uid });
+                    } catch (jwtError) {
+                         logger.error('Context: Caught JWT verification error', { error: jwtError instanceof Error ? jwtError.message : String(jwtError) });
+                         // Explicitly do not set uid if JWT fails
+                         uid = undefined;
+                    }
+                }
             }
 
+            logger.info('Context: Final uid determined', { uid });
             return {
                 uid,
             };
