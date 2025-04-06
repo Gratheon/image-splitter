@@ -29,7 +29,7 @@ services:
       MYSQL_USER: test
       MYSQL_PASSWORD: test
       MYSQL_ROOT_PASSWORD: test
-      MYSQL_DATABASE: image-splitter,logs # Create both databases
+      MYSQL_DATABASE: image-splitter # Let entrypoint handle only this one
     mem_limit: 1G
     ports:
       - 5101:3306

@@ -24,5 +24,5 @@ test-integration-ci:
 	npm i && npm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	# Wait for the image-splitter service to be ready (increased timeout)
-	@./scripts/wait-for-service.sh http://localhost:8800 120 2
+	@./scripts/wait-for-service.sh http://localhost:8800 240 2
 	@npm run test:integration
