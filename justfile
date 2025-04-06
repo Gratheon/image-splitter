@@ -28,15 +28,15 @@ test-integration-ci:
 	timeout=60 # seconds
 	interval=2 # seconds
 	elapsed=0
-	until curl --fail --silent --output /dev/null http://localhost:8800; do
-	  if [ $elapsed -ge $timeout ]; then
-	    echo "Service http://localhost:8800 did not become ready within $timeout seconds."
-	    # Optional: Dump logs for debugging
-	    # COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml logs
-	    exit 1
-	  fi
-	  sleep $interval
-	  elapsed=$((elapsed + interval))
+	until curl --fail --silent --output /dev/null http://localhost:8800; do \
+	  if [ $$elapsed -ge $$timeout ]; then \
+	    echo "Service http://localhost:8800 did not become ready within $$timeout seconds."; \
+	    echo "Dumping logs:"; \
+	    COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml logs; \
+	    exit 1; \
+	  fi; \
+	  sleep $$interval; \
+	  elapsed=$$((elapsed + interval)); \
 	done
 	echo "Service is ready."
 	npm run test:integration
