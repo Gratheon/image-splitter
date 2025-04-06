@@ -102,7 +102,10 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
         }
 
     } catch (err) {
-        logger.error('Error during uploadFrameSide:', err);
+        // Log the full error object for better debugging in CI
+        console.error('Caught error object in uploadFrameSide:', err);
+        logger.error('Error during uploadFrameSide:', err); // Keep original logger call
+
         let errorMessage = 'An unknown error occurred';
         if (err instanceof Error) {
             errorMessage = err.message;

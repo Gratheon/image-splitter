@@ -55,6 +55,35 @@ async function startApolloServer(app, typeDefs, resolvers) {
             maxFileSize: 30000000, // 30 MB
             maxFiles: 20,
         },
+        // Include stack traces and more details in errors only during testing
+        debug: process.env.ENV_ID === 'testing',
+        formatError: (err) => {
+          logger.error('GraphQL Error:', err); // Log the full error server-side regardless
+
+          // Basic error structure
+          const formattedError = {
+            message: err.message,
+            locations: err.locations,
+            path: err.path,
+            extensions: err.extensions,
+          };
+
+          // Add stack trace only in testing environment
+          if (process.env.ENV_ID === 'testing' && err.extensions?.exception?.stacktrace) {
+            formattedError.extensions = {
+              ...formattedError.extensions,
+              stacktrace: err.extensions.exception.stacktrace,
+            };
+          } else if (process.env.ENV_ID === 'testing' && err.originalError instanceof Error) {
+             // Fallback if stacktrace isn't in extensions (might depend on error type)
+             formattedError.extensions = {
+               ...formattedError.extensions,
+               stacktrace: err.originalError.stack?.split('\n'),
+             };
+          }
+
+          return formattedError;
+        },
         context: async (req) => {
             let uid;
             let signature = req.request.raw.headers["internal-router-signature"];
