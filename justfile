@@ -23,20 +23,6 @@ test-integration-ci:
 	rm -rf ./app
 	npm i && npm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
-	# Wait for the image-splitter service to be ready by polling its base URL
-	echo "Waiting for image-splitter service..."
-	@timeout=60; \
-	interval=2; \
-	elapsed=0; \
-	while ! curl --fail --silent --output /dev/null http://localhost:8800; do \
-	  elapsed=`expr $$elapsed + $$interval`; \
-	  if [ $$elapsed -ge $$timeout ]; then \
-	    echo "Service http://localhost:8800 did not become ready within $$timeout seconds."; \
-	    echo "Dumping logs:"; \
-	    COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml logs; \
-	    exit 1; \
-	  fi; \
-	  sleep $$interval; \
-	done
-	@echo "Service is ready."
+	# Wait for the image-splitter service to be ready
+	@./scripts/wait-for-service.sh http://localhost:8800 60 2
 	@npm run test:integration
