@@ -1,6 +1,7 @@
 import * as fs from "fs";
-import {expect} from '@jest/globals';
+import {expect, describe, it, beforeEach} from '@jest/globals'; // Import Jest globals explicitly
 import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 import config from '../../src/config';
 
 // port from docker-compose.test.yml
@@ -60,11 +61,17 @@ describe('POST /graphql', () => {
         form.append('map', JSON.stringify({ "0": ["variables.file"] }));
         form.append('0', new Blob([fileBuffer]), fileName);
 
+        // Generate JWT
+        const payload = { user_id: '1' }; // Use the same user ID as internal-userid for consistency
+        const token = jwt.sign(payload, config.jwt.privateKey);
+
         const response = await fetch(URL, {
             method: 'POST',
             headers: {
+                // Keep existing headers if needed, but add the token
                 'internal-router-signature': config.routerSignature,
                 'internal-userid' : '1',
+                'token': token // Add the JWT token header
             },
             body: form
         });
