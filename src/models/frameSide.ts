@@ -420,16 +420,7 @@ const frameSideModel = {
                     ) AS subquery
                 )`
         );
-
-        // Publish event after successful update
-        publisher().publish(
-            generateChannelName(uid, 'frame_side', String(frameSideId), 'queen_confirmation_updated'),
-            JSON.stringify({
-                frameSideId: String(frameSideId), // Ensure ID is string for consistency
-                isQueenConfirmed: isConfirmed
-            })
-        );
-
+        // Removed Redis publish for manual confirmation update
         return true;
     },
 
@@ -475,19 +466,7 @@ const frameSideModel = {
                   AND frame_side_id = ${frameSideId}
                   AND user_id = ${uid}`
         );
-
-        // Publish event if the confirmation status was changed by this update
-        if (aiFoundQueen && isCurrentlyConfirmed === false) {
-             logger.info('Publishing queen_confirmation_updated event', { frameSideId, uid });
-             publisher().publish(
-                generateChannelName(uid, 'frame_side', String(frameSideId), 'queen_confirmation_updated'),
-                JSON.stringify({
-                    frameSideId: String(frameSideId),
-                    isQueenConfirmed: true // We just set it to true
-                })
-            );
-        }
-
+        // Removed Redis publish for AI confirmation update
         return true;
     },
 
