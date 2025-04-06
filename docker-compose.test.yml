@@ -23,7 +23,8 @@ services:
         condition: service_healthy
       minio: # Wait for minio to be healthy
         condition: service_healthy
-      # We don't explicitly wait for create-bucket as it's quick and idempotent
+      create-bucket: # Wait for the bucket creation task to complete
+        condition: service_completed_successfully
 
   mysql-test:
     image: mysql:8.2
