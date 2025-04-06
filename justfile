@@ -19,9 +19,11 @@ test-integration:
 	npm run test:integration
 
 test-integration-ci:
-	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down
+	# Ensure clean environment: stop, remove containers, and remove the mysql volume
+	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
 	npm i && npm run build
+	# Start fresh
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	# Wait for the image-splitter service to be ready (increased timeout)
 	# Run the wait script and capture its exit code. Dump logs on failure.
