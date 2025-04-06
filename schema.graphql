@@ -23,7 +23,7 @@ type Mutation {
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
-	confirmFrameSideQueen(frameSideId: ID!, isConfirmed: Boolean!): FrameSide # Added mutation
+	confirmFrameSideQueen(frameSideId: ID!, isConfirmed: Boolean!): Boolean! # Changed return type to Boolean!
 
 	"""
 	On inspection creation, we want to clone frames from current state (NULL references) and set inspectionId

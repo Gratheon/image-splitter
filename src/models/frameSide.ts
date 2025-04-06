@@ -9,7 +9,7 @@ import {MIN_VARROA_CONFIDENCE} from "../workers/detectVarroa";
 import {roundToDecimal} from "../workers/common/common";
 import {Path} from "../path";
 import URL from "../url";
-import { generateChannelName, publisher } from '../redisPubSub'; // Added import
+import { generateChannelName, publisher } from '../redisPubSub';
 
 
 let typeMap = {
@@ -403,22 +403,25 @@ const frameSideModel = {
     },
 
     // Updates the user confirmation status in the new column
-    updateQueenConfirmation: async function (frameSideId, isConfirmed, uid) {
-        // Update only the latest record for the frame side
+    updateQueenConfirmation: async function (frameSideId: string | number, isConfirmed: boolean, uid: string | number) {
+        // Ensure IDs are numbers before using in query
+        const frameSideIdNum = Number(frameSideId);
+        const userIdNum = Number(uid);
+
+        if (isNaN(frameSideIdNum) || isNaN(userIdNum)) {
+            logger.error('updateQueenConfirmation: Invalid ID provided', { frameSideId, uid });
+            return false; // Or throw an error
+        }
+
+        // Update only the latest record for the frame side using correct columns
         await storage().query(
             sql`UPDATE files_frame_side_rel
                 SET is_queen_confirmed=${isConfirmed}
-                WHERE id = (
-                    SELECT id FROM (
-                        SELECT id
-                        FROM files_frame_side_rel
-                        WHERE frame_side_id = ${frameSideId}
-                          AND user_id = ${uid}
-                          AND inspection_id IS NULL
-                        ORDER BY added_time DESC
-                        LIMIT 1
-                    ) AS subquery
-                )`
+                WHERE frame_side_id = ${frameSideIdNum}
+                  AND user_id = ${userIdNum}
+                  AND inspection_id IS NULL
+                ORDER BY added_time DESC
+                LIMIT 1`
         );
         // Removed Redis publish for manual confirmation update
         return true;

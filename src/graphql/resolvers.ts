@@ -194,9 +194,10 @@ export const resolvers = {
         },
 
         confirmFrameSideQueen: async (_, {frameSideId, isConfirmed}, {uid}) => {
-            await frameSideModel.updateQueenConfirmation(frameSideId, isConfirmed, uid);
-            const confirmationStatus = await frameSideModel.getQueenConfirmation(frameSideId, uid)
-            return { __typename: 'FrameSide', id: frameSideId, isQueenConfirmed: confirmationStatus ?? false };
+            // Call the model function which returns true on success
+            const success = await frameSideModel.updateQueenConfirmation(frameSideId, isConfirmed, uid);
+            // Return the boolean result, matching the updated schema
+            return success;
         },
 
         updateFrameSideCells: async (_, {cells}, {uid}) => {
