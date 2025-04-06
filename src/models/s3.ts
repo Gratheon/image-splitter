@@ -9,6 +9,9 @@ import {AbsolutePath, Path} from "../path";
 import URL from "../url";
 import {logger} from "../logger";
 
+// Helper function for async sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default async function upload(sourceLocalFilePath: AbsolutePath, targetS3FilePath: Path): Promise<URL> {
     let bucketName = config.aws.bucket;
     const region = "eu-central-1"
@@ -25,6 +28,9 @@ export default async function upload(sourceLocalFilePath: AbsolutePath, targetS3
     if (process.env.ENV_ID === 'testing' || process.env.ENV_ID === 'dev') {
         awsConfig.forcePathStyle = true
         awsConfig.endpoint = config.aws.target_upload_endpoint
+        // Add a small delay only in testing environment to allow Minio bucket creation to settle
+        logger.info('Applying short delay for Minio bucket readiness in testing env...');
+        await sleep(1000); // Wait 1 second
     }
 
     const s3 = new S3Client(awsConfig);
