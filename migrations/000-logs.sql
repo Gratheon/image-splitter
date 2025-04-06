@@ -1,11 +1,7 @@
-CREATE DATABASE IF NOT EXISTS logs;
+-- This migration is now effectively empty as the 'logs' database and 'logs.logs' table
+-- are created by the init-db.sql script in the test environment.
+-- Keeping the file ensures the migration runner doesn't complain about missing files
+-- if the hash was previously recorded.
 
-create table IF NOT EXISTS logs.logs
-(
-    id        int auto_increment
-        primary key,
-    level     varchar(16)   not null,
-    message   varchar(2048) not null,
-    meta      varchar(2048) not null,
-    timestamp datetime      not null
-);
+-- CREATE DATABASE IF NOT EXISTS logs;
+-- create table IF NOT EXISTS logs.logs ... ;
