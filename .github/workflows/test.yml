@@ -13,26 +13,23 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - uses: extractions/setup-just@v1
+      - uses: extractions/setup-just@v2 # Updated action version
         with:
           just-version: 1.5.0 # optional semver specification, otherwise latest
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4 # Updated action version
 
       - name: Read .nvmrc
-        run: echo ::set-output name=NVMRC::$(cat .nvmrc)
-        id: nvm
+        run: echo "NVMRC=$(cat .nvmrc)" >> $GITHUB_OUTPUT # Updated output syntax
+        id: nvm # Keep id for compatibility with setup-node
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4 # Updated action version
         with:
           node-version: "${{ steps.nvm.outputs.NVMRC }}"
-          cache: "npm"
+          cache: "npm" # This handles npm caching internally
 
-      - uses: actions/cache@v2
-        with:
-          path: "**/node_modules"
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+      # Removed redundant actions/cache step for node_modules
 
-      - run: npm install
+      - run: npm ci # Use npm ci for faster, more reliable installs
       - run: npm run test:unit
       - run: just test-integration-ci
 
