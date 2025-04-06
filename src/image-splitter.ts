@@ -15,6 +15,7 @@ import orchestrator from "./workers/orchestrator";
 import {schema} from "./graphql/schema";
 import {resolvers} from "./graphql/resolvers";
 import {initStorage} from "./models/storage";
+import {ensureBucketExists} from "./models/s3"; // Import ensureBucketExists
 import {registerSchema} from "./graphql/schema-registry";
 import config from "./config/index";
 import {fastifyLogger, logger} from "./logger";
@@ -180,6 +181,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
     logger.info("Starting service...");
 
     await initStorage(logger);
+    await ensureBucketExists();
     orchestrator();
 
     const app = fastify({
