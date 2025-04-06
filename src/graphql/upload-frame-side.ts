@@ -103,8 +103,14 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
 
     } catch (err) {
         logger.error('Error during uploadFrameSide:', err);
+        let errorMessage = 'An unknown error occurred';
+        if (err instanceof Error) {
+            errorMessage = err.message;
+        } else if (typeof err === 'string') {
+            errorMessage = err;
+        }
         // Throw an error that GraphQL can understand
         // Consider using a more specific ApolloError subclass if appropriate
-        throw new Error(`Failed to upload frame side: ${err.message}`);
+        throw new Error(`Failed to upload frame side: ${errorMessage}`);
     }
 }
