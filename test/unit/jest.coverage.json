@@ -12,9 +12,10 @@
 	  ]
 	},
 	"testMatch": ["<rootDir>/src/**/*.test.(ts|js)"],
+
+	"collectCoverage": false,
 	"coverageDirectory": "coverage",
 	"coverageReporters": ["text", "json", "lcov", "clover", "cobertura"],
-	"collectCoverage": true,
 	"collectCoverageFrom": ["<rootDir>/src/**/*.ts", "!<rootDir>/src/*/*.test.ts"],
 	"globalTeardown": "<rootDir>/test/unit/globalTeardown.js"
   }
