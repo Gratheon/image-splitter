@@ -181,7 +181,14 @@ async function startApolloServer(app, typeDefs, resolvers) {
     logger.info("Starting service...");
 
     await initStorage(logger);
-    await ensureBucketExists();
+
+    // check if its test env
+    if (process.env.ENV_ID === "testing" || process.env.ENV_ID === "dev") {
+        logger.info("Creating bucket for testing...");
+        await ensureBucketExists();
+    }
+
+    
     orchestrator();
 
     const app = fastify({

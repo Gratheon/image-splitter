@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   workflow_run:
-    workflows: ["Code Coverage"] # Matches the 'name' of test.yml
+    workflows: ["Test"] # Matches the 'name' of test.yml
     types:
       - completed
     branches:
