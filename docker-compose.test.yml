@@ -75,6 +75,7 @@ services:
       minio:
         condition: service_healthy
     entrypoint: ["sh", "-c"]
-    command: "mc mb gratheon-test || true"
+    # First set alias for the minio service, then create bucket using the alias
+    command: "mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb local/gratheon-test || true"
 volumes:
   mysql82:
