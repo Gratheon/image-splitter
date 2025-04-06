@@ -13,8 +13,8 @@ import {downloadS3FileToLocalTmp} from "./common/downloadFile";
 const PAT = config.clarifai.queen_app.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-detection';
-const MODEL_ID = 'queen-bee';
-const MIN_CONFIDENCE = 0.65;
+const MODEL_ID = 'queen-bee-v4';
+const MIN_CONFIDENCE = 0.60;
 
 const grpcClient = ClarifaiStub.grpc();
 
@@ -90,13 +90,14 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
             metadata,
             (err, response) => {
                 if (err) {
+                    logger.error(`gRPC error calling PostModelOutputs for frame_side_id: ${file.frame_side_id}`, err);
                     return reject(new Error(err));
                 }
 
                 if (response.status.code !== 10000) {
+                    logger.error(`Clarifai API error for frame_side_id: ${file.frame_side_id}. Status: ${response.status.description}`, { responseStatus: response.status });
                     return reject(new Error("Post model outputs failed, status: " + response.status.description));
                 }
-
 
                 // log("queen detection response from clarifai", response)
 
