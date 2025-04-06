@@ -19,7 +19,8 @@ services:
       - ./tmp:/app/tmp
     restart: always
     depends_on:
-      - mysql-test
+      mysql-test: # Wait for mysql-test to be healthy
+        condition: service_healthy
 
   mysql-test:
     image: mysql:8.2
@@ -35,6 +36,12 @@ services:
     volumes:
       - ./test/mysql82:/var/lib/mysql
       - ./test/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql # Mount init script
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s # Give it some time to start before checking
 
   minio:
     image: minio/minio
