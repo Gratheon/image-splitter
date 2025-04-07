@@ -168,30 +168,34 @@ const frameSideModel = {
         const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
         const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
 
-        // update detected bees in transaction in case of parallelization
-        await storage().tx(async (tx) => {
-            let exDetectedBees = await frameSideModel.getDetectedBees(tx, frameSideId, fileId, uid)
+        // Update detected bees atomically using JSON_MERGE_PRESERVE
+        // This avoids the read-modify-write race condition between concurrent part processors.
+        // Note: Requires MySQL 5.7.22+ or 8.0.3+
+        // If using older MySQL, might need JSON_EXTRACT + JSON_ARRAY_APPEND approach.
+        await storage().query(sql`
+            UPDATE files_frame_side_rel
+            SET
+                detected_bees = JSON_MERGE_PRESERVE(
+                    COALESCE(detected_bees, JSON_ARRAY()), -- Ensure target is a JSON array, default to [] if NULL
+                    ${JSON.stringify(detectedBees)}       -- Array of new bees to append
+                ),
+                worker_bee_count = IFNULL(worker_bee_count, 0) + ${workerBeeCount},
+                drone_count      = IFNULL(drone_count, 0) + ${detectedDrones}
+            WHERE file_id = ${fileId}
+              AND frame_side_id = ${frameSideId}
+              AND user_id = ${uid}
+        `);
 
-            logger.info(`updating detected bees in DB, setting counts`, {
-                fileId,
-                frameSideId,
-                uid,
-                workerBeeCount,
-                detectedDrones,
-            })
+        logger.info(`Atomically updated detected bees in DB, incremented counts`, {
+            fileId,
+            frameSideId,
+            uid,
+            newBeesCount: detectedBees.length, // Log how many bees were attempted to be added in this call
+            workerBeeCount, // Count increment for this batch
+            detectedDrones, // Count increment for this batch
+        });
 
-            exDetectedBees.push(...detectedBees)
-
-            await tx.query(
-                sql`UPDATE files_frame_side_rel
-                    SET detected_bees=${JSON.stringify(exDetectedBees)},
-                        worker_bee_count = IFNULL(worker_bee_count, 0) + ${workerBeeCount},
-                        drone_count      = IFNULL(drone_count, 0) + ${detectedDrones}
-                    WHERE file_id = ${fileId}
-                      AND frame_side_id = ${frameSideId}
-                      AND user_id = ${uid}`
-            );
-        })
+        // No transaction needed here as the single UPDATE is atomic per row.
         return true;
     },
 

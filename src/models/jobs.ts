@@ -107,7 +107,8 @@ const jobsModel = {
     const rel = result[0];
 
     if (!rel) {
-      return true;
+      // If no job record exists, it cannot be complete.
+      return false;
     }
 
     return rel.process_end_time !== null;

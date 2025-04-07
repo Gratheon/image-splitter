@@ -10,7 +10,7 @@ import {generateChannelName, publisher} from "../../redisPubSub";
 
 
 export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, subImageDimensionPx = 800, subImageHandler: Function) {
-    logger.info('splitIn9ImagesAndDetect - will splitting file into smaller parts', file);
+    logger.info(`splitIn9ImagesAndDetect: Starting for file_id ${file.file_id}, frame_side_id ${file.frame_side_id}`);
 
 
     let maxCutsX = 1;
@@ -23,6 +23,7 @@ export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, su
     if (file.width > subImageDimensionPx) {
         maxCutsY = Math.floor(file.height / subImageDimensionPx);
     }
+    logger.info(`splitIn9ImagesAndDetect: Calculated cuts: ${maxCutsX} x ${maxCutsY}`);
 
     // read once to reuse it in all sub-images
     file.imageBytes = fs.readFileSync(file.localFilePath);
@@ -64,39 +65,42 @@ export async function splitIn9ImagesAndDetect(file: FrameSideFetchedByFileId, su
         await subImageHandler(file, cutPosition, formData);
     }
 
-    const parallelPromises = []
+    // Process sequentially instead of concurrently
+    let partCounter = 0;
     for (let x = 0; x < maxCutsX; x++) {
         for (let y = 0; y < maxCutsY; y++) {
-            parallelPromises.push(processCut(x,y, file))
-
-            // run 3 in parallel
-            if(parallelPromises.length >= 3) {
-                await Promise.all(parallelPromises)
-                parallelPromises.length = 0
+            partCounter++;
+            logger.info(`splitIn9ImagesAndDetect: Processing part ${partCounter} (x=${x}, y=${y}) sequentially...`);
+            try {
+                await processCut(x, y, file); // Await each part directly
+                logger.info(`splitIn9ImagesAndDetect: Finished processing part ${partCounter} (x=${x}, y=${y})`);
+            } catch (partError) {
+                // Log error for the specific part but continue processing others
+                logger.error(`splitIn9ImagesAndDetect: Error processing part ${partCounter} (x=${x}, y=${y})`, partError);
+                // Depending on requirements, you might want to:
+                // - Stop processing entirely: throw partError;
+                // - Mark the overall job as failed later
             }
         }
     }
 
-    if(parallelPromises.length > 0) {
-        await Promise.all(parallelPromises)
-    }
-
+    // logger.info(`splitIn9ImagesAndDetect: Finished sequential processing attempt for all ${partCounter} parts. Publishing completion message.`);
     // push isBeeDetectionComplete
-    publisher().publish(
-        generateChannelName(
-            file.user_id,
-            'frame_side',
-            file.frame_side_id,
-            'bees_partially_detected'
-        ),
-        JSON.stringify({
-            delta: [],
-            detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-            detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-            detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-            isBeeDetectionComplete: true
-        })
-    );
+    // publisher().publish(
+    //     generateChannelName(
+    //         file.user_id,
+    //         'frame_side',
+    //         file.frame_side_id,
+    //         'bees_partially_detected'
+    //     ),
+    //     JSON.stringify({
+    //         delta: [],
+    //         detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+    //         detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+    //         detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+    //         isBeeDetectionComplete: true
+    //     })
+    // );
 }
 
 export async function retryAsyncFunction(asyncFunction, maxRetries, DELAY_SEC = 60) {

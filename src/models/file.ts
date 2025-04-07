@@ -117,7 +117,7 @@ const fileModel = {
 
   getById: async function (id, uid) {
     const result = await storage().query(
-      sql`SELECT id, user_id, filename, hash, url_version, ext
+      sql`SELECT id, user_id, filename, hash, url_version, ext, width, height -- Select all needed fields
 			FROM files
 			WHERE id=${id} and user_id=${uid}
 			LIMIT 1`
@@ -131,7 +131,7 @@ const fileModel = {
 
     return {
       __typename: "File",
-      id: file.id,
+      ...file, // Return all selected fields
       url: fileModel.getUrl(file),
     };
   },

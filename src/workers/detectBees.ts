@@ -151,25 +151,36 @@ async function runDetectionOnSplitImage(
       "bees_partially_detected",
     );
 
-    jobs.addJob(NOTIFY_JOB, file.file_id, {
-      redisChannelName,
-      payload: {
-        delta: newDetectedBees,
-        detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(
-          file.frame_side_id,
-          file.user_id,
-        ),
-        detectedDroneCount: await frameSideModel.getDroneCount(
-          file.frame_side_id,
-          file.user_id,
-        ),
-        detectedQueenCount: await frameSideModel.getQueenCount(
-          file.frame_side_id,
-          file.user_id,
-        ),
-        isBeeDetectionComplete: await jobs.isComplete(TYPE_BEES, file.id),
-      },
-    });
+    // jobs.addJob(NOTIFY_JOB, file.file_id, {
+    //   redisChannelName,
+    //   payload: {
+    //     delta: newDetectedBees,
+    //     detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(
+    //       file.frame_side_id,
+    //       file.user_id,
+    //     ),
+    //     detectedDroneCount: await frameSideModel.getDroneCount(
+    //       file.frame_side_id,
+    //       file.user_id,
+    //     ),
+    //     detectedQueenCount: await frameSideModel.getQueenCount(
+    //       file.frame_side_id,
+    //       file.user_id,
+    //     ),
+    //     isBeeDetectionComplete: await jobs.isComplete(TYPE_BEES, file.id),
+    //   },
+    // });
+
+        publisher().publish(redisChannelName,
+        JSON.stringify({
+            delta: newDetectedBees,
+            detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+            detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+            detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+            isBeeDetectionComplete: true
+        }));
+
+
   } else {
     logger.error("Response is not ok", detectedBees);
     logger.error(`HTTP request failed with status ${detectedBees.status}`);
