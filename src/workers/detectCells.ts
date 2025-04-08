@@ -46,9 +46,19 @@ export async function detectCells(file: FirstUnprocessedFile) {
 
   logger.info(`Received frame resource ok response`);
   const res = await response.json();
+  logger.info("Received frame resource response:", res); // Log the raw response
 
-  logger.info("Converting frame resource response to more compact form");
-  delta = convertDetectedResourcesStorageFormat(res, file.width, file.height);
+  // Ensure the response has the expected 'result' property which should be an array
+  if (!res || !Array.isArray(res.result)) {
+      logger.error("Invalid response format received from frame resource service. 'result' array not found or not an array.", res);
+      // Handle the error appropriately, maybe throw or return early
+      // For now, let's assume an empty delta if the format is wrong
+      delta = [];
+  } else {
+      logger.info("Converting frame resource response to more compact form");
+      // Pass the actual array (res.result) to the conversion function
+      delta = convertDetectedResourcesStorageFormat(res.result, file.width, file.height);
+  }
 
   const relativeCounts = await frameSideCells.updateDetectedCells(
     delta,
@@ -122,11 +132,23 @@ export function convertDetectedResourcesStorageFormat(
   width,
   height,
 ): DetectedFrameResource[] {
+  // The check Array.isArray(detectedResources) is now redundant here
+  // because we ensure it's an array before calling this function.
+  // We can remove the check here for cleaner code, or keep it as a safeguard.
+  // Let's keep it for now as an extra safeguard.
+  if (!Array.isArray(detectedResources)) {
+    logger.error(
+      "Error inside convertDetectedResourcesStorageFormat: Input is not an array. Value:",
+      detectedResources,
+    );
+    return [];
+  }
   const result: DetectedFrameResource[] = [];
 
-  for (let line of detectedResources) {
+  for (const line of detectedResources) { // Use const for loop variable
+    // Basic check for line structure might be useful too, but start with the array check.
     result.push([
-      line[3],
+      line[3], // Class ID
       roundToDecimal(line[0] / width, 4),
       roundToDecimal(line[1] / height, 4),
       roundToDecimal(line[2] / width, 4),
