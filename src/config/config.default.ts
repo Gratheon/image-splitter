@@ -36,7 +36,7 @@ export default {
         "secret": "minio-admin",
 
         // used in dev/test env only
-        "target_upload_endpoint": "http://minio:9000/",
+        "target_upload_endpoint": "http://minio:19000/",
 
         "url": {
             "public": "http://localhost:19000/"

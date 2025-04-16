@@ -36,10 +36,10 @@ export default {
         "key": "minio-admin",
         "secret": "minio-admin",
 
-        "target_upload_endpoint": "http://minio:9000/",
+        "target_upload_endpoint": "http://minio:19000/",
 
         "url": {
-            "public": "http://localhost:9000/gratheon-test/"
+            "public": "http://localhost:19000/gratheon-test/"
             // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
         },
     },
