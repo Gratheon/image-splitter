@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import FormData from "form-data"; // Import FormData
 
 import { logger } from "../logger";
 import config from "../config";
@@ -53,28 +54,43 @@ export async function detectWorkerBees(ref_id: number, payload: any) { // Revert
     file,
     1024,
     // async processor for every split sub-image
-    // all we need to do is take formData and send it to the model, store the results
-    async (file: any, cutPosition: CutPosition, formData: any) => {
-      await runDetectionOnSplitImage(file, cutPosition, formData);
+    async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
+      // Pass correct arguments to runDetectionOnSplitImage
+      // We also need the original 'file' object for context later, so pass it along
+      await runDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file);
     },
   );
 }
 
+// Updated function signature to accept correct arguments
 async function runDetectionOnSplitImage(
-  file: any,
+  chunkBytes: Buffer,
   cutPosition: CutPosition,
-  formData: any,
+  fileId: number, // Renamed from file for clarity, as it's just the ID here
+  filename: string, // Added filename
+  originalFile: any, // Pass the original file object for context (width, height, user_id etc.)
 ) {
+  // Create FormData and append the image chunk
+  const formData = new FormData();
+  // Use a filename that the server might expect, or a generic one
+  formData.append('file', chunkBytes, { filename: `chunk_${cutPosition.x}_${cutPosition.y}_${filename}` });
+
+  logger.debug(`Sending chunk ${cutPosition.x},${cutPosition.y} for file ${fileId} to ${config.yolo_v5_url}`);
+
   const detectedBees = await fetch(config.yolo_v5_url, {
     method: "POST",
-    body: formData,
+    body: formData, // Send the constructed FormData
+    // Headers might be set automatically by node-fetch when using FormData,
+    // but you could explicitly set {'Content-Type': 'multipart/form-data'} if needed,
+    // though it often requires boundary calculation which FormData handles.
   });
 
   if (detectedBees.ok) {
     const res: DetectionResponse = await detectedBees.json();
 
     // Log the received response from the detection service
-    logger.info('Received detection response:', { fileId: file.file_id, frameSideId: file.frame_side_id, response: res });
+    // Use originalFile for context IDs
+    logger.info('Received detection response:', { fileId: originalFile.file_id, frameSideId: originalFile.frame_side_id, response: res });
 
     const newDetectedBees: ProcessedBee[] = [];
     // Define typeMap locally (mapping from class name/id to stored 'n' value)
@@ -116,11 +132,11 @@ async function runDetectionOnSplitImage(
             const width_abs = x2_abs - x1_abs;
             const height_abs = y2_abs - y1_abs;
 
-            // Normalize coordinates relative to the original image dimensions (file.width, file.height)
-            const x_final_norm = x_center_abs / file.width;
-            const y_final_norm = y_center_abs / file.height;
-            const w_final_norm = width_abs / file.width;
-            const h_final_norm = height_abs / file.height;
+            // Normalize coordinates relative to the original image dimensions (originalFile.width, originalFile.height)
+            const x_final_norm = x_center_abs / originalFile.width;
+            const y_final_norm = y_center_abs / originalFile.height;
+            const w_final_norm = width_abs / originalFile.width;
+            const h_final_norm = height_abs / originalFile.height;
 
             newDetectedBees.push({
                 n: detectionClassIdString, // Use class_id as string 'n'
@@ -136,18 +152,20 @@ async function runDetectionOnSplitImage(
     }
 
      if (newDetectedBees.length > 0) {
+        // Use originalFile for context IDs
         await frameSideModel.updateDetectedBees(
           newDetectedBees,
-          file.file_id,
-          file.frame_side_id,
-          file.user_id,
+          originalFile.file_id,
+          originalFile.frame_side_id,
+          originalFile.user_id,
         );
      }
 
+    // Use originalFile for context IDs
     const redisChannelName = generateChannelName(
-      file.user_id,
+      originalFile.user_id,
       "frame_side",
-      file.frame_side_id,
+      originalFile.frame_side_id,
       "bees_partially_detected",
     );
 
@@ -171,13 +189,14 @@ async function runDetectionOnSplitImage(
     //   },
     // });
 
+        // Use originalFile for context IDs
         publisher().publish(redisChannelName,
         JSON.stringify({
             delta: newDetectedBees,
-            detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
-            detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
-            detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
-            isBeeDetectionComplete: true
+            detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(originalFile.frame_side_id, originalFile.user_id),
+            detectedDroneCount: await frameSideModel.getDroneCount(originalFile.frame_side_id, originalFile.user_id),
+            detectedQueenCount: await frameSideModel.getQueenCount(originalFile.frame_side_id, originalFile.user_id),
+            isBeeDetectionComplete: true // Note: This might still be premature if chunks fail later
         }));
 
 

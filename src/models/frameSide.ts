@@ -200,23 +200,19 @@ const frameSideModel = {
     },
 
     updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
-        let logCtx = {fileId, frameSideId, uid}
-        logger.info('detectedVarroa', {...logCtx, detectedVarroa});
-        const countDetectedVarroa = frameSideModel.countDetectedVarroa(detectedVarroa)
-        let exDetectedVarroa = await frameSideModel.getDetectedVarroa(frameSideId, uid)
-        if (!exDetectedVarroa) {
-            exDetectedVarroa = []
-        }
-        exDetectedVarroa.push(...detectedVarroa)
+    let logCtx = {fileId, frameSideId, uid}
+    // The 'detectedVarroa' passed here should already be the final, deduplicated list
+    const finalVarroaCount = detectedVarroa.length; // Calculate count from the final list
+    logger.info('Updating detected varroa in DB', {...logCtx, finalVarroaCount});
 
-        logger.info(`Updating detected varroa in DB, setting counts`, {...logCtx, countDetectedVarroa})
-        await storage().query(
-            sql`UPDATE files_frame_side_rel
-                SET detected_varroa=${JSON.stringify(exDetectedVarroa)},
-                    varroa_count   = IFNULL(varroa_count, 0) + ${countDetectedVarroa}
-                WHERE file_id = ${fileId}
-                  AND frame_side_id = ${frameSideId}
-                  AND user_id = ${uid}`
+    // Overwrite the column with the final list and set the count directly
+    await storage().query(
+        sql`UPDATE files_frame_side_rel
+            SET detected_varroa=${JSON.stringify(detectedVarroa)},
+                varroa_count   = ${finalVarroaCount}
+            WHERE file_id = ${fileId}
+              AND frame_side_id = ${frameSideId}
+              AND user_id = ${uid}`
         );
         return true;
     },

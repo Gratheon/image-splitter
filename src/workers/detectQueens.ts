@@ -4,11 +4,12 @@ import config from '../config';
 import { logger } from '../logger';
 
 import frameSideModel, {CutPosition, DetectedObject} from '../models/frameSide';
-import fileSideModel from '../models/frameSide';
+import fileSideModel, {FrameSideFetchedByFileId} from '../models/frameSide'; // Import type
 
 import { generateChannelName, publisher } from '../redisPubSub';
-import {convertClarifaiCoords, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect} from './common/common';
-import {downloadS3FileToLocalTmp} from "./common/downloadFile";
+// Update import name and add FrameSideFetchedByFileId type
+import { transformSubImageCoordsToOriginal, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect } from './common/common';
+import { downloadS3FileToLocalTmp } from "./common/downloadFile";
 
 const PAT = config.clarifai.queen_app.PAT;
 const USER_ID = 'artjom-clarify';
@@ -33,41 +34,59 @@ export async function detectQueens(ref_id, payload) {
     await downloadS3FileToLocalTmp(file);
 
     logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
-    await splitIn9ImagesAndDetect(file, 1024, async (file: any, cutPosition: CutPosition, formData: any)=>{
-        await analyzeQueens(file, cutPosition)
+    // Update handler signature: (bytes, pos, id, name)
+    await splitIn9ImagesAndDetect(file, 1024, async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
+        // Pass necessary info, including original file details needed by analyzeQueens
+        await analyzeQueens(chunkBytes, cutPosition, file); // Pass original file for user_id/frame_side_id
     });
 }
 
-export async function analyzeQueens(file, cutPosition): Promise<DetectedObject[]> {
-    const detectionResult = await retryAsyncFunction(() => askClarifai(file, cutPosition), 3)
+// Updated signature
+export async function analyzeQueens(
+    chunkBytes: Buffer,
+    cutPosition: CutPosition,
+    originalFile: FrameSideFetchedByFileId // Need original file info for DB update/publish
+): Promise<DetectedObject[]> {
+    // Pass bytes and position to Clarifai
+    const detectionResult = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, originalFile.file_id, originalFile.filename), 3);
 
-    logger.info("Queen detection result:", detectionResult)
+    // Filter out null results from failed coordinate transformations
+    const validDetections = detectionResult ? detectionResult.filter(d => d !== null) as DetectedObject[] : [];
 
+    logger.info(`Queen detection result for chunk ${cutPosition.x},${cutPosition.y}:`, validDetections);
+
+    // Use original file info for context
     await fileSideModel.updateQueens(
-        detectionResult,
-        file.frame_side_id,
-        file.user_id
+        validDetections,
+        originalFile.frame_side_id,
+        originalFile.user_id
     );
 
+    // Publish only valid detections
     publisher().publish(
         generateChannelName(
-            file.user_id, 'frame_side',
-            file.frame_side_id, 'queens_detected'
+            originalFile.user_id, 'frame_side',
+            originalFile.frame_side_id, 'queens_detected'
         ),
         JSON.stringify({
-            delta: detectionResult,
-            isQueenDetectionComplete: true
+            delta: validDetections, // Publish valid detections
+            isQueenDetectionComplete: true // This might be premature if called per chunk? Revisit logic if needed.
         })
     );
 
-    return detectionResult
+    return validDetections; // Return only valid detections
 }
 
-async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
-    const result: DetectedObject[] = [];
+// Updated signature
+async function askClarifai(
+    chunkBytes: Buffer,
+    cutPosition: CutPosition,
+    fileId: number,
+    filename: string
+): Promise<(DetectedObject | null)[]> { // Return array that might contain nulls
+    const result: (DetectedObject | null)[] = []; // Allow nulls initially
 
-    const url = file.url
-    logger.info("Asking clarifai to detect queen URL:", { url })
+    logger.info(`Asking clarifai to detect queen on chunk for file ${fileId} (${filename}) at ${cutPosition.x},${cutPosition.y}`);
     return new Promise((resolve, reject) => {
         grpcClient.PostModelOutputs(
             {
@@ -80,7 +99,7 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
                     {
                         data: {
                             image: {
-                                base64: file.imageBytes,
+                                base64: chunkBytes, // Use passed chunkBytes
                                 allow_duplicate_url: true
                             }
                         }
@@ -90,13 +109,13 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
             metadata,
             (err, response) => {
                 if (err) {
-                    logger.error(`gRPC error calling PostModelOutputs for frame_side_id: ${file.frame_side_id}`, err);
-                    return reject(new Error(err));
+                    logger.error(`gRPC error calling PostModelOutputs for queen detection on file ${fileId}, chunk ${cutPosition.x},${cutPosition.y}`, err);
+                    return reject(err); // Reject with the original error
                 }
 
                 if (response.status.code !== 10000) {
-                    logger.error(`Clarifai API error for frame_side_id: ${file.frame_side_id}. Status: ${response.status.description}`, { responseStatus: response.status });
-                    return reject(new Error("Post model outputs failed, status: " + response.status.description));
+                    logger.error(`Clarifai API error for queen detection on file ${fileId}, chunk ${cutPosition.x},${cutPosition.y}. Status: ${response.status.description}`, { responseStatus: response.status });
+                    return reject(new Error(`Post model outputs failed, status: ${response.status.code} - ${response.status.description}`));
                 }
 
                 // log("queen detection response from clarifai", response)
@@ -108,21 +127,28 @@ async function askClarifai(file, cutPosition): Promise<DetectedObject[]> {
                 const regions = output.data.regions
 
                 for (let i = 0; i < regions.length; i++) {
-                    const c = regions[i].value // confidence
+                    const c = regions[i].value; // confidence
                     if (c > MIN_CONFIDENCE) {
-                        result.push({
-                            n: '3',
-                            c: roundToDecimal(c, 2),
+                        // Use the renamed coordinate transformation function
+                        const transformedCoords = transformSubImageCoordsToOriginal(
+                            regions[i].region_info.bounding_box,
+                            cutPosition
+                        );
 
-                            ...convertClarifaiCoords(
-                                regions[i].region_info.bounding_box,
-                                cutPosition
-                            )
-                        })
+                        if (transformedCoords) { // Check if transformation was successful
+                            result.push({
+                                n: '3', // Assuming '3' signifies queen
+                                c: roundToDecimal(c, 2),
+                                ...transformedCoords
+                            });
+                        } else {
+                            logger.warn(`askClarifai (queen): Failed to transform coordinates for region in chunk ${cutPosition.x},${cutPosition.y}`, { region: regions[i], cutPosition });
+                            result.push(null); // Add null placeholder if coords fail
+                        }
                     }
                 }
-
-                // log('queen result', result)
+                logger.info(`Queen result for chunk ${cutPosition.x},${cutPosition.y}: Found ${result.filter(r => r !== null).length} potential queens above threshold.`);
+                logger.debug('Queen result details (including nulls):', result);
                 resolve(result)
             }
 
