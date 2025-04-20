@@ -1,8 +1,12 @@
 {
 	"extends": "../src/config/tsconfig.json",
-	"compilerOptions": {
-	  "types": ["jest"]
-	},
-	"exclude": ["../src"],
-	"include": ["../test/**/*"]
-  }
+  "compilerOptions": {
+    "types": ["jest", "node"] // Added "node" for potentially better compatibility if needed
+  },
+  // Remove the exclude for src as we now want to include tests from there
+  // "exclude": ["../src"],
+  "include": [
+    "../test/**/*", // Keep including files in the test directory
+    "../src/**/*.test.ts" // Also include .test.ts files within the src directory
+  ]
+}
