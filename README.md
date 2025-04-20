@@ -1,5 +1,8 @@
 # Gratheon / image-splitter
 
+[![](https://snyk.io/test/github/Gratheon/image-splitter/badge.svg)](https://snyk.io/test/github/Gratheon/image-splitter)
+
+
 ## Overview
 
 The `image-splitter` microservice is a core component of the Gratheon platform responsible for processing images of beehive frames uploaded by users. Its primary function is to orchestrate the analysis of these images by invoking various internal and external machine learning models to detect key elements like bees (workers, drones, queens), brood cells, pollen, honey, queen cups, and varroa mites.

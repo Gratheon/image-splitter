@@ -50,7 +50,7 @@ services:
   minio:
     image: minio/minio
     ports:
-      - 9000:9000
+      - 19000:19000
       - 9001:9001
     environment:
       MINIO_ROOT_USER: minio-admin
@@ -60,7 +60,7 @@ services:
       - ./test/minio:/data
     healthcheck:
       # Use curl to check the Minio health endpoint directly
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:19000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -77,6 +77,6 @@ services:
         condition: service_healthy
     entrypoint: ["sh", "-c"]
     # Add set -e, sleep, set alias, make bucket (without || true)
-    command: "set -e && sleep 2 && mc alias set --api S3v4 local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb local/gratheon-test"
+    command: "set -e && sleep 2 && mc alias set --api S3v4 local http://minio:19000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb local/gratheon-test"
 volumes:
   mysql82:
