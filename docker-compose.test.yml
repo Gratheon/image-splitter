@@ -55,7 +55,7 @@ services:
     environment:
       MINIO_ROOT_USER: minio-admin
       MINIO_ROOT_PASSWORD: minio-admin
-    command: server /data --console-address :9001
+    command: server /data --console-address :9001 --address :19000
     volumes:
       - ./test/minio:/data
     healthcheck:
