@@ -5,7 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "@apollo/federation": "0.33.9",
-    "@aws-sdk/client-s3": "3.637.0",
+    "@aws-sdk/client-s3": "3.782.0",
     "@databases/mysql": "6.0.0",
     "@sendgrid/mail": "7.7.0",
     "@sentry/node": "7.119.0",
