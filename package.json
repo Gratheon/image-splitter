@@ -4,7 +4,7 @@
   "description": "This project was bootstrapped with Fastify-CLI.",
   "main": "app.js",
   "dependencies": {
-    "@apollo/federation": "0.33.9",
+    "@apollo/federation": "0.38.1",
     "@aws-sdk/client-s3": "3.637.0",
     "@databases/mysql": "6.0.0",
     "@sendgrid/mail": "7.7.0",
