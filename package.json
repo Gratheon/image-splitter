@@ -9,7 +9,7 @@
     "@databases/mysql": "6.0.0",
     "@sendgrid/mail": "7.7.0",
     "@sentry/node": "7.119.0",
-    "@sentry/tracing": "7.114.0",
+    "@sentry/tracing": "7.120.3",
     "apollo-server-core": "3.4.1",
     "apollo-server-fastify": "3.10.4",
     "clarifai-nodejs-grpc": "9.11.5",
