@@ -8,60 +8,101 @@ export { sql };
 
 
 let db;
+let isConnected = false;
+let reconnectInterval: NodeJS.Timeout | null = null;
+
 export function storage() {
   return db;
 }
 
-export async function initStorage(logger) {
-  const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
-  const conn = createConnectionPool(dsn);
+export function isStorageConnected(): boolean {
+  return isConnected;
+}
 
-  await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
-  const startTimes = new Map<SQLQuery, number>();
-  let connectionsCount = 0;
+async function tryConnect(logger): Promise<boolean> {
+  try {
+    const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
+    const conn = createConnectionPool(dsn);
 
-  db = createConnectionPool({
-    connectionString: `${dsn}${config.mysql.database}`,
-    onQueryError: (query, { text }, err) => {
-      startTimes.delete(query);
-      logger.error(
-        `DB error ${text} - ${err.message}`
-      );
-    },
+    await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
+    await conn.dispose();
 
-    onQueryStart: (query) => {
-      startTimes.set(query, Date.now());
-    },
-    onQueryResults: (query, {text}, results) => {
-      const start = startTimes.get(query);
-      startTimes.delete(query);
+    const startTimes = new Map<SQLQuery, number>();
+    let connectionsCount = 0;
 
-      if (start) {
-        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Date.now() - start}ms`);
-      } else {
-        logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')}`);
-      }
-    },
-    onConnectionOpened: () => {
-      logger.info(
-          `Opened connection. Active connections = ${++connectionsCount}`,
-      );
-    },
-    onConnectionClosed: () => {
-      logger.info(
-          `Closed connection. Active connections = ${--connectionsCount}`,
-      );
-    },
-  });
+    db = createConnectionPool({
+      connectionString: `${dsn}${config.mysql.database}`,
+      onQueryError: (query, { text }, err) => {
+        startTimes.delete(query);
+        logger.error(
+          `DB error ${text} - ${err.message}`
+        );
+      },
 
-  // close connections on exit
-  process.once('SIGTERM', () => {
-    db.dispose().catch((ex) => {
-      logger.error(ex);
+      onQueryStart: (query) => {
+        startTimes.set(query, Date.now());
+      },
+      onQueryResults: (query, {text}, results) => {
+        const start = startTimes.get(query);
+        startTimes.delete(query);
+
+        if (start) {
+          logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Date.now() - start}ms`);
+        } else {
+          logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')}`);
+        }
+      },
+      onConnectionOpened: () => {
+        logger.info(
+            `Opened connection. Active connections = ${++connectionsCount}`,
+        );
+      },
+      onConnectionClosed: () => {
+        logger.info(
+            `Closed connection. Active connections = ${--connectionsCount}`,
+        );
+      },
     });
-  });
 
-  await migrate(logger);
+    process.once('SIGTERM', () => {
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+      }
+      db.dispose().catch((ex) => {
+        logger.error(ex);
+      });
+    });
+
+    await migrate(logger);
+
+    isConnected = true;
+    logger.info('MySQL connection established successfully');
+
+    if (reconnectInterval) {
+      clearInterval(reconnectInterval);
+      reconnectInterval = null;
+    }
+
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to connect to MySQL: ${errorMessage}`);
+    isConnected = false;
+    return false;
+  }
+}
+
+export async function initStorage(logger) {
+  const connected = await tryConnect(logger);
+
+  if (!connected) {
+    logger.warn('Initial MySQL connection failed. Will retry every 10 seconds...');
+
+    reconnectInterval = setInterval(async () => {
+      logger.info('Attempting to reconnect to MySQL...');
+      await tryConnect(logger);
+    }, 10000);
+  }
 }
 
 async function migrate(logger) {

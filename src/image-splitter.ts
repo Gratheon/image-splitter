@@ -14,7 +14,7 @@ import gql from "graphql-tag";
 import orchestrator from "./workers/orchestrator";
 import {schema} from "./graphql/schema";
 import {resolvers} from "./graphql/resolvers";
-import {initStorage} from "./models/storage";
+import {initStorage, isStorageConnected} from "./models/storage";
 import {ensureBucketExists} from "./models/s3"; // Import ensureBucketExists
 import {registerSchema} from "./graphql/schema-registry";
 import config from "./config/index";
@@ -200,8 +200,10 @@ async function startApolloServer(app, typeDefs, resolvers) {
 
     // Add health check endpoint
     app.get('/healthz', async (request, reply) => {
-      // Optionally add checks for DB connection, etc. here
-      return { status: 'ok' };
+      return {
+        status: 'ok',
+        mysql: isStorageConnected() ? 'connected' : 'disconnected'
+      };
     });
 
     // Add documentation page handler
