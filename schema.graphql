@@ -8,6 +8,7 @@ type Query {
     hello_image_splitter: String
 	file(id:ID!): File
 	hiveFiles(hiveId:ID!): [FrameSideFile]
+	boxFiles(boxId:ID!, inspectionId:ID): [BoxFile]
 	getExistingHiveAdvice(hiveID: ID): String
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
@@ -20,6 +21,7 @@ type Mutation {
 	generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String
 	uploadFrameSide(file: Upload!): File
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
+	addFileToBox(boxId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
@@ -68,6 +70,16 @@ type FrameSideFile {
 	workerCount: Int
 	droneCount: Int
 
+	detectedVarroa: JSON
+	varroaCount: Int
+}
+
+""" BoxFile connects uploaded images to hive boxes (e.g., bottom board for varroa monitoring) """
+type BoxFile {
+	file: File!
+	boxId: ID!
+	hiveId: ID
+	addedTime: DateTime
 	detectedVarroa: JSON
 	varroaCount: Int
 }

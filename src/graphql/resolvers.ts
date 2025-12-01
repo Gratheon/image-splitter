@@ -8,6 +8,7 @@ import fileResizeModel from '../models/fileResize';
 import frameSideModel from '../models/frameSide';
 import frameSideCellsModel from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
+import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
 
 import uploadFrameSide from "./upload-frame-side";
@@ -22,6 +23,18 @@ export const resolvers = {
         },
         hiveFiles: async (_, {hiveId}, {uid}) => {
             return fileModel.getByHiveId(hiveId, uid)
+        },
+        boxFiles: async (_, {boxId, inspectionId}, {uid}) => {
+            const files = await boxFileModel.getBoxFiles(boxId, uid, inspectionId);
+            return files.map(f => ({
+                file: {
+                    id: f.file_id,
+                    url: f.url
+                },
+                boxId: f.box_id,
+                hiveId: f.hive_id,
+                addedTime: f.added_time
+            }));
         },
         getExistingHiveAdvice: (_, {hiveID}, {uid}) => {
             return beekeeper.getAdvice(hiveID, uid)
@@ -183,6 +196,12 @@ export const resolvers = {
             await frameSideCellsModel.addFrameCells(fileId, frameSideId, uid);
             await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, uid);
 
+            await fileModel.addHiveRelation(fileId, hiveId, uid);
+            return true
+        },
+
+        addFileToBox: async (_, {boxId, fileId, hiveId}, {uid}) => {
+            await boxFileModel.addBoxRelation(fileId, boxId, uid);
             await fileModel.addHiveRelation(fileId, hiveId, uid);
             return true
         },
