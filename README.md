@@ -426,10 +426,25 @@ just test-integration
 *   **Error Reporting:** Integrated with Sentry (`sentryDsn` must be configured).
 *   **Logging:** Uses Fastify's standard logger (`pino`) configured in `src/logger/`. Logs are output to stdout/stderr within the container.
 
-## Contributing
-
-Feel free to create issues to discuss issues or open a pull-request with the changes you feel are important.
-
 ## License
 
-This project is licensed under the AGPL 3.0 License - see the `LICENSE` file for details.
+This project is **dual-licensed**:
+
+- **[AGPL v3](LICENSE-AGPL.md)** - For open source use:
+    - ✅ You can use, modify, and distribute the software
+    - ✅ Source code is freely available
+    - ⚠️ If you modify and host a public instance, you must share your modifications
+    - ⚠️ Any derivative work must also be licensed under AGPL v3
+
+- **[Commercial License](LICENSE-COMMERCIAL.md)** - For enterprise customers who need:
+    - 🏢 On-premise deployment without source disclosure
+    - 🔧 Custom modifications without copyleft obligations
+    - 📞 Priority support and SLA guarantees
+
+
+### Contributing
+
+If you'd like to contribute, please see our [Contributing Guide](CONTRIBUTING.md) and sign our Contributor License Agreement (CLA).
+
+*   Please refer to the `CODEOWNERS` file for ownership details.
+*   Follow standard GitHub flow: Fork the repository, create a feature branch, make changes, and submit a Pull Request.
