@@ -9,6 +9,7 @@ type Query {
 	file(id:ID!): File
 	hiveFiles(hiveId:ID!): [FrameSideFile]
 	boxFiles(boxId:ID!, inspectionId:ID): [BoxFile]
+	varroaBottomDetections(boxId:ID!, inspectionId:ID): VarroaBottomDetection
 	getExistingHiveAdvice(hiveID: ID): String
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
@@ -21,7 +22,7 @@ type Mutation {
 	generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String
 	uploadFrameSide(file: Upload!): File
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
-	addFileToBox(boxId: ID!, fileId: ID!, hiveId: ID!): Boolean
+	addFileToBox(boxId: ID!, fileId: ID!, hiveId: ID!, boxType: String): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
 
 	updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!
@@ -82,6 +83,16 @@ type BoxFile {
 	addedTime: DateTime
 	detectedVarroa: JSON
 	varroaCount: Int
+}
+
+type VarroaBottomDetection {
+	id: ID!
+	fileId: ID!
+	boxId: ID!
+	varroaCount: Int!
+	detections: JSON
+	modelVersion: String
+	processedAt: DateTime
 }
 
 """ File is an abstraction of an uploaded photo of a frame.But we don't want to mix it with various properties in case we will have more uploads.for other purposes than for a frame. For example, hive bottom or hive entrance. """

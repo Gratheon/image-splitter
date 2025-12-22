@@ -30,7 +30,7 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
 
     try {
         // local file
-        let {createReadStream, filename, mimetype, encoding} = await file;
+        let {createReadStream, filename, mimetype} = await file;
 
         logger.info("received file", {filename})
         const stream = createReadStream();
@@ -54,9 +54,27 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             fs.unlinkSync(webpFilePath);
         }
 
-        const dimensions = await imageModel.getImageDimensions(tmpLocalFilePath);
+        // Check file size and preprocess if necessary for large images
+        const stats = fs.statSync(tmpLocalFilePath);
+        const fileSizeInMB = stats.size / (1024 * 1024);
 
-        // hash
+        logger.info('Processing file', { filename, fileSizeInMB: fileSizeInMB.toFixed(2) });
+
+        let processFilePath = tmpLocalFilePath;
+        if (fileSizeInMB > 2) {
+            const preprocessedPath = await imageModel.preprocessLargeImage(tmpLocalFilePath);
+            if (preprocessedPath) {
+                logger.info('Using preprocessed image for processing', { preprocessedPath });
+                processFilePath = preprocessedPath;
+            } else {
+                logger.error('Failed to preprocess large image', { filename, fileSizeInMB });
+                throw new Error(`Failed to preprocess large image: ${filename} (${fileSizeInMB.toFixed(2)}MB)`);
+            }
+        }
+
+        const dimensions = await imageModel.getImageDimensions(processFilePath);
+
+        // hash - use the original file for hashing since we upload the original to S3
         const fileBuffer = fs.readFileSync(tmpLocalFilePath);
         const hashSum = crypto.createHash('sha256');
         hashSum.update(fileBuffer);
@@ -85,20 +103,17 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             ext
         }
 
-        // add async jobs
-        await Promise.all([
-            jobs.addJob(TYPE_RESIZE, id, resizePayload),
-            jobs.addJob(TYPE_BEES, id),
-            jobs.addJob(TYPE_CELLS, id),
-            jobs.addJob(TYPE_CUPS, id),
-            jobs.addJob(TYPE_QUEENS, id),
-            jobs.addJob(TYPE_VARROA, id)
-        ])
+        await jobs.addJob(TYPE_RESIZE, id, resizePayload)
 
         // cleanup after 10 min
         setTimeout(() => {
-            logger.info('Deleting uploaded file', {tmpLocalFilePath});
-            fs.unlinkSync(tmpLocalFilePath);
+            logger.info('Deleting uploaded files', {tmpLocalFilePath, processFilePath});
+            if (fs.existsSync(tmpLocalFilePath)) {
+                fs.unlinkSync(tmpLocalFilePath);
+            }
+            if (processFilePath !== tmpLocalFilePath && fs.existsSync(processFilePath)) {
+                fs.unlinkSync(processFilePath);
+            }
         }, DELETE_UPLOADED_FILE_AFTER_MS);
 
         return {

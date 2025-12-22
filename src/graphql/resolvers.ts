@@ -12,7 +12,7 @@ import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
 
 import uploadFrameSide from "./upload-frame-side";
-import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS} from "../models/jobs";
+import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 
 
 export const resolvers = {
@@ -23,6 +23,9 @@ export const resolvers = {
         },
         hiveFiles: async (_, {hiveId}, {uid}) => {
             return fileModel.getByHiveId(hiveId, uid)
+        },
+        varroaBottomDetections: async (_, {boxId, inspectionId}, {uid}) => {
+            return await boxFileModel.getVarroaDetections(boxId, uid, inspectionId);
         },
         boxFiles: async (_, {boxId, inspectionId}, {uid}) => {
             const files = await boxFileModel.getBoxFiles(boxId, uid, inspectionId);
@@ -197,12 +200,27 @@ export const resolvers = {
             await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, uid);
 
             await fileModel.addHiveRelation(fileId, hiveId, uid);
+
+            // Add frame-side processing jobs
+            await Promise.all([
+                jobs.addJob(TYPE_BEES, fileId),
+                jobs.addJob(TYPE_CELLS, fileId),
+                jobs.addJob(TYPE_CUPS, fileId),
+                jobs.addJob(TYPE_QUEENS, fileId),
+                jobs.addJob(TYPE_VARROA, fileId)
+            ]);
+
             return true
         },
 
-        addFileToBox: async (_, {boxId, fileId, hiveId}, {uid}) => {
+        addFileToBox: async (_, {boxId, fileId, hiveId, boxType}, {uid}) => {
             await boxFileModel.addBoxRelation(fileId, boxId, uid);
             await fileModel.addHiveRelation(fileId, hiveId, uid);
+
+            if (boxType === 'BOTTOM') {
+                await jobs.addJob(TYPE_VARROA_BOTTOM, fileId);
+            }
+
             return true
         },
 

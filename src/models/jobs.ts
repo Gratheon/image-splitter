@@ -8,6 +8,7 @@ export const TYPE_CUPS = "cups";
 export const TYPE_CELLS = "cells";
 export const TYPE_QUEENS = "queens";
 export const TYPE_VARROA = "varroa";
+export const TYPE_VARROA_BOTTOM = "varroa_bottom";
 export const TYPE_BEES = "bees";
 
 export const NOTIFY_JOB = "notify";

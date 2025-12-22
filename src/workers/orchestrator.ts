@@ -8,10 +8,12 @@ import jobsModel, {
   TYPE_QUEENS,
   TYPE_RESIZE,
   TYPE_VARROA,
+  TYPE_VARROA_BOTTOM,
   NOTIFY_JOB,
 } from "../models/jobs";
 import resizeOriginalToThumbnails from "./common/resizeOriginalToThumbnails";
 import { detectVarroa } from "./detectVarroa";
+import { detectVarroaBottom } from "./detectVarroaBottom";
 import { detectQueens } from "./detectQueens";
 import notifyViaRedis from "./redisNotifier";
 
@@ -28,6 +30,7 @@ export default function run() {
   // calling external services
   // only run these jobs in production because they are expensive
   jobsModel.processJobInLoop(TYPE_VARROA, detectVarroa);
+  jobsModel.processJobInLoop(TYPE_VARROA_BOTTOM, detectVarroaBottom);
   jobsModel.processJobInLoop(TYPE_CUPS, analyzeQueenCups);
   
   // and also because we use minio in dev/test and public url is localhost:9000 that clarifai can't access

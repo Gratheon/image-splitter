@@ -28,6 +28,7 @@
     "jwt-encode": "1.0.1",
     "node-fetch": "2.7.0",
     "sha1": "1.1.1",
+    "sharp": "^0.33.0",
     "webp-converter": "2.3.3"
   },
   "scripts": {

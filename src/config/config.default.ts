@@ -50,6 +50,10 @@ export default {
         privateKey: "okzfERFAXXbRTQWkGFfjo3EcAXjRijnGnaAMEsTXnmdjAVDkQrfyLzscPwUiymbj",
     },
 
+    models: {
+        varroaBottomUrl: process.env.VARROA_BOTTOM_URL || 'http://models-varroa-bottom:8750'
+    },
+
     // please set own Clarifai API credentials
     clarifai: {
         varroa_app: {
