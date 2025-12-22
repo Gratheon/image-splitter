@@ -119,7 +119,21 @@ export default {
                     ORDER BY vbd.processed_at DESC
                     LIMIT 1`
             );
-            return result[0] || null;
+
+            if (!result[0]) {
+                return null;
+            }
+
+            const row = result[0];
+            return {
+                id: row.id,
+                fileId: row.file_id,
+                boxId: row.box_id,
+                varroaCount: row.varroa_count,
+                detections: row.detections,
+                modelVersion: row.model_version,
+                processedAt: row.processed_at
+            };
         } catch (err) {
             logger.error('Error getting varroa detections', {err, boxId, userId, inspectionId});
             throw err;

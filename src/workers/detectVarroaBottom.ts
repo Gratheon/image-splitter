@@ -77,13 +77,49 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
             sampleDetection: result?.[0] || null
         });
 
-        const detections = result?.map(d => ({
-            x: (d.x1 + d.x2) / 2,
-            y: (d.y1 + d.y2) / 2,
-            width: d.x2 - d.x1,
-            height: d.y2 - d.y1,
-            confidence: d.confidence
-        })) || [];
+        const sharp = require('sharp');
+        const imageMetadata = await sharp(fileToDownload.localFilePath).metadata();
+        const dimensions = {
+            width: imageMetadata.width || 0,
+            height: imageMetadata.height || 0
+        };
+
+        logger.info('detectVarroaBottom - original image dimensions', {
+            fileId,
+            width: dimensions.width,
+            height: dimensions.height
+        });
+
+        const detections = result?.map((d, index) => {
+            const centerX = (d.x1 + d.x2) / 2;
+            const centerY = (d.y1 + d.y2) / 2;
+            const width = d.x2 - d.x1;
+
+            const normalized = {
+                x: parseFloat((centerX / dimensions.width).toFixed(4)),
+                y: parseFloat((centerY / dimensions.height).toFixed(4)),
+                w: parseFloat((width / dimensions.width).toFixed(4)),
+                c: parseFloat(d.confidence.toFixed(2))
+            };
+
+            if (index === 0) {
+                logger.info('detectVarroaBottom - first detection normalization', {
+                    fileId,
+                    rawDetection: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, confidence: d.confidence },
+                    calculated: { centerX, centerY, width },
+                    dimensions: { width: dimensions.width, height: dimensions.height },
+                    normalized
+                });
+            }
+
+            return normalized;
+        }) || [];
+
+        logger.info('detectVarroaBottom - normalized detections', {
+            fileId,
+            sampleNormalizedDetection: detections[0] || null,
+            totalDetections: detections.length
+        });
 
         await boxFileModel.updateVarroaDetections(
             fileId,
