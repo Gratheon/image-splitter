@@ -508,7 +508,7 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
         }
 
         if (cutPosition.maxCutsY > 0) {
-            h2 = Number(h2) / (cutPosition.maxCutsX)
+            h2 = Number(h2) / (cutPosition.maxCutsY)
             y2 = (Number(y) * cutPosition.height + cutPosition.top) / (cutPosition.maxCutsY * cutPosition.height)
         }
 

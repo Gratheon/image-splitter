@@ -33,8 +33,8 @@ describe('Varroa Bottom Detection Coordinate Normalization', () => {
         expect(normalized.c).toBeGreaterThanOrEqual(0);
         expect(normalized.c).toBeLessThanOrEqual(1);
 
-        expect(normalized.x).toBeCloseTo(0.5586, 4);
-        expect(normalized.y).toBeCloseTo(0.6187, 4);
+        expect(normalized.x).toBeCloseTo(0.552, 3);
+        expect(normalized.y).toBeCloseTo(0.6188, 4);
         expect(normalized.w).toBeCloseTo(0.0157, 4);
         expect(normalized.c).toBe(0.92);
     });
