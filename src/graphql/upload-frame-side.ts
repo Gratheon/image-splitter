@@ -54,25 +54,23 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             fs.unlinkSync(webpFilePath);
         }
 
-        // Check file size and preprocess if necessary for large images
         const stats = fs.statSync(tmpLocalFilePath);
         const fileSizeInMB = stats.size / (1024 * 1024);
 
         logger.info('Processing file', { filename, fileSizeInMB: fileSizeInMB.toFixed(2) });
 
+        const dimensions = await imageModel.getImageDimensions(tmpLocalFilePath);
+
         let processFilePath = tmpLocalFilePath;
-        if (fileSizeInMB > 2) {
+        if (fileSizeInMB > 5) {
             const preprocessedPath = await imageModel.preprocessLargeImage(tmpLocalFilePath);
             if (preprocessedPath) {
                 logger.info('Using preprocessed image for processing', { preprocessedPath });
                 processFilePath = preprocessedPath;
             } else {
-                logger.error('Failed to preprocess large image', { filename, fileSizeInMB });
-                throw new Error(`Failed to preprocess large image: ${filename} (${fileSizeInMB.toFixed(2)}MB)`);
+                logger.warn('Preprocessing did not reduce image size, using original', { filename, fileSizeInMB });
             }
         }
-
-        const dimensions = await imageModel.getImageDimensions(processFilePath);
 
         // hash - use the original file for hashing since we upload the original to S3
         const fileBuffer = fs.readFileSync(tmpLocalFilePath);
