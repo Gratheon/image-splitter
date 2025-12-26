@@ -155,7 +155,7 @@ const cellModel = {
 		let extraFields = sql``
 
 		// cells are very heavy so we only load them if requested
-		if (fieldsRequested.indexOf('cells') === -1) {
+		if (fieldsRequested.indexOf('cells') !== -1) {
 			extraFields = sql`, t3.cells`
 		}
 

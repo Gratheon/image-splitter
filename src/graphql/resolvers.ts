@@ -92,9 +92,15 @@ export const resolvers = {
         file: async ({id}, __, {uid}) => {
             return await fileModel.getByFrameSideId(id, uid)
         },
-        cells: async (parent, __, {uid}, info) => {
-            let frameSideId = parent.frameSideId ? parent.frameSideId : parent.id
-            return await frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info))
+        cells: async (parent, __, context, info) => {
+            const {uid, loaders} = context;
+            let frameSideId = parent.frameSideId ? parent.frameSideId : parent.id;
+
+            if (loaders && loaders.frameSideCellsLoader) {
+                return await loaders.frameSideCellsLoader.load(String(frameSideId));
+            }
+
+            return await frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info));
         },
 
         frameSideFile: async ({id}, __, {uid}) => {

@@ -1,6 +1,6 @@
 SET SESSION sql_require_primary_key = 0;
 
-CREATE TABLE `files_box_rel` (
+CREATE TABLE IF NOT EXISTS `files_box_rel` (
                                  `box_id` int unsigned NOT NULL,
                                  `file_id` int unsigned NOT NULL,
                                  `user_id` int unsigned NOT NULL,

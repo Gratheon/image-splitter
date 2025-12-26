@@ -17,6 +17,7 @@ import {resolvers} from "./graphql/resolvers";
 import {initStorage, isStorageConnected} from "./models/storage";
 import {ensureBucketExists} from "./models/s3"; // Import ensureBucketExists
 import {registerSchema} from "./graphql/schema-registry";
+import {createLoaders} from "./graphql/dataloader";
 import config from "./config/index";
 import {fastifyLogger, logger} from "./logger";
 import "./sentry";
@@ -165,9 +166,13 @@ async function startApolloServer(app, typeDefs, resolvers) {
             }
 
             logger.info('Context: Final uid determined', { uid });
+
+            const loaders = uid ? createLoaders(parseInt(uid, 10)) : null;
+
             return {
                 uid,
-            };
+                loaders,
+            } as any;
         },
     });
 

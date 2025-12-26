@@ -1,6 +1,6 @@
 SET SESSION sql_require_primary_key = 0;
 
-CREATE TABLE `varroa_bottom_detections` (
+CREATE TABLE IF NOT EXISTS `varroa_bottom_detections` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `file_id` int unsigned NOT NULL,
   `box_id` int unsigned NOT NULL,
