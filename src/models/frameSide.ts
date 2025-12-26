@@ -199,6 +199,50 @@ const frameSideModel = {
         return true;
     },
 
+    updateDetectedDrones: async function (detectedDrones: DetectedObject[], fileId, frameSideId, uid) {
+        const droneCount = detectedDrones.length;
+
+        logger.info(`Attempting to update detected drones in DB`, {
+            fileId,
+            frameSideId,
+            uid,
+            dronesBeingAdded: detectedDrones.length,
+            dronesData: JSON.stringify(detectedDrones)
+        });
+
+        const result = await storage().query(sql`
+            UPDATE files_frame_side_rel
+            SET
+                detected_drones = JSON_MERGE_PRESERVE(
+                    COALESCE(detected_drones, JSON_ARRAY()),
+                    ${JSON.stringify(detectedDrones)}
+                ),
+                drone_count = IFNULL(drone_count, 0) + ${droneCount}
+            WHERE file_id = ${fileId}
+              AND frame_side_id = ${frameSideId}
+              AND user_id = ${uid}
+        `);
+
+        logger.info(`Atomically updated detected drones in DB`, {
+            fileId,
+            frameSideId,
+            uid,
+            newDronesCount: detectedDrones.length,
+            droneCount,
+            affectedRows: result.affectedRows
+        });
+
+        if (result.affectedRows === 0) {
+            logger.warn(`No rows updated when storing drones - record may not exist`, {
+                fileId,
+                frameSideId,
+                uid
+            });
+        }
+
+        return true;
+    },
+
     updateDetectedVarroa: async function (detectedVarroa, fileId, frameSideId, uid) {
     let logCtx = {fileId, frameSideId, uid}
     // The 'detectedVarroa' passed here should already be the final, deduplicated list
@@ -260,6 +304,20 @@ const frameSideModel = {
         );
         const rel = result[0];
         return rel ? rel.detected_varroa : null;
+    },
+
+    getDetectedDrones: async function (frameSideId, uid) {
+        const result = await storage().query(
+            sql`SELECT t1.detected_drones
+                FROM files_frame_side_rel t1
+                WHERE t1.frame_side_id = ${frameSideId}
+                  AND t1.user_id = ${uid}
+                  AND t1.inspection_id IS NULL
+                ORDER BY t1.added_time DESC
+                LIMIT 1`
+        );
+        const rel = result[0];
+        return rel ? rel.detected_drones : null;
     },
 
     getDetectedCells: async function (frameSideId, uid) {

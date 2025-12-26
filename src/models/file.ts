@@ -111,7 +111,7 @@ const fileModel = {
 
     return {
       workerBeeCount,
-      droneCount: 0,
+      droneCount: Number(stats.droneCount || 0),
       varroaCount: Number(stats.varroaCountFrames || 0) + Number(varroaBottom)
     };
   },

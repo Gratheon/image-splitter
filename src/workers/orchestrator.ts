@@ -1,6 +1,7 @@
 import { analyzeQueenCups } from "./detectQueenCups";
 import { analyzeCells } from "./detectCells";
 import { detectWorkerBees } from "./detectBees";
+import { detectDrones } from "./detectDrones";
 import jobsModel, {
   TYPE_BEES,
   TYPE_CELLS,
@@ -9,6 +10,7 @@ import jobsModel, {
   TYPE_RESIZE,
   TYPE_VARROA,
   TYPE_VARROA_BOTTOM,
+  TYPE_DRONES,
   NOTIFY_JOB,
 } from "../models/jobs";
 import resizeOriginalToThumbnails from "./common/resizeOriginalToThumbnails";
@@ -20,6 +22,7 @@ import notifyViaRedis from "./redisNotifier";
 export default function run() {
   jobsModel.processJobInLoop(TYPE_RESIZE, resizeOriginalToThumbnails);
   jobsModel.processJobInLoop(TYPE_BEES, detectWorkerBees);
+  jobsModel.processJobInLoop(TYPE_DRONES, detectDrones);
   jobsModel.processJobInLoop(TYPE_CELLS, analyzeCells);
 
   // for some jobs we go a detour though DB, because

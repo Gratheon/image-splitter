@@ -17,6 +17,9 @@ export default {
     // url of the yolo_v5 model
     yolo_v5_url: "http://models-bee-detector:8700/",
 
+    // url of the models-drone-bees service
+    models_drone_bees_url: "http://models-drone-bees:8751/",
+
     // url of the models-frame-resources service
     models_frame_resources_url: "http://models-frame-resources:8540/",
 

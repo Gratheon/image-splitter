@@ -12,7 +12,7 @@ import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
 
 import uploadFrameSide from "./upload-frame-side";
-import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
+import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 
 
 export const resolvers = {
@@ -191,6 +191,17 @@ export const resolvers = {
         detectedDroneCount: async (parent, _, {uid}) => {
             return frameSideModel.getDroneCount(parent.frameSideId, uid)
         },
+        detectedDrones: async (parent, _, {uid}) => {
+            return frameSideModel.getDetectedDrones(parent.frameSideId, uid)
+        },
+        isDroneDetectionComplete: async (parent, _, {uid}) => {
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fileId = latestFileRel?.file?.id;
+            if (!fileId) {
+                 return false;
+            }
+            return jobs.isComplete(TYPE_DRONES, fileId)
+        },
     },
     Mutation: {
         cloneFramesForInspection: async (_, {frameSideIDs, inspectionId}, {uid}) => {
@@ -217,6 +228,7 @@ export const resolvers = {
             // Add frame-side processing jobs
             await Promise.all([
                 jobs.addJob(TYPE_BEES, fileId),
+                jobs.addJob(TYPE_DRONES, fileId),
                 jobs.addJob(TYPE_CELLS, fileId),
                 jobs.addJob(TYPE_CUPS, fileId),
                 jobs.addJob(TYPE_QUEENS, fileId),

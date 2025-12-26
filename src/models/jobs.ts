@@ -10,6 +10,7 @@ export const TYPE_QUEENS = "queens";
 export const TYPE_VARROA = "varroa";
 export const TYPE_VARROA_BOTTOM = "varroa_bottom";
 export const TYPE_BEES = "bees";
+export const TYPE_DRONES = "drones";
 
 export const NOTIFY_JOB = "notify";
 

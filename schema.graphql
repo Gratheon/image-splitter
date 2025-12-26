@@ -60,6 +60,10 @@ type FrameSideFile {
 
 	isBeeDetectionComplete: Boolean
 
+	""" regions of detected drones """
+	detectedDrones: JSON
+	isDroneDetectionComplete: Boolean
+
 	""" regions of detected cells """
 	detectedCells: JSON
 	isCellsDetectionComplete: Boolean
