@@ -80,6 +80,38 @@ const fileModel = {
     return result[0].cnt;
   },
 
+  getHiveStatistics: async function (hiveId, uid) {
+    const frameSideStats = await storage().query(
+      sql`SELECT 
+        COALESCE(SUM(t2.worker_bee_count), 0) as workerBeeCount,
+        COALESCE(SUM(t2.drone_count), 0) as droneCount,
+        COALESCE(SUM(t2.varroa_count), 0) as varroaCountFrames
+				FROM files_hive_rel t1
+				INNER JOIN files_frame_side_rel t2 ON t2.file_id = t1.file_id
+				WHERE t1.user_id = ${uid} AND t1.hive_id=${hiveId} AND t2.inspection_id IS NULL`
+    );
+
+    const bottomVarroaStats = await storage().query(
+      sql`SELECT COALESCE(SUM(vbd.varroa_count), 0) as varroaCountBottom
+        FROM varroa_bottom_detections vbd
+        INNER JOIN files_box_rel fbr ON fbr.file_id = vbd.file_id
+        INNER JOIN files_hive_rel fhr ON fhr.file_id = vbd.file_id
+        WHERE vbd.user_id = ${uid} 
+          AND fhr.hive_id = ${hiveId}
+          AND fbr.inspection_id IS NULL`
+    );
+
+    const stats = frameSideStats[0] || { workerBeeCount: 0, droneCount: 0, varroaCountFrames: 0 };
+    const varroaBottom = bottomVarroaStats[0]?.varroaCountBottom || 0;
+    const workerBeeCount = stats.workerBeeCount || 0;
+
+    return {
+      workerBeeCount,
+      droneCount: 0,
+      varroaCount: (stats.varroaCountFrames || 0) + varroaBottom
+    };
+  },
+
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
       sql`SELECT t2.id, t2.user_id, t2.filename, t2.url_version, t2.hash, t2.ext,

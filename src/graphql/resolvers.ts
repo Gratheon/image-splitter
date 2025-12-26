@@ -55,6 +55,13 @@ export const resolvers = {
                 return []
             }
             return frameSideModel.getFrameSides(frameSideIds, inspectionId, uid)
+        },
+        hiveStatistics: async (_, {hiveId}, {uid}) => {
+            if (!uid) {
+                logger.error('Attempt to access hiveStatistics without uid', {hiveId})
+                return { workerBeeCount: 0, droneCount: 0, varroaCount: 0 }
+            }
+            return fileModel.getHiveStatistics(hiveId, uid)
         }
     },
     Hive: {

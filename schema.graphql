@@ -16,6 +16,9 @@ type Query {
 
 	""" Gets single inspection states of frame sides (frameSideIds are optional, for extra filtering) """
 	frameSidesInspections(frameSideIds: [ID], inspectionId:ID!): [FrameSideInspection]
+
+	""" Gets aggregate statistics for entire hive """
+	hiveStatistics(hiveId:ID!): HiveStatistics
 }
 
 type Mutation {
@@ -155,3 +158,10 @@ extend type Hive @key(fields: "id") {
 	beeCount: Int
 	files: [FrameSideFile]
 }
+
+type HiveStatistics {
+	workerBeeCount: Int!
+	droneCount: Int!
+	varroaCount: Int!
+}
+
