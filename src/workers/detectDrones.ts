@@ -208,14 +208,28 @@ async function runDroneDetectionOnSplitImage(
       originalFile.user_id,
       "frame_side",
       originalFile.frame_side_id,
-      "drones_partially_detected",
+      "bees_partially_detected",
     );
+
+    const droneCount = await frameSideModel.getDroneCount(originalFile.frame_side_id, originalFile.user_id);
+    const workerCount = await frameSideModel.getWorkerBeeCount(originalFile.frame_side_id, originalFile.user_id);
+    const queenCount = await frameSideModel.getQueenCount(originalFile.frame_side_id, originalFile.user_id);
+
+    logger.info('Publishing drone detection to Redis', {
+      channel: redisChannelName,
+      droneCount,
+      workerCount,
+      queenCount,
+      deltaCount: newDetectedDrones.length
+    });
 
     publisher().publish(redisChannelName,
       JSON.stringify({
         delta: newDetectedDrones,
-        detectedDroneCount: await frameSideModel.getDroneCount(originalFile.frame_side_id, originalFile.user_id),
-        isDroneDetectionComplete: true
+        detectedDroneCount: droneCount,
+        detectedWorkerBeeCount: workerCount,
+        detectedQueenCount: queenCount,
+        isBeeDetectionComplete: false
       }));
 
   } else {
