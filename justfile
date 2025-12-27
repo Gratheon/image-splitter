@@ -8,17 +8,21 @@ run:
 	npm run dev
 
 test-integration:
-	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down
+	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
+	rm -rf ./test/mysql82
+	rm -rf ./test/minio
 	source $HOME/.nvm/nvm.sh && nvm use && npm i && npm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	sleep 10
-	npm run test:integration
+	ENV_ID=testing npm run test:integration
 
 test-integration-ci:
 	# Ensure clean environment: stop, remove containers, and remove the mysql volume
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
+	rm -rf ./test/mysql82
+	rm -rf ./test/minio
 	npm i && npm run build
 	# Start fresh, forcing a rebuild to include latest code changes
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d --build
