@@ -23,6 +23,9 @@ export default {
     // url of the models-frame-resources service
     models_frame_resources_url: "http://models-frame-resources:8540/",
 
+    // url of the telemetry-api service
+    telemetry_api_url: "http://telemetry-api:4000/graphql",
+
     // DB connection details, used also for migrations
     mysql: {
         host: process.env.NATIVE ? 'localhost': 'mysql',

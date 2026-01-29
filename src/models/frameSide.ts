@@ -540,6 +540,23 @@ const frameSideModel = {
                   AND user_id = ${uid}`
         );
         return true
+    },
+
+    getHiveIdFromFrameSides: async function (frameSideIDs: number[], uid: number): Promise<string | null> {
+        if (!frameSideIDs || frameSideIDs.length === 0) {
+            return null;
+        }
+
+        const result = await storage().query(
+            sql`SELECT DISTINCT t1.hive_id
+                FROM files_hive_rel t1
+                INNER JOIN files_frame_side_rel t2 ON t2.file_id = t1.file_id
+                WHERE t2.frame_side_id IN (${frameSideIDs})
+                  AND t1.user_id = ${uid}
+                LIMIT 1`
+        );
+
+        return result.length > 0 ? result[0].hive_id : null;
     }
 };
 

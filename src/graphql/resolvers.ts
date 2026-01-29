@@ -10,6 +10,7 @@ import frameSideCellsModel from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
 import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
+import { sendPopulationMetrics } from '../models/telemetryClient';
 
 import uploadFrameSide from "./upload-frame-side";
 import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
@@ -208,6 +209,24 @@ export const resolvers = {
             await frameSideModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
             await frameSideCellsModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
             await frameSideQueenCupsModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
+
+            const hiveId = await frameSideModel.getHiveIdFromFrameSides(frameSideIDs, uid);
+
+            if (hiveId) {
+                try {
+                    const stats = await fileModel.getHiveStatistics(hiveId, uid);
+
+                    await sendPopulationMetrics(
+                        hiveId,
+                        stats.workerBeeCount || 0,
+                        stats.droneCount || 0,
+                        stats.varroaCount || 0,
+                        String(inspectionId)
+                    );
+                } catch (error) {
+                    logger.error('Failed to send population metrics', { error, hiveId, inspectionId });
+                }
+            }
 
             return true
         },
