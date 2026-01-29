@@ -60,6 +60,36 @@ export async function detectWorkerBees(ref_id: number, payload: any) { // Revert
       await runDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file);
     },
   );
+
+  // After ALL chunks are processed, send final completion notification
+  logger.info("detectWorkerBees - all chunks processed, sending final notification", {
+    fileId: file.file_id,
+    frameSideId: file.frame_side_id
+  });
+
+  const finalChannelName = generateChannelName(
+    file.user_id,
+    "frame_side",
+    file.frame_side_id,
+    "bees_detected", // Note: different channel name for completion
+  );
+
+  const finalCounts = {
+    detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+    detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+    detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+  };
+
+  logger.info("detectWorkerBees - final counts", finalCounts);
+
+  // Send final completion via NOTIFY_JOB for proper delivery
+  await jobs.addJob(NOTIFY_JOB, file.file_id, {
+    redisChannelName: finalChannelName,
+    payload: {
+      ...finalCounts,
+      isBeeDetectionComplete: true,
+    },
+  }, 1); // High priority for user notifications
 }
 
 // Updated function signature to accept correct arguments
@@ -196,7 +226,7 @@ async function runDetectionOnSplitImage(
             detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(originalFile.frame_side_id, originalFile.user_id),
             detectedDroneCount: await frameSideModel.getDroneCount(originalFile.frame_side_id, originalFile.user_id),
             detectedQueenCount: await frameSideModel.getQueenCount(originalFile.frame_side_id, originalFile.user_id),
-            isBeeDetectionComplete: true // Note: This might still be premature if chunks fail later
+            isBeeDetectionComplete: false // Partial results, not complete yet
         }));
 
 

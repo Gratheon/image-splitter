@@ -244,14 +244,16 @@ export const resolvers = {
 
             await fileModel.addHiveRelation(fileId, hiveId, uid);
 
-            // Add frame-side processing jobs
+            // Add frame-side processing jobs with priorities
+            // Medium priority (3) for local AI processing
+            // Low priority (5) for expensive external API calls
             await Promise.all([
-                jobs.addJob(TYPE_BEES, fileId),
-                jobs.addJob(TYPE_DRONES, fileId),
-                jobs.addJob(TYPE_CELLS, fileId),
-                jobs.addJob(TYPE_CUPS, fileId),
-                jobs.addJob(TYPE_QUEENS, fileId),
-                jobs.addJob(TYPE_VARROA, fileId)
+                jobs.addJob(TYPE_BEES, fileId, {}, 3),
+                jobs.addJob(TYPE_DRONES, fileId, {}, 3),
+                jobs.addJob(TYPE_CELLS, fileId, {}, 3),
+                jobs.addJob(TYPE_CUPS, fileId, {}, 5),
+                jobs.addJob(TYPE_QUEENS, fileId, {}, 5),
+                jobs.addJob(TYPE_VARROA, fileId, {}, 5)
             ]);
 
             return true
@@ -262,7 +264,7 @@ export const resolvers = {
             await fileModel.addHiveRelation(fileId, hiveId, uid);
 
             if (boxType === 'BOTTOM') {
-                await jobs.addJob(TYPE_VARROA_BOTTOM, fileId);
+                await jobs.addJob(TYPE_VARROA_BOTTOM, fileId, {}, 5); // Low priority for external API
             }
 
             return true

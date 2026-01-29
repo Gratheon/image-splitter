@@ -108,7 +108,7 @@ export async function detectCells(file: FirstUnprocessedFile) {
       pollenPercent: relativeCounts.pollen,
       honeyPercent: relativeCounts.honey,
     },
-  });
+  }, 1); // High priority for user notifications
 
   //  logger.info("Publishing frame resources to redis channel " + ch2);
   //  await publisher().publish(

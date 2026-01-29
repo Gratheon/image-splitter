@@ -1,6 +1,7 @@
 import { logger } from "../logger";
 import { storage } from "./storage";
 import { sql } from "@databases/mysql";
+import { publisher, subscriber } from "../redisPubSub";
 
 export const TYPE_RESIZE = "resize";
 
@@ -26,6 +27,7 @@ type Job = {
   process_end_time: Date;
   payload: any;
   error: string;
+  priority: number;
 };
 
 interface ProcessFn {
@@ -38,6 +40,7 @@ const jobsModel = {
    * - We lock the job by setting process_start_time, thats why
    * process_start_time is older than 1 minute
    * - We allow only 3 calls to the job (2 retries) to prevent infinite calls
+   * - Jobs are ordered by priority (lower number = higher priority) then by ID
    * @param name
    */
   fetchUnprocessed: async function (tx, name: string) {
@@ -48,7 +51,7 @@ const jobsModel = {
                   AND ( (process_start_time <= NOW() - INTERVAL 1 MINUTE) OR process_start_time IS NULL)
                   AND process_end_time IS NULL
                   AND (calls < 3)
-                ORDER BY id ASC
+                ORDER BY priority ASC, id ASC
                 LIMIT 1`,
     );
 
@@ -59,11 +62,19 @@ const jobsModel = {
     return jobs[0];
   },
 
-  addJob: async function (name: string, refId: number, resizePayload = {}) {
+  addJob: async function (name: string, refId: number, resizePayload = {}, priority = 5) {
     await storage().query(
-      sql`INSERT INTO jobs (name, ref_id, payload)
-      VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)})`,
+      sql`INSERT INTO jobs (name, ref_id, payload, priority)
+      VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)}, ${priority})`,
     );
+    
+    // Notify workers via Redis that a new job is available
+    try {
+      await publisher().publish(`jobs:new:${name}`, JSON.stringify({ refId, priority }));
+    } catch (e) {
+      logger.error(`Failed to publish job notification to Redis for ${name}`, e);
+      // Don't fail the job creation if Redis publish fails
+    }
   },
 
   startDetection: async function (tx, name: string, refId: number) {
@@ -116,7 +127,40 @@ const jobsModel = {
     return rel.process_end_time !== null;
   },
 
-  processJobInLoop: async function (name: string, fn: ProcessFn) {
+  /**
+   * Process jobs using Redis pub/sub for instant notifications instead of polling
+   * Workers subscribe to Redis channels and are notified immediately when jobs are added
+   * @param name - Job type name
+   * @param fn - Processing function
+   * @param rateLimitMs - Optional delay between job processing (for rate limiting external APIs)
+   */
+  processJobInLoop: async function (name: string, fn: ProcessFn, rateLimitMs = 0) {
+    const sub = subscriber();
+    const channelName = `jobs:new:${name}`;
+    
+    // Subscribe to job notifications
+    await sub.subscribe(channelName);
+    
+    logger.info(`Worker for ${name} subscribed to ${channelName}`);
+    
+    // On startup, check for any existing jobs in DB
+    await jobsModel.checkAndProcessJob(name, fn, rateLimitMs);
+    
+    // Listen for new job notifications
+    sub.on('message', async (channel, message) => {
+      if (channel === channelName) {
+        logger.debug(`Worker ${name} received notification`, { message });
+        await jobsModel.checkAndProcessJob(name, fn, rateLimitMs);
+      }
+    });
+  },
+
+  /**
+   * Separate method to check DB and process a single job
+   * After completing a job, it checks if there are more jobs to process
+   * This allows batch processing without waiting for Redis notifications
+   */
+  checkAndProcessJob: async function (name: string, fn: ProcessFn, rateLimitMs = 0) {
     let job;
 
     await storage().tx(async (tx) => {
@@ -128,36 +172,41 @@ const jobsModel = {
     });
 
     if (job == null) {
-      setTimeout(() => {
-        jobsModel.processJobInLoop(name, fn);
-      }, IDLE_TIME_RETRY_MS);
+      logger.debug(`No pending jobs for ${name}`);
       return;
     }
 
-    // process job
+    // Rate limiting: wait before processing (for external API calls)
+    if (rateLimitMs > 0) {
+      logger.debug(`Rate limiting ${name} job for ${rateLimitMs}ms`);
+      await new Promise(resolve => setTimeout(resolve, rateLimitMs));
+    }
+
+    // Process job
     try {
-      logger.info(`starting job ${name} loop`);
+      logger.info(`Processing job ${name}`, { ref_id: job.ref_id, priority: job.priority });
       await fn(job.ref_id, job.payload);
     } catch (e) {
       logger.errorEnriched(
-        `processing job ${name} with ref_id=${job.ref_id} failed`,
-        e,
+        `Processing job ${name} with ref_id=${job.ref_id} failed`,
+        e
       );
       await jobsModel.fail(job, e);
-
+      
+      // After failure, check if there are more jobs (with error delay)
       setTimeout(() => {
-        jobsModel.processJobInLoop(name, fn);
+        jobsModel.checkAndProcessJob(name, fn, rateLimitMs);
       }, ERROR_TIME_RETRY_MS);
-
-      // do not consider error as a finished job
       return;
     }
 
     await jobsModel.endDetection(name, job.ref_id);
-
-    setTimeout(() => {
-      jobsModel.processJobInLoop(name, fn);
-    }, WORK_TIME_RETRY_MS);
+    
+    // After completing one job, immediately check if there are more
+    // This allows processing multiple jobs without waiting for Redis notification
+    setImmediate(() => {
+      jobsModel.checkAndProcessJob(name, fn, rateLimitMs);
+    });
   },
 };
 

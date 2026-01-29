@@ -14,13 +14,26 @@ import gql from "graphql-tag";
 import orchestrator from "./workers/orchestrator";
 import {schema} from "./graphql/schema";
 import {resolvers} from "./graphql/resolvers";
-import {initStorage, isStorageConnected} from "./models/storage";
+import {initStorage, isStorageConnected, storage} from "./models/storage";
 import {ensureBucketExists} from "./models/s3"; // Import ensureBucketExists
 import {registerSchema} from "./graphql/schema-registry";
 import {createLoaders} from "./graphql/dataloader";
 import config from "./config/index";
 import {fastifyLogger, logger} from "./logger";
 import "./sentry";
+import { sql } from "@databases/mysql";
+import { publisher } from "./redisPubSub";
+import {
+    TYPE_BEES,
+    TYPE_CELLS,
+    TYPE_CUPS,
+    TYPE_DRONES,
+    TYPE_QUEENS,
+    TYPE_RESIZE,
+    TYPE_VARROA,
+    TYPE_VARROA_BOTTOM,
+    NOTIFY_JOB,
+} from "./models/jobs";
 
 // Plugin to set HTTP status code based on GraphQL error codes
 const httpStatusPlugin = {
@@ -182,6 +195,58 @@ async function startApolloServer(app, typeDefs, resolvers) {
     return server.graphqlPath;
 }
 
+/**
+ * On startup, repopulate Redis from DB for any incomplete jobs
+ * This ensures that jobs aren't lost if Redis was restarted or cleared
+ * Workers will be notified about these pending jobs via Redis pub/sub
+ */
+async function repopulateRedisQueue() {
+    const jobTypes = [
+        TYPE_RESIZE,
+        TYPE_BEES,
+        TYPE_DRONES,
+        TYPE_CELLS,
+        TYPE_CUPS,
+        TYPE_QUEENS,
+        TYPE_VARROA,
+        TYPE_VARROA_BOTTOM,
+        NOTIFY_JOB,
+    ];
+
+    logger.info('Checking for incomplete jobs to repopulate Redis queue...');
+
+    for (const jobType of jobTypes) {
+        try {
+            const incompleteJobs = await storage().query(
+                sql`SELECT id, ref_id, priority FROM jobs
+                    WHERE name = ${jobType}
+                      AND process_end_time IS NULL
+                      AND (process_start_time IS NULL OR process_start_time <= NOW() - INTERVAL 1 MINUTE)
+                      AND calls < 3
+                    ORDER BY priority ASC, id ASC`
+            );
+
+            if (incompleteJobs.length > 0) {
+                logger.info(`Found ${incompleteJobs.length} incomplete ${jobType} jobs, notifying workers`);
+                for (const job of incompleteJobs) {
+                    try {
+                        await publisher().publish(`jobs:new:${jobType}`, JSON.stringify({
+                            refId: job.ref_id,
+                            priority: job.priority
+                        }));
+                    } catch (publishError) {
+                        logger.error(`Failed to publish notification for job ${job.id}`, publishError);
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error(`Error checking incomplete jobs for ${jobType}`, error);
+        }
+    }
+
+    logger.info('Redis queue repopulation complete');
+}
+
 (async function main() {
     logger.info("Starting service...");
 
@@ -193,6 +258,9 @@ async function startApolloServer(app, typeDefs, resolvers) {
         await ensureBucketExists();
     }
 
+    // Repopulate Redis queue from DB on startup
+    // This ensures pending jobs are notified to workers even after Redis restart
+    await repopulateRedisQueue();
     
     orchestrator();
 
@@ -211,11 +279,57 @@ async function startApolloServer(app, typeDefs, resolvers) {
       };
     });
 
+    // Add job queue statistics endpoint
+    app.get('/jobs/stats', async (request, reply) => {
+      const jobTypes = [
+        TYPE_RESIZE,
+        TYPE_BEES,
+        TYPE_DRONES,
+        TYPE_CELLS,
+        TYPE_CUPS,
+        TYPE_QUEENS,
+        TYPE_VARROA,
+        TYPE_VARROA_BOTTOM,
+        NOTIFY_JOB,
+      ];
+
+      const stats = {};
+
+      for (const jobType of jobTypes) {
+        try {
+          const result = await storage().query(
+            sql`SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN process_end_time IS NULL THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN process_end_time IS NOT NULL THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as failed,
+                AVG(CASE WHEN process_end_time IS NOT NULL AND process_start_time IS NOT NULL
+                  THEN TIMESTAMPDIFF(SECOND, process_start_time, process_end_time)
+                  ELSE NULL END) as avg_processing_time_sec
+                FROM jobs WHERE name = ${jobType}`
+          );
+          stats[jobType] = {
+            total: result[0].total,
+            pending: result[0].pending,
+            completed: result[0].completed,
+            failed: result[0].failed,
+            avgProcessingTime: result[0].avg_processing_time_sec ? Math.round(result[0].avg_processing_time_sec * 100) / 100 : null,
+          };
+        } catch (error) {
+          logger.error(`Error fetching stats for ${jobType}`, error);
+          stats[jobType] = { error: 'Failed to fetch stats' };
+        }
+      }
+
+      return { status: 'ok', jobs: stats };
+    });
+
     // Add documentation page handler
     app.get('/', async (request, reply) => {
       const endpoints = [
         { method: 'GET', path: '/', description: 'This documentation page' },
         { method: 'GET', path: '/healthz', description: 'Health check endpoint' },
+        { method: 'GET', path: '/jobs/stats', description: 'Job queue statistics' },
         { method: 'GET', path: '/graphql', description: 'GraphQL playground' },
       ];
       const logoSvg = `<?xml version="1.0" encoding="utf-8"?>

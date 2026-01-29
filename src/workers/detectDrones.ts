@@ -11,6 +11,7 @@ import frameSideModel, {
 import { generateChannelName, publisher } from "../redisPubSub";
 import { downloadS3FileToLocalTmp } from "./common/downloadFile";
 import { splitIn9ImagesAndDetect, roundToDecimal } from "./common/common";
+import jobs, { NOTIFY_JOB } from "../models/jobs";
 
 interface DroneDetectionResponse {
   message: string;
@@ -67,6 +68,36 @@ export async function detectDrones(ref_id: number, payload: any) {
       await runDroneDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file);
     },
   );
+
+  // After ALL chunks are processed, send final completion notification
+  logger.info("detectDrones - all chunks processed, sending final notification", {
+    fileId: file.file_id,
+    frameSideId: file.frame_side_id
+  });
+
+  const finalChannelName = generateChannelName(
+    file.user_id,
+    "frame_side",
+    file.frame_side_id,
+    "bees_detected", // Note: uses same channel as worker bees for final completion
+  );
+
+  const finalCounts = {
+    detectedWorkerBeeCount: await frameSideModel.getWorkerBeeCount(file.frame_side_id, file.user_id),
+    detectedDroneCount: await frameSideModel.getDroneCount(file.frame_side_id, file.user_id),
+    detectedQueenCount: await frameSideModel.getQueenCount(file.frame_side_id, file.user_id),
+  };
+
+  logger.info("detectDrones - final counts", finalCounts);
+
+  // Send final completion via NOTIFY_JOB for proper delivery
+  await jobs.addJob(NOTIFY_JOB, file.file_id, {
+    redisChannelName: finalChannelName,
+    payload: {
+      ...finalCounts,
+      isDroneDetectionComplete: true,
+    },
+  }, 1); // High priority for user notifications
 }
 
 async function runDroneDetectionOnSplitImage(

@@ -101,7 +101,7 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             ext
         }
 
-        await jobs.addJob(TYPE_RESIZE, id, resizePayload)
+        await jobs.addJob(TYPE_RESIZE, id, resizePayload, 1) // High priority - user is waiting
 
         // cleanup after 10 min
         setTimeout(() => {

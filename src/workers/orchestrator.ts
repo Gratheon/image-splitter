@@ -20,23 +20,28 @@ import { detectQueens } from "./detectQueens";
 import notifyViaRedis from "./redisNotifier";
 
 export default function run() {
-  jobsModel.processJobInLoop(TYPE_RESIZE, resizeOriginalToThumbnails);
-  jobsModel.processJobInLoop(TYPE_BEES, detectWorkerBees);
-  jobsModel.processJobInLoop(TYPE_DRONES, detectDrones);
-  jobsModel.processJobInLoop(TYPE_CELLS, analyzeCells);
-
-  // for some jobs we go a detour though DB, because
-  // these jobs run on remote machines that have access only to DB
-  // bees/cells jobs -> DB -> notify job -> redis -> even-stream -> web-app
-  jobsModel.processJobInLoop(NOTIFY_JOB, notifyViaRedis);
-
+  // High priority - user-blocking operations (no rate limit)
+  // Priority 1 jobs are processed first
+  jobsModel.processJobInLoop(TYPE_RESIZE, resizeOriginalToThumbnails, 0);
+  
+  // Medium priority - local AI processing (minimal rate limit to prevent CPU overload)
+  // Priority 3 jobs, 100ms between jobs to allow breathing room
+  jobsModel.processJobInLoop(TYPE_BEES, detectWorkerBees, 100);
+  jobsModel.processJobInLoop(TYPE_DRONES, detectDrones, 100);
+  jobsModel.processJobInLoop(TYPE_CELLS, analyzeCells, 100);
+  
+  // Special case: notification relay - high priority for user notifications
+  jobsModel.processJobInLoop(NOTIFY_JOB, notifyViaRedis, 0);
+  
+  // Low priority - external API calls (rate limited to avoid quotas)
+  // Priority 5 jobs, 2000ms = max 30 calls/minute to Clarifai
   // calling external services
   // only run these jobs in production because they are expensive
-  jobsModel.processJobInLoop(TYPE_VARROA, detectVarroa);
-  jobsModel.processJobInLoop(TYPE_VARROA_BOTTOM, detectVarroaBottom);
-  jobsModel.processJobInLoop(TYPE_CUPS, analyzeQueenCups);
+  jobsModel.processJobInLoop(TYPE_VARROA, detectVarroa, 2000);
+  jobsModel.processJobInLoop(TYPE_VARROA_BOTTOM, detectVarroaBottom, 2000);
+  jobsModel.processJobInLoop(TYPE_CUPS, analyzeQueenCups, 2000);
   
   // and also because we use minio in dev/test and public url is localhost:9000 that clarifai can't access
-  jobsModel.processJobInLoop(TYPE_QUEENS, detectQueens);
+  jobsModel.processJobInLoop(TYPE_QUEENS, detectQueens, 2000);
 
 }
