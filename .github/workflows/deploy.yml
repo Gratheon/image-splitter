@@ -10,10 +10,39 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 jobs:
+  # Check if any non-documentation files were changed
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+
+      - name: Check for code changes
+        id: filter
+        run: |
+          # Get list of changed files in the last commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+
+          # Check if any non-documentation files changed
+          if echo "$CHANGED_FILES" | grep -qvE '\.(md)$|^docs/|^LICENSE|^CONTRIBUTING\.md|^\.gitignore$'; then
+            echo "code=true" >> $GITHUB_OUTPUT
+            echo "Code files changed, deployment needed"
+          else
+            echo "code=false" >> $GITHUB_OUTPUT
+            echo "Only documentation changed, skipping deployment"
+          fi
+
   deploy:
     runs-on: self-hosted
-    # Only run this job if the triggering workflow (test.yml) completed successfully
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: check-changes
+    # Only run if test workflow succeeded AND code files changed
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.check-changes.outputs.should-deploy == 'true'
     steps:
       # Checkout the specific commit that triggered the successful test workflow
       - uses: actions/checkout@v4
