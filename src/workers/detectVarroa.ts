@@ -65,7 +65,7 @@ export async function detectVarroa(ref_id, payload) {
 	const finalVarroaCount = finalUniqueVarroa.length;
 
 	logger.info(`Finished processing all chunks for file ${file.file_id}. Found ${finalVarroaCount} unique varroa mites.`);
-	logger.debug('Final unique varroa before DB update:', JSON.stringify(finalUniqueVarroa)); // Added log
+	logger.debug(`Final unique varroa before DB update: ${JSON.stringify(finalUniqueVarroa)}`); // Added log
 
 	// 3. Update database once with final results
 	await frameSideModel.updateDetectedVarroa(
