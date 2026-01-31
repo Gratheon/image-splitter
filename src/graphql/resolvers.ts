@@ -1,5 +1,5 @@
 import {parseResolveInfo, simplifyParsedResolveInfoFragmentWithType} from 'graphql-parse-resolve-info';
-import {GraphQLUpload} from 'graphql-upload';
+import GraphQLUpload from 'graphql-upload/GraphQLUpload.mjs';
 
 import {logger} from '../logger';
 

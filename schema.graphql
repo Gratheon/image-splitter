@@ -146,19 +146,17 @@ type FrameSideInspection {
 	frameSideFile: FrameSideFile
 }
 
-extend type FrameSide @key(fields: "id") {
-	id: ID @external
-	isQueenConfirmed: Boolean # Added field
+type FrameSide @key(fields: "id") @extends {
+	id: ID! @external
+	isQueenConfirmed: Boolean
 	file: File
 	cells: FrameSideCells
 	frameSideFile: FrameSideFile
 	inspections: [FrameSideInspection]
 }
 
-extend type Hive @key(fields: "id") {
+type Hive @key(fields: "id") @extends {
 	id: ID! @external
-
-	"""amount of bees detected on all frames. Includes all types (workers, drones, queens)"""
 	beeCount: Int
 	files: [FrameSideFile]
 }

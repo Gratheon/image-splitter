@@ -7,7 +7,7 @@ import { GraphQLRequestListener } from "apollo-server-plugin-base"; // Import fr
 import fastify from "fastify";
 import fastifyMultipart from "fastify-multipart"; // Import fastify-multipart
 import {buildSubgraphSchema} from "@apollo/federation";
-import {processRequest} from "graphql-upload"; // Re-import processRequest
+import processRequest from "graphql-upload/processRequest.mjs"; // Re-import processRequest
 import jwt from "jsonwebtoken";
 import gql from "graphql-tag";
 
