@@ -46,11 +46,14 @@ export async function detectCells(file: FirstUnprocessedFile) {
 
   logger.info(`Received frame resource ok response`);
   const res = await response.json();
-  logger.info("Received frame resource response:", res); // Log the raw response
+  logger.info("Received frame resource response:", { resultCount: res.result?.length || 0 });
 
   // Ensure the response has the expected 'result' property which should be an array
   if (!res || !Array.isArray(res.result)) {
-      logger.error("Invalid response format received from frame resource service. 'result' array not found or not an array.", res);
+      logger.error("Invalid response format received from frame resource service. 'result' array not found or not an array.", { 
+        hasResult: !!res?.result,
+        resultType: typeof res?.result 
+      });
       // Handle the error appropriately, maybe throw or return early
       // For now, let's assume an empty delta if the format is wrong
       delta = [];

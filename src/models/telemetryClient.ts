@@ -65,7 +65,9 @@ export async function sendPopulationMetrics(
             });
         } else {
             logger.error('Unexpected response from telemetry-api', {
-                result,
+                message: result.data?.addPopulationMetric?.message,
+                hasData: !!result.data,
+                hasErrors: !!result.errors,
                 hiveId,
                 inspectionId
             });

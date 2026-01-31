@@ -139,11 +139,15 @@ async function askClarifai(
 					return reject(new Error(err));
 				}
 
-				if (response.status.code !== 10000) {
-					logger.error('varroa response', response)
+			if (response.status.code !== 10000) {
+				logger.error('varroa response error', { 
+					statusCode: response.status.code,
+					statusDescription: response.status.description,
+					outputCount: response.outputs?.length || 0
+				})
 
-					return reject(new Error("Post model outputs failed, status: " + response.status.description));
-				}
+				return reject(new Error("Post model outputs failed, status: " + response.status.description));
+			}
 
 				// Since we have one input, one output will exist here
 				const output = response.outputs[0];

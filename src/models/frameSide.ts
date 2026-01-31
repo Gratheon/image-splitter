@@ -206,8 +206,7 @@ const frameSideModel = {
             fileId,
             frameSideId,
             uid,
-            dronesBeingAdded: detectedDrones.length,
-            dronesData: JSON.stringify(detectedDrones)
+            dronesBeingAdded: detectedDrones.length
         });
 
         const result = await storage().query(sql`

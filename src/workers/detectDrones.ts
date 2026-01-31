@@ -212,8 +212,7 @@ async function runDroneDetectionOnSplitImage(
         fileId: originalFile.file_id,
         frameSideId: originalFile.frame_side_id,
         userId: originalFile.user_id,
-        droneCount: newDetectedDrones.length,
-        drones: newDetectedDrones
+        droneCount: newDetectedDrones.length
       });
 
       await frameSideModel.updateDetectedDrones(
