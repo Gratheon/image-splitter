@@ -7,7 +7,7 @@
     "@apollo/federation": "0.33.9",
     "@aws-sdk/client-s3": "3.782.0",
     "@databases/mysql": "6.0.0",
-    "@gratheon/log-lib": "^1.0.1",
+    "@gratheon/log-lib": "^2.0.2",
     "@sendgrid/mail": "7.7.0",
     "@sentry/node": "7.120.3",
     "@sentry/tracing": "7.114.0",
