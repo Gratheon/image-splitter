@@ -32,6 +32,12 @@ async function tryConnect(logger): Promise<boolean> {
 
     db = createConnectionPool({
       connectionString: `${dsn}${config.mysql.database}`,
+      // Connection pool limits to prevent exhaustion
+      bigIntMode: 'number',
+      poolSize: 20, // Maximum number of connections (default is 10)
+      queueTimeoutMilliseconds: 10000, // Wait max 10s for a connection (default is 60s)
+      idleTimeoutMilliseconds: 60000, // Close idle connections after 60s (default is 30s)
+      maxUses: 5000, // Recycle connections after 5000 uses to prevent leaks
       onQueryError: (query, { text }, err) => {
         startTimes.delete(query);
         logger.error(

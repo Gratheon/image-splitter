@@ -340,22 +340,90 @@ On service startup, the system:
 3. Workers pick up and process orphaned jobs
 4. **Zero job loss** even if Redis or service restarts
 
+### Worker Architecture & Concurrency
+
+**Worker Model:**
+- **Single worker per job type**: Each job type (resize, bees, drones, cells, etc.) has ONE dedicated worker loop
+- **Sequential processing**: Workers process jobs one at a time within their type
+- **No parallel limit**: Jobs queue up but process sequentially, preventing overwhelming system resources
+
+**Example: Uploading 20 Images**
+
+When 20 images are uploaded simultaneously:
+1. **140 jobs created** (20 images × 7 job types: resize, bees, drones, cells, cups, queens, varroa)
+2. Each worker processes its queue sequentially
+3. **No concurrent job limit** - all jobs are queued, not rejected
+4. Processing order: Priority (1-5) → Job ID (FIFO within priority)
+
+**Worker Concurrency Model:**
+```
+Upload 20 images
+  ↓
+[Priority 1: resize] ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 3: bees]   ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 3: drones] ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 3: cells]  ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 5: varroa] ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 5: queens] ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+[Priority 5: cups]   ──> [Job 1] → [Job 2] → [Job 3] → ... → [Job 20]
+```
+
+**Concurrency Limits:**
+- ✅ **Between workers**: 7 workers run concurrently (one per job type)
+- ❌ **Within worker**: Sequential processing only (1 job at a time per worker)
+- ❌ **Image chunks**: Processed sequentially within each job (6-16 chunks per image)
+- ⚠️ **No queue depth limit**: Jobs queue indefinitely, not rejected (could grow unbounded)
+
+**Database Connection Usage:**
+- **Connection pool size**: 20 connections (configurable in `src/models/storage.ts:37`)
+- **Active connections**: ~7-10 (one per active worker + queries)
+- **Logger connections**: 3 separate connections (separate pool for log persistence)
+- **Queue timeout**: 10 seconds (prevents indefinite waiting)
+- **Connection recycling**: After 5000 uses (prevents memory leaks)
+- **Idle timeout**: 60 seconds (closes unused connections)
+
 ### Bee/Drone Detection Flow
 
-Worker bee and drone detection split images into 9 chunks (1024x1024) for processing:
+Worker bee and drone detection split images into chunks for processing:
 
-1. **Partial Updates**: Each chunk processes independently:
-   - Detections saved to database incrementally
+**Chunking Strategy:**
+- Images are split into a grid based on dimension threshold (typically 800-1024px per chunk)
+- **Calculation**: `maxCuts = floor(imageDimension / chunkSize)`
+- Example: 4000×3000px image with 1024px chunks → 3×2 grid = **6 chunks**
+- Chunks are processed **sequentially** (not in parallel)
+
+**Processing Pipeline:**
+
+1. **Chunk Processing** (each chunk processed sequentially):
+   - Cut image into chunk using Sharp library
+   - Send chunk to ML service (`models-bee-detector` or `models-drone-bees`)
+   - Receive detections (bounding boxes, confidence scores)
+   - Transform coordinates from chunk-space to full-image-space
+   - **Atomically append** detections to database using `JSON_MERGE_PRESERVE`
+   - Increment worker/drone count counters
+   
+2. **Partial Updates** (optional, after each chunk):
    - Published to `{uid}.frame_side.{frameSideId}.bees_partially_detected`
    - Includes `isBeeDetectionComplete: false`
+   - Allows progressive UI updates (not currently implemented)
    
-2. **Final Completion**: After ALL 9 chunks complete:
-   - Final counts queried from database
-   - `NOTIFY_JOB` created with priority=1
+3. **Final Completion** (after ALL chunks processed):
+   - Query final counts from database
+   - Create `NOTIFY_JOB` with priority=1
    - Published to `{uid}.frame_side.{frameSideId}.bees_detected`
-   - Includes `isBeeDetectionComplete: true` (or `isDroneDetectionComplete: true`)
+   - Includes `isBeeDetectionComplete: true` and final counts
    
-This provides smooth incremental updates while ensuring proper completion signals.
+**Atomic Updates:**
+- Uses MySQL's `JSON_MERGE_PRESERVE` to avoid race conditions
+- Each chunk's detections are appended atomically
+- Counters incremented with `IFNULL(count, 0) + newCount`
+- No read-modify-write cycles that could lose data
+
+**Memory & Performance:**
+- Full image loaded once at start (using `fs.promises.readFile`)
+- Chunks cut from in-memory buffer (no disk I/O per chunk)
+- Sequential processing prevents memory explosion
+- Each chunk ~1MB, full image ~5-15MB in memory during processing
 
 ### Worker Sequence Diagram (Redis-based Queue)
 
@@ -947,7 +1015,62 @@ docker exec image-splitter nslookup models-bee-detector
 ## Monitoring & Logging
 
 *   **Error Reporting:** Integrated with Sentry (`sentryDsn` must be configured).
-*   **Logging:** Uses Fastify's standard logger (`pino`) configured in `src/logger/`. Logs are output to stdout/stderr within the container.
+*   **Logging:** Uses custom logger (`@gratheon/log-lib`) with dual output:
+    - Console output for container logs (stdout/stderr)
+    - MySQL persistence for log history and debugging
+
+### Database Connection Pool Stability
+
+**Recent Improvements** (as of 2026-01):
+
+To prevent connection pool exhaustion under high load, several optimizations have been implemented:
+
+**Connection Pool Configuration** (`src/models/storage.ts:33-40`):
+```typescript
+{
+  poolSize: 20,                        // Max 20 connections (was: unlimited)
+  queueTimeoutMilliseconds: 10000,     // Wait max 10s for connection (was: 60s)
+  idleTimeoutMilliseconds: 60000,      // Close idle connections after 60s
+  maxUses: 5000,                       // Recycle connections after 5000 uses
+}
+```
+
+**Impact:**
+- ✅ Prevents connection exhaustion when processing many images simultaneously
+- ✅ Faster failure detection (10s timeout vs 60s)
+- ✅ Automatic connection recycling prevents memory leaks
+- ✅ Idle connection cleanup reduces resource usage
+
+**Separate Logger Connection Pool:**
+- Logger has its own connection pool (3 connections max)
+- Prevents logger from consuming application connections
+- Graceful fallback: if logger DB fails, logs still go to console
+
+**Common Connection Pool Errors:**
+
+| Error | Meaning | Solution |
+|-------|---------|----------|
+| `Timed out waiting for connection from pool` | All 20 connections in use, queue exhausted | Normal under heavy load; jobs will retry |
+| `Failed to persist log to DB` | Logger connection pool exhausted (dev only) | Increase logger pool size or disable DB logging |
+| `CONNECTION_POOL:QUEUE_TIMEOUT` | Waited 10s for connection, none available | Check for slow queries, increase pool size |
+
+**Monitoring Connection Health:**
+```bash
+# Watch connection count in real-time
+docker logs image-splitter -f | grep "Active connections"
+
+# Check for connection timeouts
+docker logs image-splitter | grep "Timed out waiting"
+
+# Monitor slow queries
+docker exec image-splitter-mysql-1 mysql -u root -ptest -e "SHOW PROCESSLIST;"
+```
+
+**Tuning Guidelines:**
+- **High load** (>50 concurrent uploads): Increase `poolSize` to 30-50
+- **Slow ML services**: Increase `queueTimeoutMilliseconds` to 20000-30000
+- **Memory constrained**: Reduce `idleTimeoutMilliseconds` to 30000
+- **Connection leaks suspected**: Reduce `maxUses` to 1000-2000
 
 ### Health & Monitoring Endpoints
 

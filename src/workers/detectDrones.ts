@@ -120,11 +120,10 @@ async function runDroneDetectionOnSplitImage(
   if (detectionResponse.ok) {
     const res: DroneDetectionResponse = await detectionResponse.json();
 
-    logger.info('Received drone detection RAW response:', {
+    logger.info('Received drone detection response:', {
       fileId: originalFile.file_id,
       frameSideId: originalFile.frame_side_id,
       statusCode: detectionResponse.status,
-      responseBody: JSON.stringify(res),
       resultCount: res.result?.length || 0,
       droneCount: res.drone_count,
       workerCount: res.worker_count

@@ -120,7 +120,11 @@ async function runDetectionOnSplitImage(
 
     // Log the received response from the detection service
     // Use originalFile for context IDs
-    logger.info('Received detection response:', { fileId: originalFile.file_id, frameSideId: originalFile.frame_side_id, response: res });
+    logger.info('Received detection response:', { 
+      fileId: originalFile.file_id, 
+      frameSideId: originalFile.frame_side_id, 
+      resultCount: res.result?.length || 0 
+    });
 
     const newDetectedBees: ProcessedBee[] = [];
     // Define typeMap locally (mapping from class name/id to stored 'n' value)
