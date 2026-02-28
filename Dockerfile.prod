@@ -1,7 +1,4 @@
-FROM node:22-alpine
-
-# for webp converter
-RUN apk update && apk upgrade && apk add gcompat
+FROM platformatic/node-caged:25-slim
 
 WORKDIR /app
 
