@@ -5,17 +5,23 @@ start:
 stop:
 	COMPOSE_PROJECT_NAME=gratheon docker compose -f docker-compose.dev.yml down
 run:
-	npm run dev
+	pnpm run dev
+
+test:
+	pnpm run test:unit
+
+test-unit:
+	pnpm run test:unit
 
 test-integration:
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
 	rm -rf ./test/mysql82
 	rm -rf ./test/minio
-	source $HOME/.nvm/nvm.sh && nvm use && npm i && npm run build
+	source $HOME/.nvm/nvm.sh && nvm use && pnpm install && pnpm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
 	sleep 10
-	ENV_ID=testing npm run test:integration
+	ENV_ID=testing pnpm run test:integration
 
 test-integration-ci:
 	# Ensure clean environment: stop, remove containers, and remove the mysql volume
@@ -23,7 +29,7 @@ test-integration-ci:
 	rm -rf ./app
 	rm -rf ./test/mysql82
 	rm -rf ./test/minio
-	npm i && npm run build
+	pnpm install && pnpm run build
 	# Start fresh, forcing a rebuild to include latest code changes
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d --build
 	# Wait for the image-splitter health check endpoint to be ready (increased timeout)
@@ -34,4 +40,4 @@ test-integration-ci:
 	  exit 1; \
 	fi
 	# Ensure test runner also uses testing config
-	@ENV_ID=testing npm run test:integration
+	@ENV_ID=testing pnpm run test:integration
