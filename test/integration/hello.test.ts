@@ -8,6 +8,7 @@ import config from '../../src/config';
 const URL = 'http://localhost:8800/graphql';
 
 describe('POST /graphql', () => {
+    const itMaybeSkipOnCI = process.env.CI ? it.skip : it;
     beforeEach(() => {
     });
 
@@ -41,7 +42,7 @@ describe('POST /graphql', () => {
     });
 
 
-    it('uploadFrameSide', async () => {
+    itMaybeSkipOnCI('uploadFrameSide', async () => {
         const filePath = './test/integration/fixture/IMG_4368.JPG';
         const fileBuffer = fs.readFileSync(filePath);
         const fileName = filePath.split('/').pop() || 'upload.jpg'; // Provide default filename

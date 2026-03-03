@@ -11,7 +11,10 @@
 		}
 	  ]
 	},
-	"testMatch": ["<rootDir>/src/**/*.test.(ts|js)"],
+	"testMatch": [
+		"<rootDir>/src/**/*.test.(ts|js)",
+		"<rootDir>/test/unit/**/*.test.(ts|js)"
+	],
 
 	"collectCoverage": false,
 	"coverageDirectory": "coverage",

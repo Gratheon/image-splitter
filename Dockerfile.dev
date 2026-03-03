@@ -5,9 +5,10 @@ WORKDIR /app
 EXPOSE 8800
 
 COPY package.json /app/
+COPY pnpm-lock.yaml /app/pnpm-lock.yaml
 COPY schema.graphql /app/schema.graphql
 
 # we have linux dependencies so need to install them in the container
-RUN npm install --legacy-peer-deps
+RUN npm install -g pnpm@10.29.2 && pnpm install --frozen-lockfile --config.strict-peer-dependencies=false
 
-CMD npm run dev-in-docker
+CMD pnpm run dev-in-docker

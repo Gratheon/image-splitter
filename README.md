@@ -575,7 +575,7 @@ Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, te
 
 3.  **Install Dependencies**:
     ```bash
-    npm install
+    pnpm install
     ```
 
 4.  **Start Services**: 
@@ -666,7 +666,7 @@ just logs            # Tail service logs
 Migrations are plain SQL files located in the `migrations/` directory. They are applied automatically on service startup using `@databases/mysql`.
 
 *   **Adding Migrations:** Create a new SQL file in `migrations/` following the naming convention (e.g., `020-new-feature.sql`). The service will apply it on the next restart.
-*   **Schema Generation:** You can generate TypeScript types from the DB schema using `npm run generate-db-schema` (ensure DB is running).
+*   **Schema Generation:** You can generate TypeScript types from the DB schema using `pnpm run generate-db-schema` (ensure DB is running).
 
 ## Testing
 
@@ -678,7 +678,7 @@ Tests individual functions and modules in isolation.
 
 **Run unit tests:**
 ```bash
-npm run test:unit
+pnpm run test:unit
 ```
 
 **Coverage:**

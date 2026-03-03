@@ -4,7 +4,8 @@ WORKDIR /app
 
 EXPOSE 8800
 
-COPY package*.json /app/
+COPY package.json /app/
+COPY pnpm-lock.yaml /app/pnpm-lock.yaml
 COPY schema.graphql /app/schema.graphql
 
 COPY src /app/src
@@ -12,7 +13,7 @@ COPY migrations /app/migrations
 COPY config /app/config
 
 # we have linux dependencies so need to install them in the container
-RUN npm install --legacy-peer-deps
-RUN npm run build
+RUN npm install -g pnpm@10.29.2 && pnpm install --frozen-lockfile --config.strict-peer-dependencies=false
+RUN pnpm run build
 
 CMD node --max-old-space-size=4096 ./app/image-splitter.js

@@ -63,10 +63,25 @@ const jobsModel = {
   },
 
   addJob: async function (name: string, refId: number, resizePayload = {}, priority = 5) {
-    await storage().query(
-      sql`INSERT INTO jobs (name, ref_id, payload, priority)
-      VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)}, ${priority})`,
-    );
+    try {
+      await storage().query(
+        sql`INSERT INTO jobs (name, ref_id, payload, priority)
+        VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)}, ${priority})`,
+      );
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+
+      // Backward compatibility: some DBs may still be missing `priority`.
+      if (errorMessage.includes("Unknown column 'priority'")) {
+        logger.warn("jobs.priority column missing, falling back to legacy insert");
+        await storage().query(
+          sql`INSERT INTO jobs (name, ref_id, payload)
+          VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)})`,
+        );
+      } else {
+        throw e;
+      }
+    }
     
     // Notify workers via Redis that a new job is available
     try {

@@ -123,8 +123,10 @@ async function migrate(logger) {
     // List the directory containing the .sql files
     const files = await fs.promises.readdir("./migrations");
 
-    // Filter the array to only include .sql files
-    const sqlFiles = files.filter((file) => file.endsWith(".sql"));
+    // Filter and sort migration files to guarantee deterministic execution order
+    const sqlFiles = files
+      .filter((file) => file.endsWith(".sql"))
+      .sort((a, b) => a.localeCompare(b));
 
     // Read each .sql file and execute the SQL statements
     for (const file of sqlFiles) {
