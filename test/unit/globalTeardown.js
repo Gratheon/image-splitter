@@ -12,7 +12,7 @@ module.exports = async () => {
   const loggerModulePath = path.resolve(__dirname, '../../app/logger/index.js');
 
   if (!fs.existsSync(storageModulePath)) {
-    console.log('Compiled storage module not found. Run "npm run build" to compile TypeScript first.');
+    console.log('Compiled storage module not found. Run "pnpm run build" to compile TypeScript first.');
     console.log('Skipping DB connection pool cleanup.');
   } else {
     try {
