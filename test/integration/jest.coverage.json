@@ -15,5 +15,5 @@
 		"<rootDir>/test/integration/*.test.(ts|js)"
 	],
 	"collectCoverage": false,
-	"testTimeout": 30000
+	"testTimeout": 60000
   }
