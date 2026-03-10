@@ -266,6 +266,7 @@ async function repopulateRedisQueue() {
 
     const app = fastify({
         logger: fastifyLogger,
+        disableRequestLogging: true,
     });
 
     // Register fastify-multipart (still without attachFieldsToBody)
