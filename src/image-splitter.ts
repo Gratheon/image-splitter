@@ -129,6 +129,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
         },
         context: async (req) => {
             let uid;
+            let billingPlan;
             // Correctly access headers via req.request.headers
             const headers = req.request.headers;
             const signature = headers["internal-router-signature"] as string; // Cast if needed
@@ -139,6 +140,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
                 'content-type': headers['content-type'], // Log content type for multipart debugging
                 'internal-router-signature': signature,
                 'internal-userid': headers["internal-userid"] as string, // Cast if needed
+                'internal-billing-plan': headers["internal-billing-plan"] as string, // Cast if needed
                 'token': headers.token as string, // Cast if needed
                 'config.routerSignature': configSig,
                 'signatureMatch': signature === configSig
@@ -147,6 +149,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
             // signature sent by router so that it cannot be faked
             if (signature === configSig) {
                 uid = headers["internal-userid"] as string; // Cast if needed
+                billingPlan = headers["internal-billing-plan"] as string; // Cast if needed
                 logger.info('Context: Assigning uid from internal-userid', { uid });
             }
             // allow direct access in case of upload
@@ -184,6 +187,7 @@ async function startApolloServer(app, typeDefs, resolvers) {
 
             return {
                 uid,
+                billingPlan,
                 loaders,
             } as any;
         },

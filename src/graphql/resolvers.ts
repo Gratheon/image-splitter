@@ -230,11 +230,19 @@ export const resolvers = {
 
             return true
         },
-        generateHiveAdvice: async (_, {hiveID, adviceContext, langCode = 'en'}, {uid}) => {
+        generateHiveAdvice: async (_, {hiveID, adviceContext, langCode = 'en'}, {uid, billingPlan}) => {
+            const currentPlan = String(billingPlan || '').toLowerCase();
+            const allowedPlans = new Set(['starter', 'professional', 'enterprise']);
+
+            if (!allowedPlans.has(currentPlan)) {
+                logger.warn('generateHiveAdvice denied by billing plan', { uid, hiveID, billingPlan: currentPlan });
+                return `<p>AI Advisor is available on Starter plan and above.</p><p>Please upgrade in Billing to generate hive advice.</p>`;
+            }
+
             langCode = langCode.substring(0, 2)
             const question = beekeeper.generatePrompt(langCode, adviceContext)
             const answer = await beekeeper.generateHiveAdvice(question)
-            beekeeper.insert(uid, hiveID, question, answer)
+            await beekeeper.insert(uid, hiveID, question, answer)
             return answer
         },
         addFileToFrameSide: async (_, {frameSideId, fileId, hiveId}, {uid}) => {
