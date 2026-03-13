@@ -49,6 +49,10 @@ services:
       MINIO_ACCESS_KEY: minio-admin
       MINIO_SECRET_KEY: minio-admin
     entrypoint: ["sh", "-c"]
-    command: mc alias set minio $MINIO_HOST $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc mb gratheon-test || true
+    command: >
+      set -e &&
+      mc alias set --api S3v4 local http://$$MINIO_HOST:19000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY &&
+      mc mb --ignore-existing local/gratheon-test &&
+      mc anonymous set download local/gratheon-test
     depends_on:
       - minio
