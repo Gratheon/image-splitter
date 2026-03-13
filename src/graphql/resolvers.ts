@@ -12,7 +12,7 @@ import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
 import { sendPopulationMetrics } from '../models/telemetryClient';
 
-import uploadFrameSide from "./upload-frame-side";
+import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
 import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 
 
@@ -279,6 +279,7 @@ export const resolvers = {
         },
 
         uploadFrameSide,
+        uploadApiaryPhoto,
 
         filesStrokeEditMutation: async (_, {files}, {uid}) => {
             return await frameSideModel.updateStrokes(files, uid);

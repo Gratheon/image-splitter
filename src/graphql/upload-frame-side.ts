@@ -10,7 +10,7 @@ import * as imageModel from "../models/image";
 import fileModel from "../models/file";
 import upload from "../models/s3";
 import fileResizeModel from "../models/fileResize";
-import jobs, {TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_RESIZE, TYPE_VARROA} from "../models/jobs";
+import jobs, {TYPE_RESIZE} from "../models/jobs";
 import {ResizeJobPayload} from "../workers/common/resizeOriginalToThumbnails";
 
 // 10 min should be enough to process the file
@@ -18,21 +18,25 @@ const DELETE_UPLOADED_FILE_AFTER_MS = 1000 * 60 * 10;
 
 import { GraphQLError } from 'graphql'; // Import GraphQLError
 
-export default async function uploadFrameSide(_, {file}, {uid}) {
+function requireUid(uid: string | undefined) {
     if (!uid) {
         logger.error('Attempt to upload file without uid');
-        // Throw an error instead of returning null
         const error = new GraphQLError('Authentication required');
-        // Assign extensions separately
         (error.extensions as any) = { code: 'UNAUTHENTICATED' };
         throw error;
     }
+}
 
+function sanitizePathSegment(value: string) {
+    return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+async function uploadImageAsset(file: Promise<any>, uid: string, folderPrefix: string, errorContext: string) {
     try {
         // local file
         let {createReadStream, filename, mimetype} = await file;
 
-        logger.info("received file", {filename})
+        logger.info("received file", {filename, folderPrefix})
         const stream = createReadStream();
         let tmpLocalFilePath = imageModel.getOriginalFileLocalPath(uid, filename)
 
@@ -79,9 +83,8 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
         const hash = hashSum.digest('hex')
 
         let ext = fileModel.getFileExtension(filename)
-
-        // 3 heavier jobs to run in parallel
-        const originalResult = await upload(tmpLocalFilePath, `${uid}/${hash}/original${ext ? "." + ext : ''}`)
+        const s3Prefix = folderPrefix ? `${uid}/${folderPrefix}/${hash}` : `${uid}/${hash}`
+        const originalResult = await upload(tmpLocalFilePath, `${s3Prefix}/original${ext ? "." + ext : ''}`)
 
         const id = await fileModel.insert(
             uid,
@@ -91,7 +94,7 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
             dimensions.width,
             dimensions.height
         );
-        logger.info('File uploaded to S3', {uid, filename, originalResult});
+        logger.info('File uploaded to S3', {uid, filename, originalResult, s3Prefix});
 
         let resizePayload: ResizeJobPayload = {
             file_id: id,
@@ -121,9 +124,8 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
         }
 
     } catch (err) {
-        // Log the full error object for better debugging in CI
-        console.error('Caught error object in uploadFrameSide:', err);
-        logger.error('Error during uploadFrameSide:', err); // Keep original logger call
+        console.error(`Caught error object in ${errorContext}:`, err);
+        logger.error(`Error during ${errorContext}:`, err);
 
         let errorMessage = 'An unknown error occurred';
         if (err instanceof Error) {
@@ -131,8 +133,17 @@ export default async function uploadFrameSide(_, {file}, {uid}) {
         } else if (typeof err === 'string') {
             errorMessage = err;
         }
-        // Throw an error that GraphQL can understand
-        // Consider using a more specific ApolloError subclass if appropriate
-        throw new Error(`Failed to upload frame side: ${errorMessage}`);
+        throw new Error(`Failed to upload image: ${errorMessage}`);
     }
+}
+
+export default async function uploadFrameSide(_, {file}, {uid}) {
+    requireUid(uid)
+    return uploadImageAsset(file, uid, '', 'uploadFrameSide')
+}
+
+export async function uploadApiaryPhoto(_, {file, apiaryId}, {uid}) {
+    requireUid(uid)
+    const safeApiaryId = sanitizePathSegment(apiaryId)
+    return uploadImageAsset(file, uid, `apiaries/${safeApiaryId}`, 'uploadApiaryPhoto')
 }

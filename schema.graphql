@@ -24,6 +24,7 @@ type Query {
 type Mutation {
 	generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String
 	uploadFrameSide(file: Upload!): File
+	uploadApiaryPhoto(file: Upload!, apiaryId: ID!): File
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean
 	addFileToBox(boxId: ID!, fileId: ID!, hiveId: ID!, boxType: String): Boolean
 	filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean
@@ -166,4 +167,3 @@ type HiveStatistics {
 	droneCount: Int!
 	varroaCount: Int!
 }
-

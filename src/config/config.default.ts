@@ -45,7 +45,7 @@ export default {
         "target_upload_endpoint": "http://minio:19000/",
 
         "url": {
-            "public": "http://localhost:19000/"
+            "public": "http://localhost:19000/gratheon-test/"
             // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
         },
 
