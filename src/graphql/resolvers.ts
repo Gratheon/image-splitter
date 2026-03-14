@@ -246,11 +246,26 @@ export const resolvers = {
             return answer
         },
         addFileToFrameSide: async (_, {frameSideId, fileId, hiveId}, {uid}) => {
-            await fileModel.addFrameRelation(fileId, frameSideId, uid);
-            await frameSideCellsModel.addFrameCells(fileId, frameSideId, uid);
-            await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, uid);
+            let effectiveUid = uid;
 
-            await fileModel.addHiveRelation(fileId, hiveId, uid);
+            if (!effectiveUid) {
+                effectiveUid = await fileModel.getOwnerIdByFileId(fileId);
+                logger.warn("addFileToFrameSide called without uid in context; falling back to file owner", {
+                    fileId,
+                    frameSideId,
+                    effectiveUid
+                });
+            }
+
+            if (!effectiveUid) {
+                throw new Error(`Unable to resolve user for file ${fileId}`);
+            }
+
+            await fileModel.addFrameRelation(fileId, frameSideId, effectiveUid);
+            await frameSideCellsModel.addFrameCells(fileId, frameSideId, effectiveUid);
+            await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, effectiveUid);
+
+            await fileModel.addHiveRelation(fileId, hiveId, effectiveUid);
 
             // Add frame-side processing jobs with priorities
             // Medium priority (3) for local AI processing

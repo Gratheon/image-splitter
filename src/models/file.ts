@@ -172,6 +172,17 @@ const fileModel = {
     };
   },
 
+  getOwnerIdByFileId: async function (id) {
+    const result = await storage().query(
+      sql`SELECT user_id
+          FROM files
+          WHERE id=${id}
+          LIMIT 1`
+    );
+
+    return result[0]?.user_id ? String(result[0].user_id) : null;
+  },
+
   getFileExtension: function (filename) {
     if (filename) {
       const parts = filename.split(".");
