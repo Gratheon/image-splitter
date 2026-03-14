@@ -19,9 +19,9 @@ export type ResizeJobPayload = {
 }
 
 export default async function resizeOriginalToThumbnails(file_id: number, { uid, filename, hash, ext }: ResizeJobPayload) {
-    const tmpResizeFile1024 = `${config.rootPath}tmp/${uid}_1024_${filename}`
-    const tmpResizeFile512 = `${config.rootPath}tmp/${uid}_512_${filename}`
-    const tmpResizeFile128 = `${config.rootPath}tmp/${uid}_128_${filename}`
+    const tmpResizeFile1024 = `${config.rootPath}tmp/${uid}_${hash}_1024_${filename}`
+    const tmpResizeFile512 = `${config.rootPath}tmp/${uid}_${hash}_512_${filename}`
+    const tmpResizeFile128 = `${config.rootPath}tmp/${uid}_${hash}_128_${filename}`
 
     let resizeMap: imageModel.SizePath[] = []
     resizeMap.push([1024, tmpResizeFile1024])
@@ -37,7 +37,7 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
         throw new Error(`File metadata not found for file_id ${file_id}`);
     }
     // Construct the expected temporary file path (where download will place it)
-    let tmpLocalFile = imageModel.getOriginalFileLocalPath(uid, fileData.filename);
+    let tmpLocalFile = imageModel.getOriginalFileLocalPath(uid, fileData.filename, fileData.hash);
 
     // 2. Download the file specifically for this job
     try {
@@ -48,6 +48,9 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
             // Add other properties if downloadS3FileToLocalTmp requires them, e.g., user_id
             user_id: uid,
             filename: fileData.filename,
+            hash: fileData.hash,
+            width: fileData.width,
+            height: fileData.height,
         };
         await downloadS3FileToLocalTmp(fileToDownload);
     } catch (downloadError) {

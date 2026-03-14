@@ -147,6 +147,7 @@ export async function getImageDimensions(filepath: Path): Promise<ImageDimension
     throw new Error(`Failed to get image dimensions from ${filepath}`);
 }
 
-export function getOriginalFileLocalPath(uid: string, uploadedOriginalFileName: string): AbsolutePath {
-    return `${config.rootPath}tmp/${uid}_${uploadedOriginalFileName}`
+export function getOriginalFileLocalPath(uid: string, uploadedOriginalFileName: string, hash?: string): AbsolutePath {
+    const safeHash = hash ? `${hash}_` : '';
+    return `${config.rootPath}tmp/${uid}_${safeHash}${uploadedOriginalFileName}`
 }

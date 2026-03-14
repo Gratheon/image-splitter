@@ -29,7 +29,7 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
         filename: boxFile.filename,
         url_version: 1,
         url: boxFile.url,
-        localFilePath: imageModel.getOriginalFileLocalPath(boxFile.file_user_id, boxFile.filename)
+        localFilePath: imageModel.getOriginalFileLocalPath(boxFile.file_user_id, boxFile.filename, boxFile.hash)
     };
 
     await downloadS3FileToLocalTmp(fileToDownload);
@@ -170,4 +170,3 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
         throw error;
     }
 }
-

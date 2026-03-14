@@ -59,7 +59,7 @@ export const resolvers = {
         },
         hiveStatistics: async (_, {hiveId}, {uid}) => {
             if (!uid) {
-                logger.error('Attempt to access hiveStatistics without uid', {hiveId})
+                logger.warn('Attempt to access hiveStatistics without uid', {hiveId})
                 return { workerBeeCount: 0, droneCount: 0, varroaCount: 0 }
             }
             return fileModel.getHiveStatistics(hiveId, uid)
@@ -132,37 +132,48 @@ export const resolvers = {
         }
     },
     FrameSideFile: {
+        _resolveFileIdForCompletion: async (parent, uid) => {
+            const directFileId = Number(parent?.fileId ?? parent?.file?.id);
+            if (Number.isFinite(directFileId) && directFileId > 0) {
+                return directFileId;
+            }
+            if (!uid || !parent?.frameSideId) {
+                return null;
+            }
+            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
+            const fallbackFileId = Number(latestFileRel?.file?.id);
+            if (Number.isFinite(fallbackFileId) && fallbackFileId > 0) {
+                return fallbackFileId;
+            }
+            return null;
+        },
         queenDetected: async (parent, _, {uid}) => {
             const presence = await frameSideModel.getQueenPresence(parent.frameSideId, uid);
             return presence === true;
         },
         isBeeDetectionComplete: async (parent, _, {uid}) => {
-            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
-            const fileId = latestFileRel?.file?.id;
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_BEES, fileId)
         },
         isCellsDetectionComplete: async (parent, _, {uid}) => {
-            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
-            const fileId = latestFileRel?.file?.id;
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_CELLS, fileId)
         },
         isQueenCupsDetectionComplete: async (parent, _, {uid}) => {
-            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
-            const fileId = latestFileRel?.file?.id;
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_CUPS, fileId)
         },
         isQueenDetectionComplete: async (parent, _, {uid}) => {
-            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
-            const fileId = latestFileRel?.file?.id;
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
@@ -196,8 +207,7 @@ export const resolvers = {
             return frameSideModel.getDetectedDrones(parent.frameSideId, uid)
         },
         isDroneDetectionComplete: async (parent, _, {uid}) => {
-            const latestFileRel = await frameSideModel.getLastestByFrameSideId(parent.frameSideId, uid);
-            const fileId = latestFileRel?.file?.id;
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }

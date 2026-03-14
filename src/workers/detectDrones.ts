@@ -95,6 +95,9 @@ export async function detectDrones(ref_id: number, payload: any) {
     redisChannelName: finalChannelName,
     payload: {
       ...finalCounts,
+      // Frontend bee/drones toggle currently keys completion off bee completion flag.
+      // Include this for backward compatibility in case bee final event is missed.
+      isBeeDetectionComplete: true,
       isDroneDetectionComplete: true,
     },
   }, 1); // High priority for user notifications
@@ -274,4 +277,3 @@ async function runDroneDetectionOnSplitImage(
     });
   }
 }
-

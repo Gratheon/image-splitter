@@ -57,7 +57,7 @@ const cellModel = {
 		}
 
 		file.url = fileModel.getUrl(file);
-		file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename)
+		file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename, file.hash)
 
 		return file;
 	},

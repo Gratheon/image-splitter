@@ -38,7 +38,8 @@ async function uploadImageAsset(file: Promise<any>, uid: string, folderPrefix: s
 
         logger.info("received file", {filename, folderPrefix})
         const stream = createReadStream();
-        let tmpLocalFilePath = imageModel.getOriginalFileLocalPath(uid, filename)
+        const uploadTempKey = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        let tmpLocalFilePath = imageModel.getOriginalFileLocalPath(uid, filename, uploadTempKey)
 
         // store original file to disk to be reused later on by workers
         const out = fs.createWriteStream(tmpLocalFilePath);

@@ -112,7 +112,7 @@ const frameSideModel = {
         }
 
         file.url = fileModel.getUrl(file);
-        file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename)
+        file.localFilePath = imageModel.getOriginalFileLocalPath(file.user_id, file.filename, file.hash)
         file.width = Number(file.width);
         file.height = Number(file.height);
 
