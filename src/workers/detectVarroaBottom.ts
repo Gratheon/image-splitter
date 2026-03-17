@@ -8,9 +8,11 @@ import boxFileModel from '../models/boxFile';
 import { downloadS3FileToLocalTmp } from './common/downloadFile';
 import { generateChannelName, publisher } from '../redisPubSub';
 import * as imageModel from '../models/image';
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 export async function detectVarroaBottom(fileId: number, payload: any) {
     const boxFile = await boxFileModel.getBoxFileByFileId(fileId);
+    const minConfidence = resolveThresholdFromPayload(payload, "varroaBottom");
 
     if (!boxFile) {
         throw new Error(`Box file ${fileId} not found`);
@@ -66,15 +68,17 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
             }
         );
 
-        const { count, result } = response.data;
-        const varroaCount = count ?? result?.length ?? 0;
+        const { result } = response.data;
+        const filteredResult = (Array.isArray(result) ? result : []).filter((d: any) => Number(d?.confidence) >= minConfidence);
+        const varroaCount = filteredResult.length;
 
         logger.info('detectVarroaBottom - received response', {
             fileId,
             count: varroaCount,
-            detectionsCount: result?.length || 0,
+            detectionsCount: filteredResult.length,
             message: response.data.message,
-            sampleDetection: result?.[0] || null
+            sampleDetection: filteredResult[0] || null,
+            minConfidence
         });
 
         const sharp = require('sharp');
@@ -90,7 +94,7 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
             height: dimensions.height
         });
 
-        const detections = result?.map((d, index) => {
+        const detections = filteredResult.map((d, index) => {
             const centerX = (d.x1 + d.x2) / 2;
             const centerY = (d.y1 + d.y2) / 2;
             const width = d.x2 - d.x1;
@@ -113,7 +117,7 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
             }
 
             return normalized;
-        }) || [];
+        });
 
         logger.info('detectVarroaBottom - normalized detections', {
             fileId,

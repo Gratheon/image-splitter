@@ -5,6 +5,7 @@ import { logger } from '../logger';
 
 import frameSideModel, {CutPosition, DetectedObject} from '../models/frameSide';
 import fileSideModel, {FrameSideFetchedByFileId} from '../models/frameSide'; // Import type
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 import { generateChannelName, publisher } from '../redisPubSub';
 // Update import name and add FrameSideFetchedByFileId type
@@ -15,7 +16,6 @@ const PAT = config.clarifai.queen_app.PAT;
 const USER_ID = 'artjom-clarify';
 const APP_ID = 'bee-queen-detection';
 const MODEL_ID = 'queen-bee-v4';
-const MIN_CONFIDENCE = 0.60;
 
 const grpcClient = ClarifaiStub.grpc();
 
@@ -33,11 +33,13 @@ export async function detectQueens(ref_id, payload) {
     logger.info('AnalyzeBeesAndVarroa - processing file', file);
     await downloadS3FileToLocalTmp(file);
 
+    const minConfidence = resolveThresholdFromPayload(payload, "queens");
+
     logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
     // Update handler signature: (bytes, pos, id, name)
     await splitIn9ImagesAndDetect(file, 1024, async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
         // Pass necessary info, including original file details needed by analyzeQueens
-        await analyzeQueens(chunkBytes, cutPosition, file); // Pass original file for user_id/frame_side_id
+        await analyzeQueens(chunkBytes, cutPosition, file, minConfidence); // Pass original file for user_id/frame_side_id
     });
 }
 
@@ -45,10 +47,11 @@ export async function detectQueens(ref_id, payload) {
 export async function analyzeQueens(
     chunkBytes: Buffer,
     cutPosition: CutPosition,
-    originalFile: FrameSideFetchedByFileId // Need original file info for DB update/publish
+    originalFile: FrameSideFetchedByFileId, // Need original file info for DB update/publish
+    minConfidence: number
 ): Promise<DetectedObject[]> {
     // Pass bytes and position to Clarifai
-    const detectionResult = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, originalFile.file_id, originalFile.filename), 3);
+    const detectionResult = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, originalFile.file_id, originalFile.filename, minConfidence), 3);
 
     // Filter out null results from failed coordinate transformations
     const validDetections = detectionResult ? detectionResult.filter(d => d !== null) as DetectedObject[] : [];
@@ -82,7 +85,8 @@ async function askClarifai(
     chunkBytes: Buffer,
     cutPosition: CutPosition,
     fileId: number,
-    filename: string
+    filename: string,
+    minConfidence: number
 ): Promise<(DetectedObject | null)[]> { // Return array that might contain nulls
     const result: (DetectedObject | null)[] = []; // Allow nulls initially
 
@@ -128,7 +132,7 @@ async function askClarifai(
 
                 for (let i = 0; i < regions.length; i++) {
                     const c = regions[i].value; // confidence
-                    if (c > MIN_CONFIDENCE) {
+                    if (c > minConfidence) {
                         // Use the renamed coordinate transformation function
                         const transformedCoords = transformSubImageCoordsToOriginal(
                             regions[i].region_info.bounding_box,

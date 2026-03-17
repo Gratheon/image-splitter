@@ -14,6 +14,7 @@ import { generateChannelName, publisher } from "../redisPubSub";
 import { downloadS3FileToLocalTmp } from "./common/downloadFile";
 import jobs, { TYPE_BEES, NOTIFY_JOB } from "../models/jobs";
 import { splitIn9ImagesAndDetect, roundToDecimal } from "./common/common"; // Added roundToDecimal
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 // Define expected structure for the detection service response
 interface DetectionResponse {
@@ -50,6 +51,8 @@ export async function detectWorkerBees(ref_id: number, payload: any) { // Revert
   logger.info("detectWorkerBees - processing file", file);
   await downloadS3FileToLocalTmp(file);
 
+  const minConfidence = resolveThresholdFromPayload(payload, "bees");
+
   await splitIn9ImagesAndDetect(
     file,
     1024,
@@ -57,7 +60,7 @@ export async function detectWorkerBees(ref_id: number, payload: any) { // Revert
     async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
       // Pass correct arguments to runDetectionOnSplitImage
       // We also need the original 'file' object for context later, so pass it along
-      await runDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file);
+      await runDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file, minConfidence);
     },
   );
 
@@ -99,6 +102,7 @@ async function runDetectionOnSplitImage(
   fileId: number, // Renamed from file for clarity, as it's just the ID here
   filename: string, // Added filename
   originalFile: any, // Pass the original file object for context (width, height, user_id etc.)
+  minConfidence: number,
 ) {
   // Create FormData and append the image chunk
   const formData = new FormData();
@@ -143,6 +147,10 @@ async function runDetectionOnSplitImage(
             // Ensure detection has expected structure (basic check)
             if (!det || typeof det !== 'object' || !det.box || det.box.length !== 4 || det.class_id === undefined || det.confidence === undefined) {
                 logger.warn('Skipping invalid detection object:', det);
+                continue;
+            }
+
+            if (Number(det.confidence) < minConfidence) {
                 continue;
             }
 

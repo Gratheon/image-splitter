@@ -4,9 +4,42 @@ scalar Upload
 scalar ID
 scalar URL
 
+type DetectionThresholds {
+	bees: Float!
+	drones: Float!
+	queens: Float!
+	queenCups: Float!
+	varroa: Float!
+	varroaBottom: Float!
+}
+
+type DetectionConfidencePercents {
+	bees: Int!
+	drones: Int!
+	queens: Int!
+	queenCups: Int!
+	varroa: Int!
+	varroaBottom: Int!
+}
+
+input DetectionConfidencePercentsInput {
+	bees: Int!
+	drones: Int!
+	queens: Int!
+	queenCups: Int!
+	varroa: Int!
+	varroaBottom: Int!
+}
+
+type DetectionSettings {
+	confidencePercents: DetectionConfidencePercents!
+	thresholds: DetectionThresholds!
+}
+
 type Query {
     hello_image_splitter: String
 	file(id:ID!): File
+	detectionSettings: DetectionSettings!
 	hiveFiles(hiveId:ID!): [FrameSideFile]
 	boxFiles(boxId:ID!, inspectionId:ID): [BoxFile]
 	varroaBottomDetections(boxId:ID!, inspectionId:ID): VarroaBottomDetection
@@ -23,6 +56,7 @@ type Query {
 
 type Mutation {
 	generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String
+	setDetectionConfidencePercents(confidencePercents: DetectionConfidencePercentsInput!): DetectionSettings!
 	uploadFrameSide(file: Upload!): File
 	uploadApiaryPhoto(file: Upload!, apiaryId: ID!): File
 	addFileToFrameSide(frameSideId: ID!, fileId: ID!, hiveId: ID!): Boolean

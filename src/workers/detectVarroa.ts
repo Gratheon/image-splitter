@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
 
 import { generateChannelName, publisher } from '../redisPubSub';
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 // Import common functions
 import { transformSubImageCoordsToOriginal, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect } from './common/common'; // Updated import name
@@ -34,6 +35,7 @@ metadata.set("authorization", "Key " + PAT);
 
 export async function detectVarroa(ref_id, payload) {
 	const file = await frameSideModel.getFrameSideByFileId(ref_id);
+    const minConfidence = resolveThresholdFromPayload(payload, "varroa");
 
 	if (file == null) {
 		throw new Error(`File ${ref_id} not found`)
@@ -50,7 +52,7 @@ export async function detectVarroa(ref_id, payload) {
 	// Updated handler signature to match common.ts: (bytes, pos, id, name)
 	await splitIn9ImagesAndDetect(file, 512, async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
 		// Pass necessary info to the chunk analyzer
-		const chunkVarroa = await analyzeVarroaChunk(chunkBytes, cutPosition, fileId, filename);
+		const chunkVarroa = await analyzeVarroaChunk(chunkBytes, cutPosition, fileId, filename, minConfidence);
 		if (chunkVarroa && chunkVarroa.length > 0) {
 			allDetectedVarroa.push(...chunkVarroa);
 		}
@@ -95,11 +97,12 @@ async function analyzeVarroaChunk(
 	chunkBytes: Buffer,
 	cutPosition: CutPosition,
 	fileId: number,
-	filename: string
+	filename: string,
+    minConfidence: number
 ): Promise<DetectedObject[]> {
 	logger.debug(`analyzeVarroaChunk: Analyzing chunk for file ${fileId} at position ${cutPosition.x},${cutPosition.y}`);
 	// Pass bytes directly to askClarifai
-	const detectedVarroa = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, fileId, filename), 3);
+	const detectedVarroa = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, fileId, filename, minConfidence), 3);
 	return detectedVarroa || []; // Return empty array if detection fails or returns null/undefined
 }
 
@@ -108,7 +111,8 @@ async function askClarifai(
 	chunkBytes: Buffer, // Accept bytes directly
 	cutPosition: CutPosition,
 	fileId: number,
-	filename: string
+	filename: string,
+    minConfidence: number
 ): Promise<DetectedObject[]> {
 	const result: DetectedObject[] = [];
 
@@ -155,7 +159,7 @@ async function askClarifai(
 
 				for (let i = 0; i < regions.length; i++) {
 					const c = regions[i].value; // confidence
-					if (c > MIN_VARROA_CONFIDENCE) {
+					if (c > minConfidence) {
 						// Use the renamed coordinate transformation function
 						const transformedCoords = transformSubImageCoordsToOriginal(
 							regions[i].region_info.bounding_box,

@@ -10,6 +10,7 @@ import frameSideCellsModel from '../models/frameSideCells';
 import frameSideQueenCupsModel from '../models/frameSideQueenCups';
 import boxFileModel from '../models/boxFile';
 import beekeeper from '../models/ai-beekeeper';
+import detectionSettingsModel from '../models/detectionSettings';
 import { sendPopulationMetrics } from '../models/telemetryClient';
 
 import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
@@ -21,6 +22,12 @@ export const resolvers = {
         hello_image_splitter: () => 'hi',
         file: async (_, {id}, {uid}) => {
             return await fileModel.getById(id, uid)
+        },
+        detectionSettings: async (_, __, {uid}) => {
+            if (!uid) {
+                throw new Error('Authentication required');
+            }
+            return await detectionSettingsModel.getByUserId(+uid);
         },
         hiveFiles: async (_, {hiveId}, {uid}) => {
             return fileModel.getByHiveId(hiveId, uid)
@@ -255,6 +262,12 @@ export const resolvers = {
             await beekeeper.insert(uid, hiveID, question, answer)
             return answer
         },
+        setDetectionConfidencePercents: async (_, {confidencePercents}, {uid}) => {
+            if (!uid) {
+                throw new Error('Authentication required');
+            }
+            return await detectionSettingsModel.setConfidencePercents(+uid, confidencePercents);
+        },
         addFileToFrameSide: async (_, {frameSideId, fileId, hiveId}, {uid}) => {
             let effectiveUid = uid;
 
@@ -276,17 +289,18 @@ export const resolvers = {
             await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, effectiveUid);
 
             await fileModel.addHiveRelation(fileId, hiveId, effectiveUid);
+            const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(+effectiveUid);
 
             // Add frame-side processing jobs with priorities
             // Medium priority (3) for local AI processing
             // Low priority (5) for expensive external API calls
             await Promise.all([
-                jobs.addJob(TYPE_BEES, fileId, {}, 3),
-                jobs.addJob(TYPE_DRONES, fileId, {}, 3),
-                jobs.addJob(TYPE_CELLS, fileId, {}, 3),
-                jobs.addJob(TYPE_CUPS, fileId, {}, 5),
-                jobs.addJob(TYPE_QUEENS, fileId, {}, 5),
-                jobs.addJob(TYPE_VARROA, fileId, {}, 5)
+                jobs.addJob(TYPE_BEES, fileId, detectionPayload, 3),
+                jobs.addJob(TYPE_DRONES, fileId, detectionPayload, 3),
+                jobs.addJob(TYPE_CELLS, fileId, detectionPayload, 3),
+                jobs.addJob(TYPE_CUPS, fileId, detectionPayload, 5),
+                jobs.addJob(TYPE_QUEENS, fileId, detectionPayload, 5),
+                jobs.addJob(TYPE_VARROA, fileId, detectionPayload, 5)
             ]);
 
             return true
@@ -295,9 +309,10 @@ export const resolvers = {
         addFileToBox: async (_, {boxId, fileId, hiveId, boxType}, {uid}) => {
             await boxFileModel.addBoxRelation(fileId, boxId, uid);
             await fileModel.addHiveRelation(fileId, hiveId, uid);
+            const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(+uid);
 
             if (boxType === 'BOTTOM') {
-                await jobs.addJob(TYPE_VARROA_BOTTOM, fileId, {}, 5); // Low priority for external API
+                await jobs.addJob(TYPE_VARROA_BOTTOM, fileId, detectionPayload, 5); // Low priority for external API
             }
 
             return true

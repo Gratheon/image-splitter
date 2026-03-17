@@ -12,6 +12,7 @@ import { generateChannelName, publisher } from "../redisPubSub";
 import { downloadS3FileToLocalTmp } from "./common/downloadFile";
 import { splitIn9ImagesAndDetect, roundToDecimal } from "./common/common";
 import jobs, { NOTIFY_JOB } from "../models/jobs";
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 interface DroneDetectionResponse {
   message: string;
@@ -61,11 +62,13 @@ export async function detectDrones(ref_id: number, payload: any) {
 
   await downloadS3FileToLocalTmp(file);
 
+  const minConfidence = resolveThresholdFromPayload(payload, "drones");
+
   await splitIn9ImagesAndDetect(
     file,
     1024,
     async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
-      await runDroneDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file);
+      await runDroneDetectionOnSplitImage(chunkBytes, cutPosition, fileId, filename, file, minConfidence);
     },
   );
 
@@ -109,6 +112,7 @@ async function runDroneDetectionOnSplitImage(
   fileId: number,
   filename: string,
   originalFile: any,
+  minConfidence: number,
 ) {
   const formData = new FormData();
   formData.append('file', chunkBytes, { filename: `chunk_${cutPosition.x}_${cutPosition.y}_${filename}` });
@@ -144,6 +148,10 @@ async function runDroneDetectionOnSplitImage(
       for (const det of res.result) {
         if (!det || typeof det !== 'object' || det.x1 === undefined || det.confidence === undefined) {
           logger.warn('Skipping invalid detection object:', det);
+          continue;
+        }
+
+        if (Number(det.confidence) < minConfidence) {
           continue;
         }
 

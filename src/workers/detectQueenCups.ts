@@ -5,6 +5,7 @@ import {logger} from '../logger';
 import {retryAsyncFunction} from './common/common';
 import { downloadS3FileToLocalTmp } from './common/downloadFile'; // Import download function
 import fileSideQueenCupsModel from '../models/frameSideQueenCups';
+import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 import {generateChannelName, publisher} from '../redisPubSub';
 import {DetectedRectangle} from './types';
@@ -24,8 +25,9 @@ const grpcClient = ClarifaiStub.grpc();
 const metadata = new grpc.Metadata();
 metadata.set("authorization", "Key " + PAT);
 
-export async function detectQueenCups(file) {
-    const detectionResult = await retryAsyncFunction(() => askClarifai(file), 3)
+export async function detectQueenCups(file, payload) {
+    const minConfidence = resolveThresholdFromPayload(payload, "queenCups");
+    const detectionResult = await retryAsyncFunction(() => askClarifai(file, minConfidence), 3)
 
     // logger.info("Queen cups detection result:")
     // logger.info(detectionResult)
@@ -50,7 +52,7 @@ export async function detectQueenCups(file) {
     );
 }
 
-async function askClarifai(file) {
+async function askClarifai(file, minConfidence: number) {
     const result: DetectedRectangle[] = [];
 
     logger.info("Reading image from local path:", file.localFilePath);
@@ -93,7 +95,7 @@ async function askClarifai(file) {
 
                 for (let i = 0; i < regions.length; i++) {
                     const c = regions[i].value // confidence
-                    if (c > 0.5) {
+                    if (c > minConfidence) {
                         const {top_row, left_col, bottom_row, right_col} = regions[i].region_info.bounding_box
 
                         // const h = bottom_row - top_row;
@@ -131,7 +133,7 @@ export async function analyzeQueenCups(ref_id, payload) {
     await downloadS3FileToLocalTmp(file);
     logger.info(`File downloaded to ${file.localFilePath}`);
 
-    await detectQueenCups(file);
+    await detectQueenCups(file, payload);
 
     // Clean up the temporary file (optional, but good practice)
     try {
