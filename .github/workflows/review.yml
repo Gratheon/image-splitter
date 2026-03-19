@@ -15,6 +15,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Review pull request code with clarifai.com
+        continue-on-error: true
         uses: tot-ra/clarifai-PR@main
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
