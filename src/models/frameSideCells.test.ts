@@ -1,5 +1,23 @@
 import { convertDetectedBeesStorageFormat } from './frameSide';
 import cellModel from './frameSideCells'
+import { storage } from './storage'
+
+jest.mock('./storage', () => ({
+	storage: jest.fn(),
+}));
+
+const mockQuery = jest.fn();
+
+beforeEach(() => {
+	mockQuery.mockResolvedValue([]);
+	(storage as jest.Mock).mockReturnValue({
+		query: mockQuery,
+	});
+});
+
+afterEach(() => {
+	jest.clearAllMocks();
+});
 
 describe("countCellsAbsoluteNrs", () => {
 	it("should count absolute cell numbers correctly", () => {
@@ -64,5 +82,42 @@ describe("getRelativeCounts", () => {
 		expect(result.pollen).toBe(17);
 		expect(result.nectar).toBe(21);
 		expect(result.empty).toBe(25);
+	});
+});
+
+describe("updateRelativeCells", () => {
+	it("stores full cells payload and derived counts when cells array is provided", async () => {
+		const cellsInput = {
+			id: 99,
+			cells: [
+				[2, 0.1, 0.1, 0.01, 100], // honey
+				[3, 0.2, 0.2, 0.01, 100], // brood
+				[6, 0.3, 0.3, 0.01, 100], // pollen
+				[5, 0.4, 0.4, 0.01, 100], // empty
+			],
+		};
+
+		await cellModel.updateRelativeCells(cellsInput, 7, 99);
+
+		expect(mockQuery).toHaveBeenCalledTimes(1);
+		const queryArg = mockQuery.mock.calls[0][0];
+		expect(queryArg).toBeDefined();
+	});
+
+	it("stores only relative percentages when no cells array is provided", async () => {
+		const cellsInput = {
+			id: 44,
+			broodPercent: 11,
+			cappedBroodPercent: 22,
+			eggsPercent: 33,
+			pollenPercent: 44,
+			honeyPercent: 55,
+		};
+
+		await cellModel.updateRelativeCells(cellsInput, 8, 44);
+
+		expect(mockQuery).toHaveBeenCalledTimes(1);
+		const queryArg = mockQuery.mock.calls[0][0];
+		expect(queryArg).toBeDefined();
 	});
 });

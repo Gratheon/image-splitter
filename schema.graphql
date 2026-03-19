@@ -171,6 +171,7 @@ input FrameSideCellsInput{
 	eggsPercent: Int
 	pollenPercent: Int
 	honeyPercent: Int
+	cells: JSON
 }
 
 type FrameSideInspection {

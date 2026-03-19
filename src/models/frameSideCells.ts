@@ -232,6 +232,35 @@ const cellModel = {
 
 
 	updateRelativeCells: async function (cells, uid, frameSideId) {
+		if (Array.isArray(cells?.cells)) {
+			const detections = cells.cells
+			const counts = cellModel.countCellsAbsoluteNrs(detections)
+			const relative = cellModel.getRelativeCounts(counts)
+
+			await storage().query(
+				sql`UPDATE files_frame_side_cells 
+				SET 
+					cells=${JSON.stringify(detections)},
+					honey_cell_count=${counts.honey},
+					brood_cell_count=${counts.brood},
+					egg_cell_count=${counts.eggs},
+					capped_brood_cell_count=${counts.capped_brood},
+					pollen_cell_count=${counts.pollen},
+					nectar_cell_count=${counts.nectar},
+					empty_cell_count=${counts.empty},
+					brood=${relative.brood},
+					capped_brood=${relative.capped_brood},
+					eggs=${relative.eggs},
+					pollen=${relative.pollen},
+					honey=${relative.honey}
+				WHERE 
+					user_id=${uid} AND 
+					frame_side_id=${frameSideId} AND 
+					inspection_id IS NULL`
+			)
+			return
+		}
+
 		await storage().query(
 			sql`UPDATE files_frame_side_cells 
 			SET 
