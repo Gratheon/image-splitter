@@ -156,8 +156,10 @@ type FrameSideCells @key(fields: "id"){
 	id: ID!
 	
 	broodPercent: Int
+	droneBroodPercent: Int
 	cappedBroodPercent: Int
 	eggsPercent: Int
+	nectarPercent: Int
 	pollenPercent: Int
 	honeyPercent: Int
 }
@@ -167,8 +169,10 @@ input FrameSideCellsInput{
 	id: ID!
 	
 	broodPercent: Int
+	droneBroodPercent: Int
 	cappedBroodPercent: Int
 	eggsPercent: Int
+	nectarPercent: Int
 	pollenPercent: Int
 	honeyPercent: Int
 	cells: JSON

@@ -13,6 +13,7 @@ import config from "../config";
 export type CellCounts = {
 	honey: number,
 	brood: number,
+	drone_brood: number,
 	eggs: number,
 	capped_brood: number,
 	pollen: number,
@@ -79,11 +80,14 @@ const cellModel = {
 				capped_brood_cell_count=${cellCounts.capped_brood},
 				pollen_cell_count=${cellCounts.pollen},
 				nectar_cell_count=${cellCounts.nectar},
+				drone_brood_cell_count=${cellCounts.drone_brood},
 				empty_cell_count=${cellCounts.empty},
 
 				brood=${relativeCounts.brood},
+				drone_brood=${relativeCounts.drone_brood},
 				capped_brood=${relativeCounts.capped_brood},
 				eggs=${relativeCounts.eggs},
+				nectar=${relativeCounts.nectar},
 				pollen=${relativeCounts.pollen},
 				honey=${relativeCounts.honey}
 
@@ -98,6 +102,7 @@ const cellModel = {
 	countCellsAbsoluteNrs: function (detections): CellCounts {
 		let honey = 0
 		let brood = 0
+		let drone_brood = 0
 		let eggs = 0
 		let capped_brood = 0
 		let pollen = 0
@@ -114,12 +119,14 @@ const cellModel = {
 				case 4: nectar++; break;
 				case 5: empty++; break;
 				case 6: pollen++; break;
+				case 7: drone_brood++; break;
 			}
 		}
 
 		return {
 			honey,
 			brood,
+			drone_brood,
 			eggs,
 			capped_brood,
 			pollen,
@@ -129,11 +136,12 @@ const cellModel = {
 	},
 
 	getRelativeCounts(c: CellCounts): CellCounts {
-		let total = c.brood + c.honey + c.eggs + c.capped_brood + c.pollen + c.nectar + c.empty
+		let total = c.brood + c.drone_brood + c.honey + c.eggs + c.capped_brood + c.pollen + c.nectar + c.empty
 
 		return {
 			honey: Math.floor(100 * c.honey / total),
 			brood: Math.floor(100 * c.brood / total),
+			drone_brood: Math.floor(100 * c.drone_brood / total),
 			eggs: Math.floor(100 * c.eggs / total),
 			capped_brood: Math.floor(100 * c.capped_brood / total),
 			pollen: Math.floor(100 * c.pollen / total),
@@ -161,7 +169,7 @@ const cellModel = {
 
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.queen_detected,
-			t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
+			t3.brood, t3.drone_brood, t3.capped_brood, t3.eggs, t3.nectar, t3.pollen, t3.honey
 			${extraFields}
 			FROM files_frame_side_rel t1
 			LEFT JOIN files_frame_side_cells t3 
@@ -187,8 +195,10 @@ const cellModel = {
 
 			// percentage
 			broodPercent: rel.brood,
+			droneBroodPercent: rel.drone_brood,
 			cappedBroodPercent: rel.capped_brood,
 			eggsPercent: rel.eggs,
+			nectarPercent: rel.nectar,
 			pollenPercent: rel.pollen,
 			honeyPercent: rel.honey
 		};
@@ -198,7 +208,7 @@ const cellModel = {
 		//t1.detected_bees
 		const result = await storage().query(
 			sql`SELECT t1.user_id, t1.queen_detected,
-				t3.cells, t3.brood, t3.capped_brood, t3.eggs, t3.pollen, t3.honey
+				t3.cells, t3.brood, t3.drone_brood, t3.capped_brood, t3.eggs, t3.nectar, t3.pollen, t3.honey
 			FROM files_frame_side_rel t1
 			LEFT JOIN files_frame_side_cells t3 
 				ON t1.file_id = t3.file_id
@@ -223,8 +233,10 @@ const cellModel = {
 
 			// percentage
 			broodPercent: rel.brood,
+			droneBroodPercent: rel.drone_brood,
 			cappedBroodPercent: rel.capped_brood,
 			eggsPercent: rel.eggs,
+			nectarPercent: rel.nectar,
 			pollenPercent: rel.pollen,
 			honeyPercent: rel.honey
 		};
@@ -247,10 +259,13 @@ const cellModel = {
 					capped_brood_cell_count=${counts.capped_brood},
 					pollen_cell_count=${counts.pollen},
 					nectar_cell_count=${counts.nectar},
+					drone_brood_cell_count=${counts.drone_brood},
 					empty_cell_count=${counts.empty},
 					brood=${relative.brood},
+					drone_brood=${relative.drone_brood},
 					capped_brood=${relative.capped_brood},
 					eggs=${relative.eggs},
+					nectar=${relative.nectar},
 					pollen=${relative.pollen},
 					honey=${relative.honey}
 				WHERE 
@@ -265,8 +280,10 @@ const cellModel = {
 			sql`UPDATE files_frame_side_cells 
 			SET 
 				brood=${cells.broodPercent},
+				drone_brood=${cells.droneBroodPercent},
 				capped_brood=${cells.cappedBroodPercent},
 				eggs=${cells.eggsPercent},
+				nectar=${cells.nectarPercent},
 				pollen=${cells.pollenPercent},
 				honey=${cells.honeyPercent}
 			WHERE 

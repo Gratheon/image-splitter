@@ -9,8 +9,10 @@ export interface FrameSideCellsData {
     frameSideId: string;
     cells: any;
     broodPercent: number | null;
+    droneBroodPercent: number | null;
     cappedBroodPercent: number | null;
     eggsPercent: number | null;
+    nectarPercent: number | null;
     pollenPercent: number | null;
     honeyPercent: number | null;
 }
@@ -36,8 +38,10 @@ function createFrameSideCellsLoader(uid: number): any {
                         t1.user_id, 
                         t1.queen_detected,
                         t3.brood, 
+                        t3.drone_brood,
                         t3.capped_brood, 
                         t3.eggs, 
+                        t3.nectar,
                         t3.pollen, 
                         t3.honey
                     FROM files_frame_side_rel t1
@@ -60,8 +64,10 @@ function createFrameSideCellsLoader(uid: number): any {
                             frameSideId: frameSideIdStr,
                             cells: rel['cells'] || null,
                             broodPercent: rel['brood'],
+                            droneBroodPercent: rel['drone_brood'],
                             cappedBroodPercent: rel['capped_brood'],
                             eggsPercent: rel['eggs'],
+                            nectarPercent: rel['nectar'],
                             pollenPercent: rel['pollen'],
                             honeyPercent: rel['honey']
                         });
@@ -87,4 +93,3 @@ export function createLoaders(uid: number): LoaderContext {
         frameSideCellsLoader: createFrameSideCellsLoader(uid)
     };
 }
-

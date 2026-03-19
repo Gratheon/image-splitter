@@ -84,8 +84,10 @@ export async function detectCells(file: FirstUnprocessedFile) {
       isCellsDetectionComplete: true,
 
       broodPercent: relativeCounts.brood,
+      droneBroodPercent: relativeCounts.drone_brood,
       cappedBroodPercent: relativeCounts.capped_brood,
       eggsPercent: relativeCounts.eggs,
+      nectarPercent: relativeCounts.nectar,
       pollenPercent: relativeCounts.pollen,
       honeyPercent: relativeCounts.honey,
     }),
@@ -106,8 +108,10 @@ export async function detectCells(file: FirstUnprocessedFile) {
       frameSideId: file.frame_side_id,
 
       broodPercent: relativeCounts.brood,
+      droneBroodPercent: relativeCounts.drone_brood,
       cappedBroodPercent: relativeCounts.capped_brood,
       eggsPercent: relativeCounts.eggs,
+      nectarPercent: relativeCounts.nectar,
       pollenPercent: relativeCounts.pollen,
       honeyPercent: relativeCounts.honey,
     },

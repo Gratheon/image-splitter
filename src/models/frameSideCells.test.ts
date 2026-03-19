@@ -57,6 +57,7 @@ describe("countCellsAbsoluteNrs", () => {
 		expect(result.nectar).toBe(4);
 		expect(result.empty).toBe(5);
 		expect(result.pollen).toBe(3);
+		expect(result.drone_brood).toBe(0);
 	});
 });
 
@@ -66,6 +67,7 @@ describe("getRelativeCounts", () => {
 		const cellCounts = {
 			honey: 1,
 			brood: 2,
+			drone_brood: 0,
 			eggs: 3,
 			capped_brood: 4,
 			pollen: 5,
@@ -77,6 +79,7 @@ describe("getRelativeCounts", () => {
 
 		expect(result.honey).toBe(3);
 		expect(result.brood).toBe(7);
+		expect(result.drone_brood).toBe(0);
 		expect(result.eggs).toBe(10);
 		expect(result.capped_brood).toBe(14);
 		expect(result.pollen).toBe(17);

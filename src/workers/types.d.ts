@@ -1,5 +1,5 @@
 export type DetectedFrameResource = [
-	number, // class: ["Capped", "Eggs", "Honey", "Larves", "Nectar", "Other", "Pollen"]
+	number, // class: ["Capped", "Eggs", "Honey", "Larves", "Nectar", "Other", "Pollen", "Drone brood"]
 	number, // x
 	number, // y
 	number, // radius
