@@ -19,6 +19,11 @@
 	"collectCoverage": false,
 	"coverageDirectory": "coverage",
 	"coverageReporters": ["text", "json", "lcov", "clover", "cobertura"],
-	"collectCoverageFrom": ["<rootDir>/src/**/*.ts", "!<rootDir>/src/*/*.test.ts"],
+	"collectCoverageFrom": [
+		"<rootDir>/src/**/*.ts",
+		"!<rootDir>/src/*/*.test.ts",
+		"!<rootDir>/src/config/**",
+		"!<rootDir>/src/logger/**"
+	],
 	"globalTeardown": "<rootDir>/test/unit/globalTeardown.js"
   }
