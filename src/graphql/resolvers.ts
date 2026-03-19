@@ -1,5 +1,6 @@
 import {parseResolveInfo, simplifyParsedResolveInfoFragmentWithType} from 'graphql-parse-resolve-info';
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.mjs';
+import { GraphQLResolveInfo } from 'graphql';
 
 import {logger} from '../logger';
 
@@ -16,26 +17,127 @@ import { sendPopulationMetrics } from '../models/telemetryClient';
 import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
 import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 
+type NumericId = number;
+
+interface ResolverContext {
+    uid?: NumericId;
+    billingPlan?: string;
+    loaders?: {
+        frameSideCellsLoader?: {
+            load: (key: string) => Promise<unknown>;
+        };
+    } | null;
+}
+
+interface IdArgs {
+    id: NumericId;
+}
+
+interface HiveIdArgs {
+    hiveId: NumericId;
+}
+
+interface BoxFilesArgs {
+    boxId: NumericId;
+    inspectionId?: NumericId;
+}
+
+interface ExistingHiveAdviceArgs {
+    hiveID: NumericId;
+}
+
+interface FrameSideIdArgs {
+    frameSideId: NumericId;
+}
+
+interface FrameSidesInspectionsArgs {
+    frameSideIds: NumericId[];
+    inspectionId: NumericId;
+}
+
+interface CloneFramesForInspectionArgs {
+    frameSideIDs: NumericId[];
+    inspectionId: NumericId;
+}
+
+interface GenerateHiveAdviceArgs {
+    hiveID: NumericId;
+    adviceContext: string;
+    langCode?: string;
+}
+
+interface SetDetectionConfidencePercentsArgs {
+    confidencePercents: unknown;
+}
+
+interface AddFileToFrameSideArgs {
+    frameSideId: NumericId;
+    fileId: NumericId;
+    hiveId: NumericId;
+}
+
+interface AddFileToBoxArgs {
+    boxId: NumericId;
+    fileId: NumericId;
+    hiveId: NumericId;
+    boxType: 'BOTTOM' | string;
+}
+
+interface FilesStrokeEditMutationArgs {
+    files: unknown[];
+}
+
+interface ConfirmFrameSideQueenArgs {
+    frameSideId: NumericId;
+    isConfirmed: boolean;
+}
+
+interface UpdateFrameSideCellsArgs {
+    cells: { id: NumericId } & Record<string, unknown>;
+}
+
+interface HiveParent {
+    id: NumericId;
+}
+
+interface FrameSideParent {
+    id: NumericId;
+    frameSideId?: NumericId;
+}
+
+interface FrameSideInspectionParent {
+    frameSideId: NumericId;
+    inspectionId: NumericId;
+}
+
+interface FrameSideFileParent {
+    frameSideId?: NumericId;
+    fileId?: NumericId;
+    file?: {
+        id?: number | string;
+    };
+}
+
 
 export const resolvers = {
     Query: {
         hello_image_splitter: () => 'hi',
-        file: async (_, {id}, {uid}) => {
+        file: async (_: unknown, {id}: IdArgs, {uid}: ResolverContext) => {
             return await fileModel.getById(id, uid)
         },
-        detectionSettings: async (_, __, {uid}) => {
+        detectionSettings: async (_: unknown, __: unknown, {uid}: ResolverContext) => {
             if (!uid) {
                 throw new Error('Authentication required');
             }
             return await detectionSettingsModel.getByUserId(+uid);
         },
-        hiveFiles: async (_, {hiveId}, {uid}) => {
+        hiveFiles: async (_: unknown, {hiveId}: HiveIdArgs, {uid}: ResolverContext) => {
             return fileModel.getByHiveId(hiveId, uid)
         },
-        varroaBottomDetections: async (_, {boxId, inspectionId}, {uid}) => {
+        varroaBottomDetections: async (_: unknown, {boxId, inspectionId}: BoxFilesArgs, {uid}: ResolverContext) => {
             return await boxFileModel.getVarroaDetections(boxId, uid, inspectionId);
         },
-        boxFiles: async (_, {boxId, inspectionId}, {uid}) => {
+        boxFiles: async (_: unknown, {boxId, inspectionId}: BoxFilesArgs, {uid}: ResolverContext) => {
             const files = await boxFileModel.getBoxFiles(boxId, uid, inspectionId);
             return files.map(f => ({
                 file: {
@@ -47,24 +149,24 @@ export const resolvers = {
                 addedTime: f.added_time
             }));
         },
-        getExistingHiveAdvice: (_, {hiveID}, {uid}) => {
+        getExistingHiveAdvice: (_: unknown, {hiveID}: ExistingHiveAdviceArgs, {uid}: ResolverContext) => {
             return beekeeper.getAdvice(hiveID, uid)
         },
-        hiveFrameSideFile: async (_, {frameSideId}, {uid}) => {
+        hiveFrameSideFile: async (_: unknown, {frameSideId}: FrameSideIdArgs, {uid}: ResolverContext) => {
             return frameSideModel.getLastestByFrameSideId(frameSideId, uid)
         },
-        hiveFrameSideCells: async (_, {frameSideId}, {uid}, info) => {
+        hiveFrameSideCells: async (_: unknown, {frameSideId}: FrameSideIdArgs, {uid}: ResolverContext, info: GraphQLResolveInfo) => {
             return frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info))
         },
         // Loads all frame sides for a particular past inspection
-        frameSidesInspections: async (_, {frameSideIds, inspectionId}, {uid}) => {
+        frameSidesInspections: async (_: unknown, {frameSideIds, inspectionId}: FrameSidesInspectionsArgs, {uid}: ResolverContext) => {
             if (!uid) {
                 logger.error('Attempt to access frameSidesInspections without uid', {frameSideIds, inspectionId})
                 return []
             }
             return frameSideModel.getFrameSides(frameSideIds, inspectionId, uid)
         },
-        hiveStatistics: async (_, {hiveId}, {uid}) => {
+        hiveStatistics: async (_: unknown, {hiveId}: HiveIdArgs, {uid}: ResolverContext) => {
             if (!uid) {
                 logger.warn('Attempt to access hiveStatistics without uid', {hiveId})
                 return { workerBeeCount: 0, droneCount: 0, varroaCount: 0 }
@@ -73,23 +175,23 @@ export const resolvers = {
         }
     },
     Hive: {
-        files: async (hive, _, {uid}) => {
+        files: async (hive: HiveParent, _: unknown, {uid}: ResolverContext) => {
             return fileModel.getByHiveId(hive.id, uid);
         },
-        beeCount: async (hive, _, {uid}) => {
+        beeCount: async (hive: HiveParent, _: unknown, {uid}: ResolverContext) => {
             return fileModel.countAllBees(hive.id, uid);
         }
     },
     File: {
-        __resolveReference: async ({id}, {uid}) => {
+        __resolveReference: async ({id}: { id: NumericId }, {uid}: ResolverContext) => {
             return fileModel.getById(id, uid)
         },
-        resizes: async ({id}, __, {uid}) => {
+        resizes: async ({id}: { id: NumericId }, __: unknown, {uid}: ResolverContext) => {
             return await fileResizeModel.getResizes(id, uid)
         }
     },
     FrameSide: {
-        __resolveReference: async ({id}, {uid}) => {
+        __resolveReference: async ({id}: { id: NumericId }, {uid}: ResolverContext) => {
             const isConfirmed = await frameSideModel.getQueenConfirmation(id, uid);
             return {
                 __typename: 'FrameSide',
@@ -99,15 +201,15 @@ export const resolvers = {
             };
         },
         
-        isQueenConfirmed: async (parent, _, {uid}) => {
+        isQueenConfirmed: async (parent: FrameSideParent, _: unknown, {uid}: ResolverContext) => {
             const confirmationStatus = await frameSideModel.getQueenConfirmation(parent.id, uid);
             return confirmationStatus ?? false;
         },
 
-        file: async ({id}, __, {uid}) => {
+        file: async ({id}: { id: NumericId }, __: unknown, {uid}: ResolverContext) => {
             return await fileModel.getByFrameSideId(id, uid)
         },
-        cells: async (parent, __, context, info) => {
+        cells: async (parent: FrameSideParent, __: unknown, context: ResolverContext, info: GraphQLResolveInfo) => {
             const {uid, loaders} = context;
             let frameSideId = parent.frameSideId ? parent.frameSideId : parent.id;
 
@@ -118,7 +220,7 @@ export const resolvers = {
             return await frameSideCellsModel.getByFrameSideId(frameSideId, uid, getRequestedParams(info));
         },
 
-        frameSideFile: async ({id}, __, {uid}) => {
+        frameSideFile: async ({id}: { id: NumericId }, __: unknown, {uid}: ResolverContext) => {
             const latestFileRel = await frameSideModel.getLastestByFrameSideId(id, uid);
             return ({
                 __typename: 'FrameSideFile',
@@ -128,18 +230,18 @@ export const resolvers = {
         }
     },
     FrameSideInspection: {
-        file: async ({frameSideId, inspectionId}, __, {uid}) => {
+        file: async ({frameSideId, inspectionId}: FrameSideInspectionParent, __: unknown, {uid}: ResolverContext) => {
             return await fileModel.getByFrameSideAndInspectionId(frameSideId, inspectionId, uid)
         },
-        cells: async ({frameSideId, inspectionId}, __, {uid}) => {
+        cells: async ({frameSideId, inspectionId}: FrameSideInspectionParent, __: unknown, {uid}: ResolverContext) => {
             return await frameSideCellsModel.getByFrameSideAndInspectionId(frameSideId, inspectionId, uid)
         },
-        frameSideFile: async ({frameSideId}, __, {uid}) => {
+        frameSideFile: async ({frameSideId}: FrameSideInspectionParent, __: unknown, {uid}: ResolverContext) => {
             return ({frameSideId})
         }
     },
     FrameSideFile: {
-        _resolveFileIdForCompletion: async (parent, uid) => {
+        _resolveFileIdForCompletion: async (parent: FrameSideFileParent, uid?: NumericId) => {
             const directFileId = Number(parent?.fileId ?? parent?.file?.id);
             if (Number.isFinite(directFileId) && directFileId > 0) {
                 return directFileId;
@@ -154,32 +256,32 @@ export const resolvers = {
             }
             return null;
         },
-        queenDetected: async (parent, _, {uid}) => {
+        queenDetected: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const presence = await frameSideModel.getQueenPresence(parent.frameSideId, uid);
             return presence === true;
         },
-        isBeeDetectionComplete: async (parent, _, {uid}) => {
+        isBeeDetectionComplete: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_BEES, fileId)
         },
-        isCellsDetectionComplete: async (parent, _, {uid}) => {
+        isCellsDetectionComplete: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_CELLS, fileId)
         },
-        isQueenCupsDetectionComplete: async (parent, _, {uid}) => {
+        isQueenCupsDetectionComplete: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
             }
             return jobs.isComplete(TYPE_CUPS, fileId)
         },
-        isQueenDetectionComplete: async (parent, _, {uid}) => {
+        isQueenDetectionComplete: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
@@ -189,31 +291,31 @@ export const resolvers = {
         },
 
         // todo add caching or dedicated column around this
-        detectedBees: async (parent, _, {uid}) => {
+        detectedBees: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getDetectedBeesAndQueensFromLatestFile(parent.frameSideId, uid)
         },
-        detectedVarroa: async (parent, _, {uid}) => {
+        detectedVarroa: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getDetectedVarroa(parent.frameSideId, uid)
         },
-        detectedCells: async (parent, _, {uid}) => {
+        detectedCells: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getDetectedCells(parent.frameSideId, uid)
         },
-        detectedQueenCount: async (parent, _, {uid}) => {
+        detectedQueenCount: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getQueenCount(parent.frameSideId, uid)
         },
-        varroaCount: async (parent, _, {uid}) => {
+        varroaCount: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getVarroaCount(parent.frameSideId, uid)
         },
-        detectedWorkerBeeCount: async (parent, _, {uid}) => {
+        detectedWorkerBeeCount: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getWorkerBeeCount(parent.frameSideId, uid)
         },
-        detectedDroneCount: async (parent, _, {uid}) => {
+        detectedDroneCount: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getDroneCount(parent.frameSideId, uid)
         },
-        detectedDrones: async (parent, _, {uid}) => {
+        detectedDrones: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             return frameSideModel.getDetectedDrones(parent.frameSideId, uid)
         },
-        isDroneDetectionComplete: async (parent, _, {uid}) => {
+        isDroneDetectionComplete: async (parent: FrameSideFileParent, _: unknown, {uid}: ResolverContext) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
             if (!fileId) {
                  return false;
@@ -222,7 +324,7 @@ export const resolvers = {
         },
     },
     Mutation: {
-        cloneFramesForInspection: async (_, {frameSideIDs, inspectionId}, {uid}) => {
+        cloneFramesForInspection: async (_: unknown, {frameSideIDs, inspectionId}: CloneFramesForInspectionArgs, {uid}: ResolverContext) => {
             await frameSideModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
             await frameSideCellsModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
             await frameSideQueenCupsModel.cloneFramesForInspection(frameSideIDs, inspectionId, uid);
@@ -247,7 +349,7 @@ export const resolvers = {
 
             return true
         },
-        generateHiveAdvice: async (_, {hiveID, adviceContext, langCode = 'en'}, {uid, billingPlan}) => {
+        generateHiveAdvice: async (_: unknown, {hiveID, adviceContext, langCode = 'en'}: GenerateHiveAdviceArgs, {uid, billingPlan}: ResolverContext) => {
             const currentPlan = String(billingPlan || '').toLowerCase();
             const allowedPlans = new Set(['starter', 'professional', 'enterprise']);
 
@@ -262,17 +364,18 @@ export const resolvers = {
             await beekeeper.insert(uid, hiveID, question, answer)
             return answer
         },
-        setDetectionConfidencePercents: async (_, {confidencePercents}, {uid}) => {
+        setDetectionConfidencePercents: async (_: unknown, {confidencePercents}: SetDetectionConfidencePercentsArgs, {uid}: ResolverContext) => {
             if (!uid) {
                 throw new Error('Authentication required');
             }
             return await detectionSettingsModel.setConfidencePercents(+uid, confidencePercents);
         },
-        addFileToFrameSide: async (_, {frameSideId, fileId, hiveId}, {uid}) => {
+        addFileToFrameSide: async (_: unknown, {frameSideId, fileId, hiveId}: AddFileToFrameSideArgs, {uid}: ResolverContext) => {
             let effectiveUid = uid;
 
             if (!effectiveUid) {
-                effectiveUid = await fileModel.getOwnerIdByFileId(fileId);
+                const ownerId = await fileModel.getOwnerIdByFileId(fileId);
+                effectiveUid = Number(ownerId);
                 logger.warn("addFileToFrameSide called without uid in context; falling back to file owner", {
                     fileId,
                     frameSideId,
@@ -280,7 +383,7 @@ export const resolvers = {
                 });
             }
 
-            if (!effectiveUid) {
+            if (!effectiveUid || !Number.isFinite(effectiveUid)) {
                 throw new Error(`Unable to resolve user for file ${fileId}`);
             }
 
@@ -306,7 +409,7 @@ export const resolvers = {
             return true
         },
 
-        addFileToBox: async (_, {boxId, fileId, hiveId, boxType}, {uid}) => {
+        addFileToBox: async (_: unknown, {boxId, fileId, hiveId, boxType}: AddFileToBoxArgs, {uid}: ResolverContext) => {
             await boxFileModel.addBoxRelation(fileId, boxId, uid);
             await fileModel.addHiveRelation(fileId, hiveId, uid);
             const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(+uid);
@@ -321,18 +424,18 @@ export const resolvers = {
         uploadFrameSide,
         uploadApiaryPhoto,
 
-        filesStrokeEditMutation: async (_, {files}, {uid}) => {
+        filesStrokeEditMutation: async (_: unknown, {files}: FilesStrokeEditMutationArgs, {uid}: ResolverContext) => {
             return await frameSideModel.updateStrokes(files, uid);
         },
 
-        confirmFrameSideQueen: async (_, {frameSideId, isConfirmed}, {uid}) => {
+        confirmFrameSideQueen: async (_: unknown, {frameSideId, isConfirmed}: ConfirmFrameSideQueenArgs, {uid}: ResolverContext) => {
             // Call the model function which returns true on success
             const success = await frameSideModel.updateQueenConfirmation(frameSideId, isConfirmed, uid);
             // Return the boolean result, matching the updated schema
             return success;
         },
 
-        updateFrameSideCells: async (_, {cells}, {uid}) => {
+        updateFrameSideCells: async (_: unknown, {cells}: UpdateFrameSideCellsArgs, {uid}: ResolverContext) => {
             await frameSideCellsModel.updateRelativeCells(cells, uid, cells.id);
             return true
         }
@@ -340,7 +443,7 @@ export const resolvers = {
     Upload: GraphQLUpload,
 }
 
-function getRequestedParams(info: any): string[] {
+function getRequestedParams(info: GraphQLResolveInfo): string[] {
     const {fields} = simplifyParsedResolveInfoFragmentWithType(
         //@ts-ignore
         parseResolveInfo(info),

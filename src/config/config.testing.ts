@@ -51,7 +51,7 @@ export default {
 
     gemini: {
         apiKey: process.env.GEMINI_API_KEY || "",
-        model: process.env.GEMINI_HIVE_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro",
+        model: process.env.GEMINI_HIVE_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro-preview",
     },
 
     // please set own Clarifai API credentials

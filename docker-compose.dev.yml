@@ -6,6 +6,7 @@ services:
     environment:
       - ENV_ID=dev
       - NODE_OPTIONS=--max-old-space-size=4096
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     tty: true
     ports:
       - 8800:8800
