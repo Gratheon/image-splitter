@@ -1,6 +1,7 @@
 # Gratheon / image-splitter
 
 [![](https://snyk.io/test/github/Gratheon/image-splitter/badge.svg)](https://snyk.io/test/github/Gratheon/image-splitter)
+[![codecov](https://codecov.io/gh/Gratheon/image-splitter/graph/badge.svg?token=Y3YF7QL8Q5)](https://codecov.io/gh/Gratheon/image-splitter)
 
 
 ## Overview
