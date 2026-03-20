@@ -64,9 +64,9 @@ describe('frameSideQueenCups model', () => {
     await expect(frameSideQueenCupsModel.updateDetectedQueenCups([{ x: 1 }], 7, 8)).resolves.toBe(true);
   });
 
-  test('addFrameCups returns inserted id', async () => {
-    mockQuery.mockResolvedValue([{ id: 1234 }]);
-    await expect(frameSideQueenCupsModel.addFrameCups(1, 2, 3)).resolves.toBe(1234);
+  test('addFrameCups inserts if missing and returns true', async () => {
+    mockQuery.mockResolvedValue(undefined);
+    await expect(frameSideQueenCupsModel.addFrameCups(1, 2, 3)).resolves.toBe(true);
   });
 
   test('cloneFramesForInspection updates rows and returns true', async () => {
