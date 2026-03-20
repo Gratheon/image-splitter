@@ -36,6 +36,19 @@ type DetectionSettings {
 	thresholds: DetectionThresholds!
 }
 
+type AIAdvisorUsage {
+	month: String!
+	inputTokensUsed: Int!
+	outputTokensUsed: Int!
+	totalTokensUsed: Int!
+	requestCount: Int!
+	inputTokensLimit: Int!
+	outputTokensLimit: Int!
+	inputUsagePercent: Int!
+	outputUsagePercent: Int!
+	percentUsed: Int!
+}
+
 type Query {
     hello_image_splitter: String
 	file(id:ID!): File
@@ -44,6 +57,7 @@ type Query {
 	boxFiles(boxId:ID!, inspectionId:ID): [BoxFile]
 	varroaBottomDetections(boxId:ID!, inspectionId:ID): VarroaBottomDetection
 	getExistingHiveAdvice(hiveID: ID): String
+	aiAdvisorUsage: AIAdvisorUsage!
 	hiveFrameSideFile(frameSideId:ID!): FrameSideFile
 	hiveFrameSideCells(frameSideId:ID!): FrameSideCells
 

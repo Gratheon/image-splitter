@@ -152,6 +152,9 @@ export const resolvers = {
         getExistingHiveAdvice: (_: unknown, {hiveID}: ExistingHiveAdviceArgs, {uid}: ResolverContext) => {
             return beekeeper.getAdvice(hiveID, uid)
         },
+        aiAdvisorUsage: async (_: unknown, __: unknown, {uid, billingPlan}: ResolverContext) => {
+            return await beekeeper.getMonthlyUsage(+uid, billingPlan);
+        },
         hiveFrameSideFile: async (_: unknown, {frameSideId}: FrameSideIdArgs, {uid}: ResolverContext) => {
             return frameSideModel.getLastestByFrameSideId(frameSideId, uid)
         },
@@ -356,6 +359,17 @@ export const resolvers = {
             if (!allowedPlans.has(currentPlan)) {
                 logger.warn('generateHiveAdvice denied by billing plan', { uid, hiveID, billingPlan: currentPlan });
                 return `<p>AI Advisor is available on Starter plan and above.</p><p>Please upgrade in Billing to generate hive advice.</p>`;
+            }
+
+            const usage = await beekeeper.getMonthlyUsage(+uid, currentPlan);
+            if (beekeeper.isMonthlyUsageExceeded(usage)) {
+                logger.warn('generateHiveAdvice denied by monthly usage cap', {
+                    uid,
+                    hiveID,
+                    billingPlan: currentPlan,
+                    usage,
+                });
+                return beekeeper.getUsageLimitReachedMessage();
             }
 
             langCode = langCode.substring(0, 2)

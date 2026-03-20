@@ -14,10 +14,63 @@ const AI_SERVICE_UNAVAILABLE_HTML =
     "<p>AI Advisor is temporarily unavailable.</p>" +
     "<p>Please try again in a moment. If this continues, check Gemini API key and model configuration.</p>";
 
+const AI_USAGE_LIMIT_REACHED_HTML =
+    "<p>AI Advisor monthly token limit reached for your current plan.</p>" +
+    "<p>Please wait for the next billing month or upgrade your plan.</p>";
+
 const MAX_STRING_LENGTH = 2000;
 const MAX_ARRAY_ITEMS = 150;
 const MAX_OBJECT_KEYS = 150;
 const MAX_DEPTH = 8;
+
+type UsageLimits = {
+    inputTokensLimit: number;
+    outputTokensLimit: number;
+};
+
+type UsageStats = {
+    month: string;
+    inputTokensUsed: number;
+    outputTokensUsed: number;
+    totalTokensUsed: number;
+    requestCount: number;
+    inputTokensLimit: number;
+    outputTokensLimit: number;
+    inputUsagePercent: number;
+    outputUsagePercent: number;
+    percentUsed: number;
+};
+
+const AI_USAGE_LIMITS_BY_PLAN: Record<string, UsageLimits> = {
+    starter: {
+        inputTokensLimit: 3_000_000,
+        outputTokensLimit: 250_000,
+    },
+    professional: {
+        inputTokensLimit: 12_000_000,
+        outputTokensLimit: 1_000_000,
+    },
+    enterprise: {
+        inputTokensLimit: 50_000_000,
+        outputTokensLimit: 5_000_000,
+    },
+};
+
+function getUsageLimitsForPlan(plan?: string | null): UsageLimits {
+    const normalized = String(plan || '').trim().toLowerCase();
+    return AI_USAGE_LIMITS_BY_PLAN[normalized] || AI_USAGE_LIMITS_BY_PLAN.starter;
+}
+
+function clampPercent(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    if (value < 0) return 0;
+    if (value > 100) return 100;
+    return Math.round(value);
+}
+
+function getCurrentUsageMonthUtc(): string {
+    return new Date().toISOString().slice(0, 7) + '-01';
+}
 
 function sanitizeText(value: string): string {
     return String(value)
@@ -391,6 +444,124 @@ export default {
         return result[0].answer
     },
 
+    getMonthlyUsage: async function (uid: number, billingPlan?: string | null): Promise<UsageStats> {
+        const month = getCurrentUsageMonthUtc();
+        const limits = getUsageLimitsForPlan(billingPlan);
+        const safeUid = Number(uid);
+
+        if (!Number.isFinite(safeUid) || safeUid <= 0) {
+            return {
+                month,
+                inputTokensUsed: 0,
+                outputTokensUsed: 0,
+                totalTokensUsed: 0,
+                requestCount: 0,
+                inputTokensLimit: limits.inputTokensLimit,
+                outputTokensLimit: limits.outputTokensLimit,
+                inputUsagePercent: 0,
+                outputUsagePercent: 0,
+                percentUsed: 0,
+            };
+        }
+
+        const rows = await storage().query(sql`
+            SELECT
+                input_tokens,
+                output_tokens,
+                total_tokens,
+                request_count
+            FROM ai_advisor_usage_monthly
+            WHERE user_id = ${safeUid}
+                AND usage_month = ${month}
+            LIMIT 1
+        `);
+
+        const row = rows?.[0] || {};
+        const inputTokensUsed = Number(row.input_tokens || 0);
+        const outputTokensUsed = Number(row.output_tokens || 0);
+        const totalTokensUsed = Number(row.total_tokens || 0);
+        const requestCount = Number(row.request_count || 0);
+
+        const inputUsagePercent = clampPercent((inputTokensUsed / Math.max(1, limits.inputTokensLimit)) * 100);
+        const outputUsagePercent = clampPercent((outputTokensUsed / Math.max(1, limits.outputTokensLimit)) * 100);
+        const percentUsed = Math.max(inputUsagePercent, outputUsagePercent);
+
+        return {
+            month,
+            inputTokensUsed,
+            outputTokensUsed,
+            totalTokensUsed,
+            requestCount,
+            inputTokensLimit: limits.inputTokensLimit,
+            outputTokensLimit: limits.outputTokensLimit,
+            inputUsagePercent,
+            outputUsagePercent,
+            percentUsed,
+        };
+    },
+
+    isMonthlyUsageExceeded: function (usage: UsageStats): boolean {
+        return (
+            usage.inputTokensUsed >= usage.inputTokensLimit ||
+            usage.outputTokensUsed >= usage.outputTokensLimit ||
+            usage.percentUsed >= 100
+        );
+    },
+
+    getUsageLimitReachedMessage: function (): string {
+        return AI_USAGE_LIMIT_REACHED_HTML;
+    },
+
+    recordTokenUsage: async function (
+        uid: number,
+        promptTokenCount: number,
+        outputTokenCount: number,
+        totalTokenCount: number
+    ) {
+        const safeUid = Number(uid);
+        if (!Number.isFinite(safeUid) || safeUid <= 0) {
+            return;
+        }
+
+        const inputTokens = Math.max(0, Math.floor(Number(promptTokenCount) || 0));
+        const outputTokens = Math.max(0, Math.floor(Number(outputTokenCount) || 0));
+        const totalTokens = Math.max(0, Math.floor(Number(totalTokenCount) || (inputTokens + outputTokens)));
+
+        if (inputTokens === 0 && outputTokens === 0 && totalTokens === 0) {
+            return;
+        }
+
+        const month = getCurrentUsageMonthUtc();
+
+        await storage().query(sql`
+            INSERT INTO ai_advisor_usage_monthly (
+                user_id,
+                usage_month,
+                input_tokens,
+                output_tokens,
+                total_tokens,
+                request_count,
+                created_at,
+                updated_at
+            ) VALUES (
+                ${safeUid},
+                ${month},
+                ${inputTokens},
+                ${outputTokens},
+                ${totalTokens},
+                1,
+                NOW(),
+                NOW()
+            )
+            ON DUPLICATE KEY UPDATE
+                input_tokens = input_tokens + VALUES(input_tokens),
+                output_tokens = output_tokens + VALUES(output_tokens),
+                total_tokens = total_tokens + VALUES(total_tokens),
+                request_count = request_count + 1,
+                updated_at = NOW()
+        `);
+    },
+
     generateHiveAdvice: async function (prompt: string, adviceContext: any = null, uid: number | null = null) {
         try {
             if (looksLikeNonBeekeepingPrompt(prompt)) {
@@ -482,6 +653,14 @@ export default {
             }
 
             logger.debug("gemini response", geminiData)
+            const promptTokenCount = Number(geminiData?.usageMetadata?.promptTokenCount || 0);
+            const outputTokenCount = Number(geminiData?.usageMetadata?.candidatesTokenCount || 0);
+            const totalTokenCount = Number(geminiData?.usageMetadata?.totalTokenCount || (promptTokenCount + outputTokenCount));
+
+            if (Number.isFinite(+uid) && +uid > 0) {
+                await this.recordTokenUsage(+uid, promptTokenCount, outputTokenCount, totalTokenCount);
+            }
+
             const modelText = geminiData?.candidates?.[0]?.content?.parts
                 ?.map((part) => part?.text || "")
                 .join("")
