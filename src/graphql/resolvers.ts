@@ -16,6 +16,77 @@ import { sendPopulationMetrics } from '../models/telemetryClient';
 import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
 import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 
+const OWNER_LOOKUP_RETRY_DELAYS_MS = [0, 100, 250, 500, 1000];
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseGraphQLId(rawId: unknown): number | null {
+    if (typeof rawId === 'number' && Number.isFinite(rawId)) {
+        return Math.trunc(rawId);
+    }
+
+    if (typeof rawId !== 'string') {
+        return null;
+    }
+
+    const trimmed = rawId.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+        return Number(trimmed);
+    }
+
+    const suffixMatch = trimmed.match(/(?:^|:)(\d+)$/);
+    if (suffixMatch) {
+        return Number(suffixMatch[1]);
+    }
+
+    try {
+        const decoded = Buffer.from(trimmed, 'base64').toString('utf8');
+        const decodedSuffixMatch = decoded.match(/(?:^|:)(\d+)$/);
+        if (decodedSuffixMatch) {
+            return Number(decodedSuffixMatch[1]);
+        }
+    } catch {
+        // not a base64 id, ignore
+    }
+
+    return null;
+}
+
+async function resolveFileOwnerUid(fileId: unknown): Promise<string | null> {
+    const normalizedFileId = parseGraphQLId(fileId);
+    const candidateIds: Array<string | number> = [];
+
+    if (normalizedFileId !== null) {
+        candidateIds.push(normalizedFileId);
+    }
+    if (typeof fileId === 'string' && fileId.trim() && !candidateIds.includes(fileId.trim())) {
+        candidateIds.push(fileId.trim());
+    } else if (typeof fileId === 'number' && !candidateIds.includes(fileId)) {
+        candidateIds.push(fileId);
+    }
+
+    for (const candidateId of candidateIds) {
+        for (let i = 0; i < OWNER_LOOKUP_RETRY_DELAYS_MS.length; i++) {
+            const delayMs = OWNER_LOOKUP_RETRY_DELAYS_MS[i];
+            if (delayMs > 0) {
+                await sleep(delayMs);
+            }
+
+            const ownerId = await fileModel.getOwnerIdByFileId(candidateId);
+            if (ownerId) {
+                return ownerId;
+            }
+        }
+    }
+
+    return null;
+}
 
 export const resolvers = {
     Query: {
@@ -269,38 +340,58 @@ export const resolvers = {
             return await detectionSettingsModel.setConfidencePercents(+uid, confidencePercents);
         },
         addFileToFrameSide: async (_, {frameSideId, fileId, hiveId}, {uid}) => {
-            let effectiveUid = uid;
+            const normalizedFrameSideId = parseGraphQLId(frameSideId);
+            const normalizedFileId = parseGraphQLId(fileId);
+            const normalizedHiveId = parseGraphQLId(hiveId);
+
+            if (normalizedFrameSideId === null || normalizedFileId === null || normalizedHiveId === null) {
+                logger.error("Invalid IDs passed to addFileToFrameSide", {frameSideId, fileId, hiveId});
+                throw new Error("Invalid frame side, file, or hive id");
+            }
+
+            let effectiveUid = uid ? String(uid) : null;
 
             if (!effectiveUid) {
-                effectiveUid = await fileModel.getOwnerIdByFileId(fileId);
+                effectiveUid = await resolveFileOwnerUid(fileId);
                 logger.warn("addFileToFrameSide called without uid in context; falling back to file owner", {
                     fileId,
-                    frameSideId,
+                    normalizedFileId,
+                    frameSideId: normalizedFrameSideId,
                     effectiveUid
                 });
             }
 
             if (!effectiveUid) {
+                logger.error("Unable to resolve user for addFileToFrameSide", {
+                    fileId,
+                    normalizedFileId,
+                    frameSideId: normalizedFrameSideId
+                });
                 throw new Error(`Unable to resolve user for file ${fileId}`);
             }
 
-            await fileModel.addFrameRelation(fileId, frameSideId, effectiveUid);
-            await frameSideCellsModel.addFrameCells(fileId, frameSideId, effectiveUid);
-            await frameSideQueenCupsModel.addFrameCups(fileId, frameSideId, effectiveUid);
+            const effectiveUidNumber = Number(effectiveUid);
+            if (!Number.isFinite(effectiveUidNumber)) {
+                throw new Error(`Unable to resolve numeric user for file ${fileId}`);
+            }
 
-            await fileModel.addHiveRelation(fileId, hiveId, effectiveUid);
-            const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(+effectiveUid);
+            await fileModel.addFrameRelation(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
+            await frameSideCellsModel.addFrameCells(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
+            await frameSideQueenCupsModel.addFrameCups(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
+
+            await fileModel.addHiveRelation(normalizedFileId, normalizedHiveId, effectiveUidNumber);
+            const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(effectiveUidNumber);
 
             // Add frame-side processing jobs with priorities
             // Medium priority (3) for local AI processing
             // Low priority (5) for expensive external API calls
             await Promise.all([
-                jobs.addJob(TYPE_BEES, fileId, detectionPayload, 3),
-                jobs.addJob(TYPE_DRONES, fileId, detectionPayload, 3),
-                jobs.addJob(TYPE_CELLS, fileId, detectionPayload, 3),
-                jobs.addJob(TYPE_CUPS, fileId, detectionPayload, 5),
-                jobs.addJob(TYPE_QUEENS, fileId, detectionPayload, 5),
-                jobs.addJob(TYPE_VARROA, fileId, detectionPayload, 5)
+                jobs.addJob(TYPE_BEES, normalizedFileId, detectionPayload, 3),
+                jobs.addJob(TYPE_DRONES, normalizedFileId, detectionPayload, 3),
+                jobs.addJob(TYPE_CELLS, normalizedFileId, detectionPayload, 3),
+                jobs.addJob(TYPE_CUPS, normalizedFileId, detectionPayload, 5),
+                jobs.addJob(TYPE_QUEENS, normalizedFileId, detectionPayload, 5),
+                jobs.addJob(TYPE_VARROA, normalizedFileId, detectionPayload, 5)
             ]);
 
             return true

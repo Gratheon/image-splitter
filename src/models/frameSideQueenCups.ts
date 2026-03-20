@@ -66,12 +66,20 @@ export default {
     },
 
     addFrameCups: async function (file_id: number, frame_side_id: number, user_id: number) {
-        // @ts-ignore
-        return (await storage().query(sql`
+        await storage().query(sql`
             INSERT INTO files_frame_side_queen_cups (file_id, frame_side_id, user_id)
-            VALUES (${file_id}, ${frame_side_id}, ${user_id});
-            SELECT LAST_INSERT_ID() as id;
-        `))[0].id;
+            SELECT ${file_id}, ${frame_side_id}, ${user_id}
+            FROM DUAL
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM files_frame_side_queen_cups
+                WHERE file_id = ${file_id}
+                  AND frame_side_id = ${frame_side_id}
+                  AND user_id = ${user_id}
+                  AND inspection_id IS NULL
+            );
+        `);
+        return true;
     },
 
     cloneFramesForInspection: async function (frameSideIDs: number[], inspectionId: number, uid: number) {

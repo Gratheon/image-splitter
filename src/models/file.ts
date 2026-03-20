@@ -173,10 +173,15 @@ const fileModel = {
   },
 
   getOwnerIdByFileId: async function (id) {
+    const fileId = Number(id);
+    if (!Number.isFinite(fileId)) {
+      return null;
+    }
+
     const result = await storage().query(
       sql`SELECT user_id
           FROM files
-          WHERE id=${id}
+          WHERE id=${fileId}
           LIMIT 1`
     );
 
@@ -205,21 +210,36 @@ const fileModel = {
   },
 
   addHiveRelation: async function (file_id, hive_id, user_id) {
-    // @ts-ignore
-    return (await storage().query(sql`
-    INSERT INTO files_hive_rel (file_id, hive_id, user_id) 
-    VALUES (${file_id}, ${hive_id}, ${user_id});
-    SELECT LAST_INSERT_ID() as id;
-    `))[0].id;
+    await storage().query(sql`
+      INSERT INTO files_hive_rel (file_id, hive_id, user_id)
+      SELECT ${file_id}, ${hive_id}, ${user_id}
+      FROM DUAL
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM files_hive_rel
+        WHERE file_id = ${file_id}
+          AND hive_id = ${hive_id}
+          AND user_id = ${user_id}
+      );
+    `);
+    return true;
   },
 
   addFrameRelation: async function (file_id, frame_side_id, user_id) {
-    // @ts-ignore
-    return (await storage().query(sql`
-      INSERT INTO files_frame_side_rel (file_id, frame_side_id, user_id) 
-      VALUES (${file_id}, ${frame_side_id}, ${user_id});
-      SELECT LAST_INSERT_ID() as id;
-      `))[0].id;
+    await storage().query(sql`
+      INSERT INTO files_frame_side_rel (file_id, frame_side_id, user_id)
+      SELECT ${file_id}, ${frame_side_id}, ${user_id}
+      FROM DUAL
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM files_frame_side_rel
+        WHERE file_id = ${file_id}
+          AND frame_side_id = ${frame_side_id}
+          AND user_id = ${user_id}
+          AND inspection_id IS NULL
+      );
+    `);
+    return true;
   }
 };
 

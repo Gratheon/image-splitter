@@ -151,12 +151,20 @@ const cellModel = {
 	},
 
 	addFrameCells: async function (file_id, frame_side_id, user_id) {
-		// @ts-ignore
-		return (await storage().query(sql`
-		  INSERT INTO files_frame_side_cells (file_id, frame_side_id, user_id) 
-		  VALUES (${file_id}, ${frame_side_id}, ${user_id});
-		  SELECT LAST_INSERT_ID() as id;
-		  `))[0].id;
+		await storage().query(sql`
+		  INSERT INTO files_frame_side_cells (file_id, frame_side_id, user_id)
+		  SELECT ${file_id}, ${frame_side_id}, ${user_id}
+		  FROM DUAL
+		  WHERE NOT EXISTS (
+			SELECT 1
+			FROM files_frame_side_cells
+			WHERE file_id = ${file_id}
+			  AND frame_side_id = ${frame_side_id}
+			  AND user_id = ${user_id}
+			  AND inspection_id IS NULL
+		  );
+		`);
+		return true;
 	},
 
 	getByFrameSideId: async function (frameSideId, uid, fieldsRequested: string[]) {
