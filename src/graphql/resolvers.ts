@@ -360,7 +360,7 @@ export const resolvers = {
 
             langCode = langCode.substring(0, 2)
             const question = beekeeper.generatePrompt(langCode, adviceContext)
-            const answer = await beekeeper.generateHiveAdvice(question)
+            const answer = await beekeeper.generateHiveAdvice(question, adviceContext, +uid)
             await beekeeper.insert(uid, hiveID, question, answer)
             return answer
         },

@@ -2,6 +2,7 @@
 import crypto from "crypto";
 // @ts-ignore
 import fs from "fs";
+import path from "path";
 import {finished} from "stream/promises";
 
 import {logger} from "../logger";
@@ -46,13 +47,23 @@ async function uploadImageAsset(file: Promise<any>, uid: string, folderPrefix: s
         stream.pipe(out);
         await finished(out);
 
-        // convert webp to jpg because jimp does not handle webp
-        if (mimetype === 'image/webp') {
+        const originalExtension = path.extname(filename).toLowerCase();
+        const isWebp = mimetype === 'image/webp' || originalExtension === '.webp';
+
+        // convert webp to jpg because downstream processing expects jpg-compatible files
+        if (isWebp) {
             const webpFilePath = tmpLocalFilePath;
-            const jpgFilePath = tmpLocalFilePath.replace('.webp', '.jpg');
-            filename = filename.replace('.webp', '.jpg');
-            const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
-            logger.info('converted webp to jpg', {uid, filename, result});
+            const parsed = path.parse(filename);
+            const normalizedFilename = `${parsed.name}.jpg`;
+            const jpgFilePath = imageModel.getOriginalFileLocalPath(uid, normalizedFilename, uploadTempKey);
+
+            await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
+            if (!fs.existsSync(jpgFilePath)) {
+                throw new Error(`WebP conversion failed, output file is missing: ${jpgFilePath}`);
+            }
+
+            filename = normalizedFilename;
+            logger.info('converted webp to jpg', {uid, filename, webpFilePath, jpgFilePath});
             tmpLocalFilePath = jpgFilePath;
 
             // delete webp

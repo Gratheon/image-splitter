@@ -105,6 +105,48 @@ describe('POST /graphql', () => {
         expect(result.data.uploadFrameSide).toHaveProperty('url');
     });
 
+    itMaybeSkipOnCI('uploadFrameSide webp', async () => {
+        const filePath = './test/integration/fixture/IMG_1399sc.webp';
+        const fileBuffer = fs.readFileSync(filePath);
+
+        const form = new FormData();
+        form.append('operations', JSON.stringify({
+            query: `
+                mutation($file: Upload!) {
+                    uploadFrameSide(file: $file) {
+                        __typename
+                        id
+                        url
+                    }
+                }
+            `,
+            variables: { file: null }
+        }));
+        form.append('map', JSON.stringify({ "0": ["variables.file"] }));
+        form.append('0', new Blob([fileBuffer]), 'IMG_1399sc.webp');
+
+        const payload = { user_id: '1' };
+        const token = jwt.sign(payload, config.jwt.privateKey);
+
+        const response = await fetch(URL, {
+            method: 'POST',
+            headers: {
+                'internal-router-signature': config.routerSignature,
+                'internal-userid' : '1',
+                'token': token
+            },
+            body: form
+        });
+
+        expect(response.status).toBe(200);
+        const result = await response.json();
+
+        expect(result).not.toHaveProperty('errors');
+        expect(result).toHaveProperty('data.uploadFrameSide.id');
+        expect(result).toHaveProperty('data.uploadFrameSide.url');
+        expect(result.data.uploadFrameSide.url).toContain('/original.jpg');
+    });
+
     it('uploadFrameSide unauthenticated', async () => {
         const filePath = './test/integration/fixture/IMG_4368.JPG';
         const fileBuffer = fs.readFileSync(filePath);
