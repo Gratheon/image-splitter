@@ -34,6 +34,9 @@ import {
     TYPE_VARROA_BOTTOM,
     NOTIFY_JOB,
 } from "./models/jobs";
+import { metricsContentType, recordHttpRequest, renderMetrics } from "./metrics";
+
+const requestStartTimes = new WeakMap<object, bigint>();
 
 // Plugin to set HTTP status code based on GraphQL error codes
 const httpStatusPlugin = {
@@ -276,12 +279,38 @@ async function repopulateRedisQueue() {
     // Register fastify-multipart (still without attachFieldsToBody)
     app.register(fastifyMultipart);
 
+    app.addHook("onRequest", async (request) => {
+        requestStartTimes.set(request.raw, process.hrtime.bigint());
+    });
+
+    app.addHook("onResponse", async (request, reply) => {
+        const start = requestStartTimes.get(request.raw);
+        if (!start) return;
+        requestStartTimes.delete(request.raw);
+
+        const elapsedNanoseconds = Number(process.hrtime.bigint() - start);
+        const durationSeconds = elapsedNanoseconds / 1_000_000_000;
+        const route = request.routerPath || request.raw.url?.split("?")[0] || "unknown";
+
+        recordHttpRequest({
+            method: request.method,
+            route,
+            statusCode: reply.statusCode,
+            durationSeconds,
+        });
+    });
+
     // Add health check endpoint
     app.get('/healthz', async (request, reply) => {
       return {
         status: 'ok',
         mysql: isStorageConnected() ? 'connected' : 'disconnected'
       };
+    });
+
+    app.get("/metrics", async (request, reply) => {
+        reply.type(metricsContentType);
+        return renderMetrics();
     });
 
     // Add job queue statistics endpoint
@@ -334,6 +363,7 @@ async function repopulateRedisQueue() {
       const endpoints = [
         { method: 'GET', path: '/', description: 'This documentation page' },
         { method: 'GET', path: '/healthz', description: 'Health check endpoint' },
+        { method: 'GET', path: '/metrics', description: 'Prometheus metrics endpoint' },
         { method: 'GET', path: '/jobs/stats', description: 'Job queue statistics' },
         { method: 'GET', path: '/graphql', description: 'GraphQL playground' },
       ];
@@ -433,9 +463,9 @@ async function repopulateRedisQueue() {
             </table>
         </body>
         </html>
-      `;
-      reply.type('text/html').send(html);
-    });
+	      `;
+	      reply.type('text/html').send(html);
+	    });
 
     try {
         let schemaString = schema();
