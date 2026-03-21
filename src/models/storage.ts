@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as crypto from "crypto";
 
 import config from "../config/index";
+import { recordDbQuery } from "../metrics";
 
 export { sql };
 
@@ -10,6 +11,33 @@ export { sql };
 let db;
 let isConnected = false;
 let reconnectInterval: NodeJS.Timeout | null = null;
+const MAX_TRACKED_DB_QUERY_SHAPES = 100;
+const trackedQueryShapes = new Set<string>();
+
+function normalizeQueryShape(text: string): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  const withoutSingleQuoted = collapsed.replace(/'(?:\\'|''|[^'])*'/g, "?");
+  const withoutDoubleQuoted = withoutSingleQuoted.replace(/"(?:\\"|""|[^"])*"/g, "?");
+  const withoutHex = withoutDoubleQuoted.replace(/\b0x[0-9a-fA-F]+\b/g, "?");
+  const withoutNumbers = withoutHex.replace(/\b\d+(?:\.\d+)?\b/g, "?");
+  const normalized = withoutNumbers.toLowerCase().slice(0, 180);
+
+  if (trackedQueryShapes.has(normalized)) {
+    return normalized;
+  }
+
+  if (trackedQueryShapes.size >= MAX_TRACKED_DB_QUERY_SHAPES) {
+    return "__other__";
+  }
+
+  trackedQueryShapes.add(normalized);
+  return normalized;
+}
+
+function extractStatementType(text: string): string {
+  const statement = text.trim().split(/\s+/)[0]?.toUpperCase();
+  return statement || "UNKNOWN";
+}
 
 export function storage() {
   return db;
@@ -27,7 +55,7 @@ async function tryConnect(logger): Promise<boolean> {
     await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
     await conn.dispose();
 
-    const startTimes = new Map<SQLQuery, number>();
+    const startTimes = new Map<SQLQuery, bigint>();
     let connectionsCount = 0;
 
     db = createConnectionPool({
@@ -39,21 +67,47 @@ async function tryConnect(logger): Promise<boolean> {
       idleTimeoutMilliseconds: 60000, // Close idle connections after 60s (default is 30s)
       maxUses: 5000, // Recycle connections after 5000 uses to prevent leaks
       onQueryError: (query, { text }, err) => {
+        const start = startTimes.get(query);
         startTimes.delete(query);
+        const durationSeconds = start
+            ? Number(process.hrtime.bigint() - start) / 1_000_000_000
+            : 0;
+        const queryShape = normalizeQueryShape(text);
+        const statementType = extractStatementType(text);
+
+        recordDbQuery({
+          statementType,
+          queryShape,
+          status: "error",
+          durationSeconds,
+        });
+
         logger.error(
           `DB error ${text} - ${err.message}`
         );
       },
 
       onQueryStart: (query) => {
-        startTimes.set(query, Date.now());
+        startTimes.set(query, process.hrtime.bigint());
       },
       onQueryResults: (query, {text}, results) => {
         const start = startTimes.get(query);
         startTimes.delete(query);
+        const durationSeconds = start
+            ? Number(process.hrtime.bigint() - start) / 1_000_000_000
+            : 0;
+        const queryShape = normalizeQueryShape(text);
+        const statementType = extractStatementType(text);
+
+        recordDbQuery({
+          statementType,
+          queryShape,
+          status: "success",
+          durationSeconds,
+        });
 
         if (start) {
-          logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Date.now() - start}ms`);
+          logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')} - ${Math.round(durationSeconds * 1000)}ms`);
         } else {
           logger.debug(`${text.replace(/\n/g," ").replace(/\s+/g, ' ')}`);
         }

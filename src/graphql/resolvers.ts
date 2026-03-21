@@ -15,6 +15,7 @@ import { sendPopulationMetrics } from '../models/telemetryClient';
 
 import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
 import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
+import { wrapGraphqlResolversWithMetrics } from "../metrics";
 
 const OWNER_LOOKUP_RETRY_DELAYS_MS = [0, 100, 250, 500, 1000];
 
@@ -88,7 +89,7 @@ async function resolveFileOwnerUid(fileId: unknown): Promise<string | null> {
     return null;
 }
 
-export const resolvers = {
+const baseResolvers = {
     Query: {
         hello_image_splitter: () => 'hi',
         file: async (_, {id}, {uid}) => {
@@ -430,6 +431,8 @@ export const resolvers = {
     },
     Upload: GraphQLUpload,
 }
+
+export const resolvers = wrapGraphqlResolversWithMetrics(baseResolvers);
 
 function getRequestedParams(info: any): string[] {
     const {fields} = simplifyParsedResolveInfoFragmentWithType(
