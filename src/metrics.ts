@@ -53,6 +53,21 @@ export const dbQueriesTotal = new client.Counter({
     registers: [register],
 });
 
+export const processingStepDurationSeconds = new client.Histogram({
+    name: "image_splitter_processing_step_duration_seconds",
+    help: "Image processing step duration in seconds",
+    labelNames: ["step", "status"] as const,
+    buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60],
+    registers: [register],
+});
+
+export const processingStepTotal = new client.Counter({
+    name: "image_splitter_processing_step_total",
+    help: "Total number of image processing steps",
+    labelNames: ["step", "status"] as const,
+    registers: [register],
+});
+
 export function recordHttpRequest(input: {
     method: string;
     route: string;
@@ -99,6 +114,35 @@ export function recordDbQuery(input: {
 
     dbQueriesTotal.inc(labels);
     dbQueryDurationSeconds.observe(labels, input.durationSeconds);
+}
+
+export function recordProcessingStep(input: {
+    step: string;
+    status: "success" | "error";
+    durationSeconds: number;
+}) {
+    const labels = {
+        step: input.step,
+        status: input.status,
+    };
+
+    processingStepTotal.inc(labels);
+    processingStepDurationSeconds.observe(labels, input.durationSeconds);
+}
+
+export async function measureProcessingStep<T>(step: string, fn: () => Promise<T>): Promise<T> {
+    const start = process.hrtime.bigint();
+
+    try {
+        const result = await fn();
+        const durationSeconds = Number(process.hrtime.bigint() - start) / 1_000_000_000;
+        recordProcessingStep({ step, status: "success", durationSeconds });
+        return result;
+    } catch (error) {
+        const durationSeconds = Number(process.hrtime.bigint() - start) / 1_000_000_000;
+        recordProcessingStep({ step, status: "error", durationSeconds });
+        throw error;
+    }
 }
 
 type ResolverMap = Record<string, any>;

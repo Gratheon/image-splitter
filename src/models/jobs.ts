@@ -2,6 +2,7 @@ import { logger } from "../logger";
 import { storage } from "./storage";
 import { sql } from "@databases/mysql";
 import { publisher, subscriber } from "../redisPubSub";
+import { measureProcessingStep } from "../metrics";
 
 export const TYPE_RESIZE = "resize";
 
@@ -200,7 +201,9 @@ const jobsModel = {
     // Process job
     try {
       logger.info(`Processing job ${name}`, { ref_id: job.ref_id, priority: job.priority });
-      await fn(job.ref_id, job.payload);
+      await measureProcessingStep(`job.${name}`, async () => {
+        await fn(job.ref_id, job.payload);
+      });
     } catch (e) {
       logger.errorEnriched(
         `Processing job ${name} with ref_id=${job.ref_id} failed`,
