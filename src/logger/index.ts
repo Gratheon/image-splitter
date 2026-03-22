@@ -1,5 +1,4 @@
-import { createLogger, LoggerConfig } from '@gratheon/log-lib';
-import config from "../config/index";
+import { createLogger } from '@gratheon/log-lib';
 
 const isJest = process.env.NODE_ENV === 'test';
 const noop = () => undefined;
@@ -24,17 +23,7 @@ if (isJest) {
   };
   fastifyLogger = false;
 } else {
-  const loggerConfig: LoggerConfig = {
-    mysql: {
-      host: config.mysql.host,
-      port: Number(config.mysql.port),
-      user: config.mysql.user,
-      password: config.mysql.password,
-      database: 'logs' // Using dedicated logs database
-    }
-  };
-
-  const created = createLogger(loggerConfig);
+  const created = createLogger();
   logger = created.logger;
   fastifyLogger = created.fastifyLogger;
 }
