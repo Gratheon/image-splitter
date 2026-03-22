@@ -9,6 +9,7 @@ import upload from "../../models/s3";
 import fileModel from "../../models/file"; // Import fileModel to get file URL
 import { downloadS3FileToLocalTmp } from "./downloadFile"; // Import download function
 import { logger } from "../../logger"; // Import logger
+import { measureProcessingStep } from "../../metrics";
 
 export type ResizeJobPayload = {
     file_id: string,
@@ -41,18 +42,20 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
 
     // 2. Download the file specifically for this job
     try {
-        // Construct a minimal file object for the download function
-        const fileToDownload = {
-            localFilePath: tmpLocalFile,
-            url: fileModel.getUrl(fileData), // Get the S3 URL
-            // Add other properties if downloadS3FileToLocalTmp requires them, e.g., user_id
-            user_id: uid,
-            filename: fileData.filename,
-            hash: fileData.hash,
-            width: fileData.width,
-            height: fileData.height,
-        };
-        await downloadS3FileToLocalTmp(fileToDownload);
+        await measureProcessingStep("resize.download", async () => {
+            // Construct a minimal file object for the download function
+            const fileToDownload = {
+                localFilePath: tmpLocalFile,
+                url: fileModel.getUrl(fileData), // Get the S3 URL
+                // Add other properties if downloadS3FileToLocalTmp requires them, e.g., user_id
+                user_id: uid,
+                filename: fileData.filename,
+                hash: fileData.hash,
+                width: fileData.width,
+                height: fileData.height,
+            };
+            await downloadS3FileToLocalTmp(fileToDownload);
+        });
     } catch (downloadError) {
         logger.error(`Resize job: Failed to download file ${fileData.filename} for file_id: ${file_id}`, downloadError);
         throw downloadError; // Fail the job
@@ -61,7 +64,9 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
     // 3. Perform resizing using the downloaded file
     let resultMap: imageModel.SizePath[] | null = null; // Correct type
     try {
-        resultMap = await imageModel.resizeImages(tmpLocalFile, resizeMap);
+        resultMap = await measureProcessingStep("resize.generate_thumbnails", async () => {
+            return imageModel.resizeImages(tmpLocalFile, resizeMap);
+        });
     } catch (resizeError) {
         logger.error(`Resize job: Failed to resize file ${tmpLocalFile} for file_id: ${file_id}`, resizeError);
         // Clean up the downloaded file before failing
@@ -74,21 +79,25 @@ export default async function resizeOriginalToThumbnails(file_id: number, { uid,
 
     // 4. Upload results and cleanup
     if (resultMap) { // Check if resultMap is not null
-        for await (let [maxDimension, outputPath] of resultMap) {
-            await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
-            await fileResizeModel.insertResize(file_id, maxDimension);
+        await measureProcessingStep("resize.upload_and_store", async () => {
+            for await (let [maxDimension, outputPath] of resultMap) {
+                await upload(outputPath, `${uid}/${hash}/${maxDimension}${ext ? "." + ext : ''}`)
+                await fileResizeModel.insertResize(file_id, maxDimension);
 
-            // delete *resized* file
-            fs.unlinkSync(outputPath);
-        }
+                // delete *resized* file
+                fs.unlinkSync(outputPath);
+            }
+        });
     }
 
     // 5. Clean up the originally downloaded file for this job
     try {
-        if (fs.existsSync(tmpLocalFile)) {
-            logger.info(`Resize job: Cleaning up downloaded original file: ${tmpLocalFile}`);
-            fs.unlinkSync(tmpLocalFile);
-        }
+        await measureProcessingStep("resize.cleanup_original", async () => {
+            if (fs.existsSync(tmpLocalFile)) {
+                logger.info(`Resize job: Cleaning up downloaded original file: ${tmpLocalFile}`);
+                fs.unlinkSync(tmpLocalFile);
+            }
+        });
     } catch (cleanupError: any) { // Add type annotation for error
         // Ignore error if the file simply doesn't exist (already cleaned up)
         if (cleanupError.code !== 'ENOENT') {

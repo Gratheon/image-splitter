@@ -18,8 +18,8 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0(@types/node@25.3.3)(typescript@4.9.4)
       '@gratheon/log-lib':
-        specifier: ^2.0.2
-        version: 2.2.7(@types/node@25.3.3)(typescript@4.9.4)
+        specifier: ^3.0.0
+        version: 3.0.0
       '@sendgrid/mail':
         specifier: ^8.1.6
         version: 8.1.6
@@ -626,8 +626,8 @@ packages:
     peerDependencies:
       graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
-  '@gratheon/log-lib@2.2.7':
-    resolution: {integrity: sha512-/68SBBx3QUz0jPSp/1zsjRD7lAHK+E8VtgLoVxgulIF4TGAuHQk4KEuVUz+hvR3+EBNnpI4GOzAWmFiKhYiFaw==}
+  '@gratheon/log-lib@3.0.0':
+    resolution: {integrity: sha512-Kxfwo8vk1gefopfqla6nzuOfwRi1CKaqOFLlgIZ3OeEYmrckTdGlXaY8D95+RdtjToYAkfG54bX3CeQukbIXgw==}
 
   '@grpc/grpc-js@1.14.3':
     resolution: {integrity: sha512-Iq8QQQ/7X3Sac15oB6p0FmUg/klxQvXLeileoqrTRGJYLV+/9tubbr9ipz0GKHjmXVsgFPo/+W+2cA8eNcR+XA==}
@@ -3785,14 +3785,10 @@ snapshots:
     dependencies:
       graphql: 16.13.0
 
-  '@gratheon/log-lib@2.2.7(@types/node@25.3.3)(typescript@4.9.4)':
+  '@gratheon/log-lib@3.0.0':
     dependencies:
-      '@databases/mysql': 7.0.0(@types/node@25.3.3)(typescript@4.9.4)
       fast-safe-stringify: 2.1.1
       source-map-support: 0.5.21
-    transitivePeerDependencies:
-      - '@types/node'
-      - typescript
 
   '@grpc/grpc-js@1.14.3':
     dependencies:
