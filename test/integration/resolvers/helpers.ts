@@ -84,6 +84,19 @@ export async function ensureResolverTestSchema() {
       ADD COLUMN is_queen_confirmed TINYINT(1) DEFAULT 0
     `);
   }
+
+  await storage().query(sql`
+    CREATE TABLE IF NOT EXISTS hive_advice (
+      id int unsigned NOT NULL AUTO_INCREMENT,
+      hive_id int DEFAULT NULL,
+      user_id int DEFAULT NULL,
+      question mediumtext,
+      answer mediumtext,
+      added_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY hive_id (hive_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 }
 
 export async function insertJobForTest(name: string, fileId: number, processEndTimeSql: string | null) {
