@@ -49,14 +49,39 @@ async function uploadImageAsset(file: Promise<any>, uid: string, folderPrefix: s
         // convert webp to jpg because jimp does not handle webp
         if (mimetype === 'image/webp') {
             const webpFilePath = tmpLocalFilePath;
-            const jpgFilePath = tmpLocalFilePath.replace('.webp', '.jpg');
-            filename = filename.replace('.webp', '.jpg');
-            const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
-            logger.info('converted webp to jpg', {uid, filename, result});
-            tmpLocalFilePath = jpgFilePath;
+            const hasExtension = /\.[^.]+$/.test(webpFilePath);
+            const jpgFilePath = hasExtension
+                ? webpFilePath.replace(/\.[^.]+$/i, '.jpg')
+                : `${webpFilePath}.jpg`;
 
-            // delete webp
-            fs.unlinkSync(webpFilePath);
+            filename = /\.[^.]+$/.test(filename)
+                ? filename.replace(/\.[^.]+$/i, '.jpg')
+                : `${filename}.jpg`;
+
+            try {
+                const result = await imageModel.convertWebpToJpg(webpFilePath, jpgFilePath);
+                const convertedOk = fs.existsSync(jpgFilePath) && fs.statSync(jpgFilePath).size > 0;
+                logger.info('converted webp to jpg', {uid, filename, webpFilePath, jpgFilePath, convertedOk, result});
+
+                if (convertedOk) {
+                    tmpLocalFilePath = jpgFilePath;
+                    // Remove original webp only when conversion target differs from source.
+                    if (webpFilePath !== jpgFilePath && fs.existsSync(webpFilePath)) {
+                        fs.unlinkSync(webpFilePath);
+                    }
+                } else {
+                    logger.warn('webp conversion produced no output, falling back to original file', { webpFilePath, jpgFilePath });
+                    filename = filename.replace(/\.jpg$/i, '.webp');
+                }
+            } catch (conversionError) {
+                logger.error('webp to jpg conversion failed, falling back to original file', {
+                    uid,
+                    webpFilePath,
+                    jpgFilePath,
+                    conversionError: conversionError instanceof Error ? conversionError.message : String(conversionError),
+                });
+                filename = filename.replace(/\.jpg$/i, '.webp');
+            }
         }
 
         const stats = fs.statSync(tmpLocalFilePath);

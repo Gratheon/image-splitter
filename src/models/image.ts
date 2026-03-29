@@ -1,13 +1,10 @@
 import sharp from 'sharp';
-import webp from 'webp-converter';
 import fs from 'fs';
 
 import {logger} from '../logger';
 import {AbsolutePath, Path} from "../path";
 import {CutPosition, FrameSideFetchedByFileId} from "./frameSide";
 import config from "../config";
-
-webp.grant_permission();
 
 export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutPosition): Promise<Buffer> {
     return await sharp(file.imageBytes)
@@ -21,8 +18,11 @@ export async function cutImage(file: FrameSideFetchedByFileId, cutPosition: CutP
         .toBuffer();
 }
 
-export function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
-    return webp.dwebp(webpFilePath, jpgFilePath, "-o");
+export async function convertWebpToJpg(webpFilePath: string, jpgFilePath: string) {
+    await sharp(webpFilePath)
+        .jpeg({ quality: 92 })
+        .toFile(jpgFilePath);
+    return jpgFilePath;
 }
 
 export type SizePath = [number, Path]
