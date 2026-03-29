@@ -1,5 +1,5 @@
 export default {
-    rootPath: "/app/",
+    rootPath: process.env.ROOT_PATH || (process.env.NATIVE ? `${process.cwd()}/` : "/app/"),
 
     // this should match signature in graphql-router remote-data-source.js
     // and is meant for securing traffic, because image-splitter is also publicly accessible for direct file uploads
@@ -22,11 +22,11 @@ export default {
 
     // DB connection details, used also for migrations
     mysql: {
-        host: 'mysql-test',
-        port: '3306',
-        user: 'test',
-        password: 'test',
-        database: 'image-splitter',
+        host: process.env.MYSQL_HOST || (process.env.NATIVE ? 'localhost' : 'mysql-test'),
+        port: process.env.MYSQL_PORT || (process.env.NATIVE ? '5101' : '3306'),
+        user: process.env.MYSQL_USER || 'test',
+        password: process.env.MYSQL_PASSWORD || 'test',
+        database: process.env.MYSQL_DATABASE || 'image-splitter',
     },
 
     // please set own AWS S3 bucket credentials
@@ -36,10 +36,10 @@ export default {
         "key": "minio-admin",
         "secret": "minio-admin",
 
-        "target_upload_endpoint": "http://minio:19000/",
+        "target_upload_endpoint": process.env.AWS_TARGET_UPLOAD_ENDPOINT || (process.env.NATIVE ? "http://localhost:19000/" : "http://minio:19000/"),
 
         "url": {
-            "public": "http://localhost:19000/gratheon-test/"
+            "public": process.env.AWS_PUBLIC_URL || "http://localhost:19000/gratheon-test/"
             // "public": "https://gratheon-test.s3.eu-central-1.amazonaws.com/",
         },
     },
