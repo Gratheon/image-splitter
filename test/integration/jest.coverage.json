@@ -15,7 +15,7 @@
 	  ]
 	},
 	"testMatch": [
-		"<rootDir>/test/integration/*.test.(ts|js)"
+		"<rootDir>/test/integration/**/*.test.(ts|js)"
 	],
 	"collectCoverage": false,
 	"testTimeout": 60000
