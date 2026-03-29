@@ -15,7 +15,7 @@ export default {
     selfUrl: "image-splitter:8800",
 
     // url of the yolo_v5 model
-    yolo_v5_url: "http://localhost:8700/", // models-bee-detector
+    yolo_v5_url: "http://models-bee-detector:8700/", // models-bee-detector
 
     // url of the models-drone-bees service
     models_drone_bees_url: "http://models-drone-bees:8751/",
