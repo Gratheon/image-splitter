@@ -49,6 +49,11 @@ export default {
         privateKey: "somerandomtoken",
     },
 
+    models: {
+        varroaBottomUrl: process.env.VARROA_BOTTOM_URL || "http://models-varroa-bottom:8750",
+        varroaOnBeeUrl: process.env.VARROA_ON_BEE_URL || "http://models-varroa-on-bee:8752",
+    },
+
     gemini: {
         apiKey: process.env.GEMINI_API_KEY || "",
         model: process.env.GEMINI_HIVE_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro",

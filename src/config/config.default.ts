@@ -15,7 +15,7 @@ export default {
     selfUrl: "image-splitter:8800",
 
     // url of the yolo_v5 model
-    yolo_v5_url: "http://models-bee-detector:8700/",
+    yolo_v5_url: "http://localhost:8700/", // models-bee-detector
 
     // url of the models-drone-bees service
     models_drone_bees_url: "http://models-drone-bees:8751/",
@@ -57,7 +57,8 @@ export default {
     },
 
     models: {
-        varroaBottomUrl: process.env.VARROA_BOTTOM_URL || 'http://models-varroa-bottom:8750'
+        varroaBottomUrl: process.env.VARROA_BOTTOM_URL || 'http://models-varroa-bottom:8750',
+        varroaOnBeeUrl: process.env.VARROA_ON_BEE_URL || 'http://models-varroa-on-bee:8752'
     },
 
     gemini: {
