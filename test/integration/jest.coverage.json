@@ -2,7 +2,10 @@
 	"rootDir": "../../",
 	"resetMocks": true,
 	"restoreMocks": true,
-	"maxWorkers": 1,
+	"maxWorkers": "50%",
+	"setupFiles": [
+		"<rootDir>/test/integration/setup-env.ts"
+	],
 	"transform": {
 	  "^.+\\.(ts)$": [
 		"ts-jest",
