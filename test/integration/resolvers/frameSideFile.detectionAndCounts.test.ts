@@ -20,6 +20,10 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
     const hash = `hash-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const fileId = await fileModel.insert(uid, `fsfd-${frameSideId}.jpg`, 'jpg', hash, 800, 600);
     await fileModel.addFrameRelation(fileId, frameSideId, uid);
+    await storage().query(sql`
+      INSERT INTO files_frame_side_cells (file_id, frame_side_id, user_id)
+      VALUES (${fileId}, ${frameSideId}, ${uid})
+    `);
 
     const workerBee = { n: 0, c: 0.9, x: 0, y: 0, w: 1, h: 1 };
     const droneDet = { n: 1, c: 0.9, x: 0, y: 0, w: 1, h: 1 };

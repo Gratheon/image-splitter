@@ -1,5 +1,3 @@
-SET SESSION sql_require_primary_key = 0;
-
 CREATE TABLE IF NOT EXISTS `varroa_bottom_detections` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `file_id` int unsigned NOT NULL,
@@ -13,6 +11,3 @@ CREATE TABLE IF NOT EXISTS `varroa_bottom_detections` (
   UNIQUE KEY `file_detection` (`file_id`),
   KEY `user_box` (`user_id`, `box_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
-SET SESSION sql_require_primary_key = 1;
-

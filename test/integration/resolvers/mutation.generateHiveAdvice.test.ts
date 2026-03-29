@@ -24,6 +24,11 @@ import { nextId, registerResolverIntegrationLifecycle } from './helpers';
 describe('Mutation.generateHiveAdvice resolver (integration)', () => {
   registerResolverIntegrationLifecycle();
 
+  beforeEach(() => {
+    const mockedGenerateHiveAdvice = beekeeper.generateHiveAdvice as unknown as jest.Mock;
+    mockedGenerateHiveAdvice.mockImplementation(async () => '<p>mocked hive advice about bees</p>');
+  });
+
   it('returns AI HTML and stores hive_advice when billing plan allows', async () => {
     const uid = nextId();
     const hiveID = nextId();
