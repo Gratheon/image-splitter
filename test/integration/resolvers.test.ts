@@ -34,10 +34,72 @@ async function waitForStorageReady(timeoutMs = 20000) {
   }
 }
 
+async function ensureResolverTestSchema() {
+  await storage().query(sql`
+    CREATE TABLE IF NOT EXISTS user_detection_settings (
+      user_id BIGINT UNSIGNED NOT NULL,
+      sensitivity VARCHAR(16) NOT NULL DEFAULT 'BALANCED',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      min_confidence_percent TINYINT UNSIGNED NOT NULL DEFAULT 60,
+      bees_confidence_percent TINYINT UNSIGNED NULL,
+      drones_confidence_percent TINYINT UNSIGNED NULL,
+      queens_confidence_percent TINYINT UNSIGNED NULL,
+      queen_cups_confidence_percent TINYINT UNSIGNED NULL,
+      varroa_confidence_percent TINYINT UNSIGNED NULL,
+      varroa_bottom_confidence_percent TINYINT UNSIGNED NULL,
+      PRIMARY KEY (user_id)
+    )
+  `);
+
+  await storage().query(sql`
+    CREATE TABLE IF NOT EXISTS files_box_rel (
+      box_id int unsigned NOT NULL,
+      file_id int unsigned NOT NULL,
+      user_id int unsigned NOT NULL,
+      inspection_id INT NULL DEFAULT NULL,
+      added_time datetime DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (box_id, file_id),
+      INDEX idx_user_box (user_id, box_id, inspection_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+  `);
+
+  await storage().query(sql`
+    CREATE TABLE IF NOT EXISTS varroa_bottom_detections (
+      id int unsigned NOT NULL AUTO_INCREMENT,
+      file_id int unsigned NOT NULL,
+      box_id int unsigned NOT NULL,
+      user_id int unsigned NOT NULL,
+      varroa_count int NOT NULL DEFAULT 0,
+      detections JSON NULL,
+      model_version varchar(50) DEFAULT 'yolov11-nano',
+      processed_at datetime DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY file_detection (file_id),
+      KEY user_box (user_id, box_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+  `);
+
+  const queenColumnRows = await storage().query(sql`
+    SELECT COUNT(*) AS cnt
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'files_frame_side_rel'
+      AND column_name = 'is_queen_confirmed'
+  `);
+  if (Number(queenColumnRows?.[0]?.cnt || 0) === 0) {
+    await storage().query(sql`
+      ALTER TABLE files_frame_side_rel
+      ADD COLUMN is_queen_confirmed TINYINT(1) DEFAULT 0
+    `);
+  }
+}
+
 describe('graphql resolvers integration', () => {
   beforeAll(async () => {
     await initStorage(logger);
     await waitForStorageReady();
+    await ensureResolverTestSchema();
     await ensureBucketExists();
   });
 
@@ -93,48 +155,51 @@ describe('graphql resolvers integration', () => {
     const addJobSpy = jest.spyOn(jobs, 'addJob').mockResolvedValue(undefined);
 
     // act
-    const result = await resolvers.Mutation.addFileToFrameSide(
-      {},
-      { frameSideId: encodedFrameSideId, fileId: encodedFileId, hiveId: encodedHiveId },
-      { uid: undefined }
-    );
+    try {
+      const result = await resolvers.Mutation.addFileToFrameSide(
+        {},
+        { frameSideId: encodedFrameSideId, fileId: encodedFileId, hiveId: encodedHiveId },
+        { uid: undefined }
+      );
 
-    // assert
-    expect(result).toBe(true);
+      // assert
+      expect(result).toBe(true);
 
-    const frameRel = await storage().query(sql`
-      SELECT file_id, frame_side_id, user_id
-      FROM files_frame_side_rel
-      WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
-      LIMIT 1
-    `);
-    expect(frameRel.length).toBe(1);
+      const frameRel = await storage().query(sql`
+        SELECT file_id, frame_side_id, user_id
+        FROM files_frame_side_rel
+        WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
+        LIMIT 1
+      `);
+      expect(frameRel.length).toBe(1);
 
-    const hiveRel = await storage().query(sql`
-      SELECT file_id, hive_id, user_id
-      FROM files_hive_rel
-      WHERE file_id = ${fileId} AND hive_id = ${hiveId} AND user_id = ${uid}
-      LIMIT 1
-    `);
-    expect(hiveRel.length).toBe(1);
+      const hiveRel = await storage().query(sql`
+        SELECT file_id, hive_id, user_id
+        FROM files_hive_rel
+        WHERE file_id = ${fileId} AND hive_id = ${hiveId} AND user_id = ${uid}
+        LIMIT 1
+      `);
+      expect(hiveRel.length).toBe(1);
 
-    const frameCells = await storage().query(sql`
-      SELECT file_id FROM files_frame_side_cells
-      WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
-      LIMIT 1
-    `);
-    expect(frameCells.length).toBe(1);
+      const frameCells = await storage().query(sql`
+        SELECT file_id FROM files_frame_side_cells
+        WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
+        LIMIT 1
+      `);
+      expect(frameCells.length).toBe(1);
 
-    const frameCups = await storage().query(sql`
-      SELECT file_id FROM files_frame_side_queen_cups
-      WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
-      LIMIT 1
-    `);
-    expect(frameCups.length).toBe(1);
+      const frameCups = await storage().query(sql`
+        SELECT file_id FROM files_frame_side_queen_cups
+        WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
+        LIMIT 1
+      `);
+      expect(frameCups.length).toBe(1);
 
-    const createdJobNames = new Set(addJobSpy.mock.calls.map((call) => call[0]));
-    expect(createdJobNames).toEqual(new Set([TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA]));
-    addJobSpy.mockRestore();
+      const createdJobNames = new Set(addJobSpy.mock.calls.map((call) => call[0]));
+      expect(createdJobNames).toEqual(new Set([TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA]));
+    } finally {
+      addJobSpy.mockRestore();
+    }
   });
 
   it('returns hive statistics aggregated from frame and bottom detections', async () => {
