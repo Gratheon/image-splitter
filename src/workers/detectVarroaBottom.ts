@@ -10,6 +10,59 @@ import { generateChannelName, publisher } from '../redisPubSub';
 import * as imageModel from '../models/image';
 import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
+type VarroaBottomRawDetection = {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    confidence: number;
+};
+
+type ImageDimensions = {
+    width: number;
+    height: number;
+};
+
+export type NormalizedVarroaBottomDetection = {
+    x: number;
+    y: number;
+    w: number;
+    c: number;
+};
+
+export function normalizeVarroaBottomDetection(
+    detection: VarroaBottomRawDetection,
+    dimensions: ImageDimensions
+): NormalizedVarroaBottomDetection | null {
+    if (!dimensions.width || !dimensions.height) {
+        return null;
+    }
+
+    const centerX = (detection.x1 + detection.x2) / 2;
+    const centerY = (detection.y1 + detection.y2) / 2;
+    const width = detection.x2 - detection.x1;
+
+    if (!Number.isFinite(centerX) || !Number.isFinite(centerY) || !Number.isFinite(width) || !Number.isFinite(detection.confidence)) {
+        return null;
+    }
+
+    return {
+        x: parseFloat((centerX / dimensions.width).toFixed(4)),
+        y: parseFloat((centerY / dimensions.height).toFixed(4)),
+        w: parseFloat((width / dimensions.width).toFixed(4)),
+        c: parseFloat(detection.confidence.toFixed(2))
+    };
+}
+
+export function normalizeVarroaBottomDetections(
+    detections: VarroaBottomRawDetection[],
+    dimensions: ImageDimensions
+): NormalizedVarroaBottomDetection[] {
+    return detections
+        .map((d) => normalizeVarroaBottomDetection(d, dimensions))
+        .filter((d): d is NormalizedVarroaBottomDetection => d !== null);
+}
+
 export async function detectVarroaBottom(fileId: number, payload: any) {
     const boxFile = await boxFileModel.getBoxFileByFileId(fileId);
     const minConfidence = resolveThresholdFromPayload(payload, "varroaBottom");
@@ -94,19 +147,14 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
             height: dimensions.height
         });
 
-        const detections = filteredResult.map((d, index) => {
-            const centerX = (d.x1 + d.x2) / 2;
-            const centerY = (d.y1 + d.y2) / 2;
-            const width = d.x2 - d.x1;
+        const detections = normalizeVarroaBottomDetections(filteredResult, dimensions);
 
-            const normalized = {
-                x: parseFloat((centerX / dimensions.width).toFixed(4)),
-                y: parseFloat((centerY / dimensions.height).toFixed(4)),
-                w: parseFloat((width / dimensions.width).toFixed(4)),
-                c: parseFloat(d.confidence.toFixed(2))
-            };
-
+        filteredResult.forEach((d, index) => {
             if (index === 0) {
+                const centerX = (d.x1 + d.x2) / 2;
+                const centerY = (d.y1 + d.y2) / 2;
+                const width = d.x2 - d.x1;
+                const normalized = normalizeVarroaBottomDetection(d, dimensions);
                 logger.info('detectVarroaBottom - first detection normalization', {
                     fileId,
                     rawDetection: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, confidence: d.confidence },
@@ -115,8 +163,6 @@ export async function detectVarroaBottom(fileId: number, payload: any) {
                     normalized
                 });
             }
-
-            return normalized;
         });
 
         logger.info('detectVarroaBottom - normalized detections', {

@@ -51,4 +51,62 @@ describe("detectVarroa bee-crop mapping", () => {
     expect(mapped!.w).toBeCloseTo(0.04, 4);
     expect(mapped!.h).toBeCloseTo(0.02, 4);
   });
+
+  test("buildBeeCropBounds returns null for non-finite bee values", () => {
+    const crop = buildBeeCropBounds(
+      {
+        n: "0",
+        x: Number.NaN,
+        y: 0.5,
+        w: 0.1,
+        h: 0.1,
+        c: 0.9,
+      },
+      1000,
+      1000,
+    );
+
+    expect(crop).toBeNull();
+  });
+
+  test("mapVarroaDetectionToOriginal returns null for invalid or zero-area boxes", () => {
+    const invalid = mapVarroaDetectionToOriginal(
+      {
+        x1: Number.NaN,
+        y1: 10,
+        x2: 50,
+        y2: 20,
+        confidence: 0.9,
+      },
+      {
+        left: 10,
+        top: 20,
+        width: 100,
+        height: 100,
+      },
+      1000,
+      1000,
+    );
+
+    const zeroArea = mapVarroaDetectionToOriginal(
+      {
+        x1: 20,
+        y1: 20,
+        x2: 20,
+        y2: 40,
+        confidence: 0.9,
+      },
+      {
+        left: 10,
+        top: 20,
+        width: 100,
+        height: 100,
+      },
+      1000,
+      1000,
+    );
+
+    expect(invalid).toBeNull();
+    expect(zeroArea).toBeNull();
+  });
 });

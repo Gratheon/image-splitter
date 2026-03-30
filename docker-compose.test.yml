@@ -21,6 +21,8 @@ services:
     depends_on:
       mysql-test: # Wait for mysql-test to be healthy
         condition: service_healthy
+      redis:
+        condition: service_healthy
       minio: # Wait for minio to be healthy
         condition: service_healthy
       create-bucket: # Wait for the bucket creation task to complete
@@ -82,5 +84,16 @@ services:
       mc alias set --api S3v4 local http://minio:19000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY &&
       mc mb --ignore-existing local/gratheon-test &&
       mc anonymous set download local/gratheon-test
+
+  redis:
+    image: redis:8-alpine
+    command: redis-server --requirepass pass
+    ports:
+      - 16379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "pass", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 volumes:
   mysql82:
