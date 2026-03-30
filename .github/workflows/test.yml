@@ -41,12 +41,12 @@ jobs:
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec jest --config ./test/unit/jest.coverage.json --detectOpenHandles --forceExit --coverage
+      - run: pnpm run test:unit:coverage
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
+          files: ./coverage/unit/lcov.info
           flags: unit-tests
           name: image-splitter-unit-tests
 
@@ -73,3 +73,10 @@ jobs:
           cache: "pnpm"
 
       - run: just test-integration-ci
+      - name: Upload integration coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/integration/lcov.info
+          flags: integration-tests
+          name: image-splitter-integration-tests
