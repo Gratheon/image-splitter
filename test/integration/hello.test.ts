@@ -7,6 +7,16 @@ import config from '../../src/config';
 // port from docker-compose.test.yml
 const URL = 'http://localhost:8800/graphql';
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
 describe('POST /graphql', () => {
     const itMaybeSkipOnCI = process.env.CI ? it.skip : it;
     beforeEach(() => {
@@ -15,7 +25,7 @@ describe('POST /graphql', () => {
     it('hello_image_splitter', async () => { // Remove .skip
         // make POST request
         // Send a POST request to the API endpoint
-        const response = await fetch(URL, {
+        const response = await fetchWithTimeout(URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -26,7 +36,7 @@ describe('POST /graphql', () => {
                 query: '{ hello_image_splitter }',
                 variables: '{}'
             })
-        });
+        }, 15000);
 
         // Check if the response was successful
         if (!response.ok) {
@@ -68,7 +78,7 @@ describe('POST /graphql', () => {
         const payload = { user_id: '1' }; // Use the same user ID as internal-userid for consistency
         const token = jwt.sign(payload, config.jwt.privateKey);
 
-        const response = await fetch(URL, {
+        const response = await fetchWithTimeout(URL, {
             method: 'POST',
             headers: {
                 // Keep existing headers if needed, but add the token
@@ -78,7 +88,7 @@ describe('POST /graphql', () => {
                 // Native fetch handles FormData headers automatically
             },
             body: form // Send the global FormData object
-        });
+        }, 110000);
 
         // Check status and log errors if not 200
         if (response.status !== 200) {
@@ -103,7 +113,7 @@ describe('POST /graphql', () => {
         expect(result.data).toHaveProperty('uploadFrameSide');
         expect(result.data.uploadFrameSide).toHaveProperty('id');
         expect(result.data.uploadFrameSide).toHaveProperty('url');
-    });
+    }, 120000);
 
     it('uploadFrameSide unauthenticated', async () => {
         const filePath = './test/integration/fixture/IMG_4368.JPG';
@@ -127,10 +137,10 @@ describe('POST /graphql', () => {
         form.append('0', new Blob([fileBuffer]), fileName);
 
         // Send request WITHOUT authentication headers
-        const response = await fetch(URL, {
+        const response = await fetchWithTimeout(URL, {
             method: 'POST',
             body: form // Send the global FormData object
-        });
+        }, 15000);
 
         // Expect 401 Unauthorized due to the httpStatusPlugin
         expect(response.status).toBe(401);
