@@ -1,8 +1,6 @@
-FROM platformatic/node-caged:25-slim
+FROM platformatic/node-caged:25-slim AS build
 
 WORKDIR /app
-
-EXPOSE 8800
 
 COPY package.json /app/
 COPY pnpm-lock.yaml /app/pnpm-lock.yaml
@@ -12,8 +10,25 @@ COPY src /app/src
 COPY migrations /app/migrations
 COPY config /app/config
 
-# we have linux dependencies so need to install them in the container
-RUN npm install -g pnpm@10.29.2 && pnpm install --frozen-lockfile --config.strict-peer-dependencies=false
-RUN pnpm run build
+RUN npm install -g pnpm@10.29.2 \
+  && pnpm install --frozen-lockfile --config.strict-peer-dependencies=false \
+  && pnpm run build \
+  && pnpm prune --prod \
+  && npm cache clean --force \
+  && rm -rf /root/.local/share/pnpm/store /tmp/*
+
+FROM platformatic/node-caged:25-slim
+
+WORKDIR /app
+
+EXPOSE 8800
+
+COPY --from=build /app/package.json /app/package.json
+COPY --from=build /app/pnpm-lock.yaml /app/pnpm-lock.yaml
+COPY --from=build /app/schema.graphql /app/schema.graphql
+COPY --from=build /app/config /app/config
+COPY --from=build /app/migrations /app/migrations
+COPY --from=build /app/app /app/app
+COPY --from=build /app/node_modules /app/node_modules
 
 CMD node --max-old-space-size=4096 ./app/image-splitter.js

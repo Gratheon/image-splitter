@@ -3,3 +3,14 @@ coverage
 test
 .idea
 .github
+.git
+.pnpm-store
+app
+tmp
+minio
+*.log
+Dockerfile*
+docker-compose*.yml
+README.md
+CONTRIBUTING.md
+fix-varroa-image-memory-limit.md
