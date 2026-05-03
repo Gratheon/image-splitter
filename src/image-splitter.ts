@@ -35,6 +35,7 @@ import {
     NOTIFY_JOB,
 } from "./models/jobs";
 import { metricsContentType, recordHttpRequest, renderMetrics } from "./metrics";
+import { registerFastifyTracing } from "@gratheon/log-lib";
 
 const requestStartTimes = new WeakMap<object, bigint>();
 
@@ -275,6 +276,7 @@ async function repopulateRedisQueue() {
         logger: fastifyLogger,
         disableRequestLogging: true,
     });
+    registerFastifyTracing(app);
 
     // Register fastify-multipart (still without attachFieldsToBody)
     app.register(fastifyMultipart);
