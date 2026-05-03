@@ -9,7 +9,7 @@ services:
     environment:
       - ENV_ID=prod
       - NODE_OPTIONS=--max-old-space-size=4096
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4318}
       - OTEL_SERVICE_NAME=image-splitter
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=prod,service.namespace=gratheon
       - HYPERDX_API_KEY=${HYPERDX_API_KEY:-}
