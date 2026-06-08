@@ -34,7 +34,7 @@ import {
     TYPE_VARROA_BOTTOM,
     NOTIFY_JOB,
 } from "./models/jobs";
-import { metricsContentType, recordHttpRequest, renderMetrics } from "./metrics";
+import { recordHttpRequest } from "./metrics";
 import { registerFastifyTracing } from "@gratheon/log-lib";
 
 const requestStartTimes = new WeakMap<object, bigint>();
@@ -310,63 +310,11 @@ async function repopulateRedisQueue() {
       };
     });
 
-    app.get("/metrics", async (request, reply) => {
-        reply.type(metricsContentType);
-        return renderMetrics();
-    });
-
-    // Add job queue statistics endpoint
-    app.get('/jobs/stats', async (request, reply) => {
-      const jobTypes = [
-        TYPE_RESIZE,
-        TYPE_BEES,
-        TYPE_DRONES,
-        TYPE_CELLS,
-        TYPE_CUPS,
-        TYPE_QUEENS,
-        TYPE_VARROA,
-        TYPE_VARROA_BOTTOM,
-        NOTIFY_JOB,
-      ];
-
-      const stats = {};
-
-      for (const jobType of jobTypes) {
-        try {
-          const result = await storage().query(
-            sql`SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN process_end_time IS NULL THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN process_end_time IS NOT NULL THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as failed,
-                AVG(CASE WHEN process_end_time IS NOT NULL AND process_start_time IS NOT NULL
-                  THEN TIMESTAMPDIFF(SECOND, process_start_time, process_end_time)
-                  ELSE NULL END) as avg_processing_time_sec
-                FROM jobs WHERE name = ${jobType}`
-          );
-          stats[jobType] = {
-            total: result[0].total,
-            pending: result[0].pending,
-            completed: result[0].completed,
-            failed: result[0].failed,
-            avgProcessingTime: result[0].avg_processing_time_sec ? Math.round(result[0].avg_processing_time_sec * 100) / 100 : null,
-          };
-        } catch (error) {
-          logger.error(`Error fetching stats for ${jobType}`, error);
-          stats[jobType] = { error: 'Failed to fetch stats' };
-        }
-      }
-
-      return { status: 'ok', jobs: stats };
-    });
-
     // Add documentation page handler
     app.get('/', async (request, reply) => {
       const endpoints = [
         { method: 'GET', path: '/', description: 'This documentation page' },
         { method: 'GET', path: '/healthz', description: 'Health check endpoint' },
-        { method: 'GET', path: '/metrics', description: 'Prometheus metrics endpoint' },
-        { method: 'GET', path: '/jobs/stats', description: 'Job queue statistics' },
         { method: 'GET', path: '/graphql', description: 'GraphQL playground' },
       ];
       const logoSvg = `<?xml version="1.0" encoding="utf-8"?>

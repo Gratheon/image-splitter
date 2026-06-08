@@ -13,15 +13,9 @@ describe('service endpoints', () => {
         expect(body).toHaveProperty('mysql');
     });
 
-    it('returns job stats', async () => {
+    it('does not expose job stats', async () => {
         const response = await fetch(`${baseUrl}/jobs/stats`);
-        expect(response.status).toBe(200);
-
-        const body = await response.json();
-        expect(body).toHaveProperty('status', 'ok');
-        expect(body).toHaveProperty('jobs');
-        expect(body.jobs).toHaveProperty('bees');
-        expect(body.jobs).toHaveProperty('varroa_bottom');
+        expect(response.status).toBe(404);
     });
 });
 
