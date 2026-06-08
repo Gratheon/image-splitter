@@ -1,161 +1,226 @@
-const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
+import fetch from "node-fetch";
+import FormData from "form-data";
 
 import config from '../config';
 import { logger } from '../logger';
 
-import frameSideModel, {CutPosition, DetectedObject} from '../models/frameSide';
-import fileSideModel, {FrameSideFetchedByFileId} from '../models/frameSide'; // Import type
+import frameSideModel, { CutPosition, DetectedObject } from '../models/frameSide';
+import fileSideModel, { FrameSideFetchedByFileId } from '../models/frameSide';
 import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
 import { generateChannelName, publisher } from '../redisPubSub';
-// Update import name and add FrameSideFetchedByFileId type
-import { transformSubImageCoordsToOriginal, retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect } from './common/common';
+import { retryAsyncFunction, roundToDecimal, splitIn9ImagesAndDetect } from './common/common';
 import { downloadS3FileToLocalTmp } from "./common/downloadFile";
 
-const PAT = config.clarifai.queen_app.PAT;
-const USER_ID = 'artjom-clarify';
-const APP_ID = 'bee-queen-detection';
-const MODEL_ID = 'queen-bee-v4';
+type QueenDetectorResponse = {
+    message?: string;
+    result?: QueenDetectorDetection[];
+};
 
-const grpcClient = ClarifaiStub.grpc();
+type QueenDetectorDetection = {
+    class_id?: number;
+    class_name?: string;
+    confidence?: number;
+    box?: number[];
+};
 
-// This will be used by every Clarifai endpoint call
-const metadata = new grpc.Metadata();
-metadata.set("authorization", "Key " + PAT);
+type ImageDimensions = {
+    width: number;
+    height: number;
+};
+
+function appendQueryParam(url: string, key: string, value: string | number): string {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
+
+function isQueenDetection(detection: QueenDetectorDetection): boolean {
+    if (typeof detection.class_name === 'string') {
+        return detection.class_name.toLowerCase().includes('queen');
+    }
+
+    // models-queen-bee-detector is currently a single-class YOLO model where class 0 is queen.
+    return detection.class_id === undefined || detection.class_id === 0;
+}
+
+export function normalizeQueenDetection(
+    detection: QueenDetectorDetection,
+    cutPosition: CutPosition,
+    originalImage: ImageDimensions
+): DetectedObject | null {
+    if (!detection || !Array.isArray(detection.box) || detection.box.length < 4) {
+        logger.warn('normalizeQueenDetection: invalid detection box', { detection });
+        return null;
+    }
+
+    if (!isQueenDetection(detection)) {
+        return null;
+    }
+
+    const confidence = Number(detection.confidence);
+    const [rawX1, rawY1, rawX2, rawY2] = detection.box.map(Number);
+
+    if (
+        !Number.isFinite(confidence) ||
+        !Number.isFinite(rawX1) ||
+        !Number.isFinite(rawY1) ||
+        !Number.isFinite(rawX2) ||
+        !Number.isFinite(rawY2) ||
+        !Number.isFinite(originalImage.width) ||
+        !Number.isFinite(originalImage.height) ||
+        originalImage.width <= 0 ||
+        originalImage.height <= 0
+    ) {
+        logger.warn('normalizeQueenDetection: non-finite detection or image dimensions', { detection, originalImage });
+        return null;
+    }
+
+    const x1 = clamp(rawX1 + cutPosition.left, 0, originalImage.width);
+    const y1 = clamp(rawY1 + cutPosition.top, 0, originalImage.height);
+    const x2 = clamp(rawX2 + cutPosition.left, 0, originalImage.width);
+    const y2 = clamp(rawY2 + cutPosition.top, 0, originalImage.height);
+
+    const width = x2 - x1;
+    const height = y2 - y1;
+
+    if (width <= 0 || height <= 0) {
+        logger.warn('normalizeQueenDetection: invalid normalized box dimensions', { detection, cutPosition, originalImage });
+        return null;
+    }
+
+    return {
+        n: '3',
+        x: roundToDecimal(((x1 + x2) / 2) / originalImage.width, 5),
+        y: roundToDecimal(((y1 + y2) / 2) / originalImage.height, 5),
+        w: roundToDecimal(width / originalImage.width, 4),
+        h: roundToDecimal(height / originalImage.height, 4),
+        c: roundToDecimal(confidence, 2),
+    };
+}
 
 export async function detectQueens(ref_id, payload) {
     const file = await frameSideModel.getFrameSideByFileId(ref_id);
 
     if (file == null) {
-        throw new Error(`frameSideModel.getFrameSideByFileId failed and did not find any file ${ref_id} not found`)
+        throw new Error(`frameSideModel.getFrameSideByFileId failed and did not find any file ${ref_id} not found`);
     }
 
-    logger.info('AnalyzeBeesAndVarroa - processing file', file);
+    logger.info('detectQueens - processing file', {
+        fileId: file.file_id,
+        frameSideId: file.frame_side_id,
+        userId: file.user_id,
+        filename: file.filename,
+        width: file.width,
+        height: file.height,
+    });
+
     await downloadS3FileToLocalTmp(file);
 
     const minConfidence = resolveThresholdFromPayload(payload, "queens");
 
-    logger.info(`Making parallel requests to detect objects for file ${file.file_id}`);
-    // Update handler signature: (bytes, pos, id, name)
-    await splitIn9ImagesAndDetect(file, 1024, async (chunkBytes: Buffer, cutPosition: CutPosition, fileId: number, filename: string) => {
-        // Pass necessary info, including original file details needed by analyzeQueens
-        await analyzeQueens(chunkBytes, cutPosition, file, minConfidence); // Pass original file for user_id/frame_side_id
+    logger.info(`Making chunked requests to detect queens for file ${file.file_id}`, {
+        modelUrl: config.models_queen_bee_detector_url,
+        minConfidence,
+    });
+
+    await splitIn9ImagesAndDetect(file, 1024, async (chunkBytes: Buffer, cutPosition: CutPosition) => {
+        await analyzeQueens(chunkBytes, cutPosition, file, minConfidence);
     });
 }
 
-// Updated signature
 export async function analyzeQueens(
     chunkBytes: Buffer,
     cutPosition: CutPosition,
-    originalFile: FrameSideFetchedByFileId, // Need original file info for DB update/publish
+    originalFile: FrameSideFetchedByFileId,
     minConfidence: number
 ): Promise<DetectedObject[]> {
-    // Pass bytes and position to Clarifai
-    const detectionResult = await retryAsyncFunction(() => askClarifai(chunkBytes, cutPosition, originalFile.file_id, originalFile.filename, minConfidence), 3);
-
-    // Filter out null results from failed coordinate transformations
-    const validDetections = detectionResult ? detectionResult.filter(d => d !== null) as DetectedObject[] : [];
+    const validDetections = await retryAsyncFunction(
+        () => askQueenBeeDetector(chunkBytes, cutPosition, originalFile, minConfidence),
+        3
+    ) as DetectedObject[];
 
     logger.info(`Queen detection result for chunk ${cutPosition.x},${cutPosition.y}:`, validDetections);
 
-    // Use original file info for context
     await fileSideModel.updateQueens(
         validDetections,
         originalFile.frame_side_id,
         originalFile.user_id
     );
 
-    // Publish only valid detections
     publisher().publish(
         generateChannelName(
             originalFile.user_id, 'frame_side',
             originalFile.frame_side_id, 'queens_detected'
         ),
         JSON.stringify({
-            delta: validDetections, // Publish valid detections
-            isQueenDetectionComplete: true // This might be premature if called per chunk? Revisit logic if needed.
+            delta: validDetections,
+            isQueenDetectionComplete: true
         })
     );
 
-    return validDetections; // Return only valid detections
+    return validDetections;
 }
 
-// Updated signature
-async function askClarifai(
+async function askQueenBeeDetector(
     chunkBytes: Buffer,
     cutPosition: CutPosition,
-    fileId: number,
-    filename: string,
+    originalFile: FrameSideFetchedByFileId,
     minConfidence: number
-): Promise<(DetectedObject | null)[]> { // Return array that might contain nulls
-    const result: (DetectedObject | null)[] = []; // Allow nulls initially
+): Promise<DetectedObject[]> {
+    const formData = new FormData();
+    formData.append('file', chunkBytes, {
+        filename: `queen_chunk_${cutPosition.x}_${cutPosition.y}_${originalFile.filename}`,
+        contentType: 'image/jpeg',
+    });
 
-    logger.info(`Asking clarifai to detect queen on chunk for file ${fileId} (${filename}) at ${cutPosition.x},${cutPosition.y}`);
-    return new Promise((resolve, reject) => {
-        grpcClient.PostModelOutputs(
-            {
-                user_app_id: {
-                    "user_id": USER_ID,
-                    "app_id": APP_ID
-                },
-                model_id: MODEL_ID,
-                inputs: [
-                    {
-                        data: {
-                            image: {
-                                base64: chunkBytes, // Use passed chunkBytes
-                                allow_duplicate_url: true
-                            }
-                        }
-                    }
-                ]
-            },
-            metadata,
-            (err, response) => {
-                if (err) {
-                    logger.error(`gRPC error calling PostModelOutputs for queen detection on file ${fileId}, chunk ${cutPosition.x},${cutPosition.y}`, err);
-                    return reject(err); // Reject with the original error
-                }
+    const modelUrl = appendQueryParam(config.models_queen_bee_detector_url, 'conf', minConfidence);
 
-                if (response.status.code !== 10000) {
-                    logger.error(`Clarifai API error for queen detection on file ${fileId}, chunk ${cutPosition.x},${cutPosition.y}. Status: ${response.status.description}`, { responseStatus: response.status });
-                    return reject(new Error(`Post model outputs failed, status: ${response.status.code} - ${response.status.description}`));
-                }
+    logger.info(`Asking models-queen-bee-detector to detect queen on chunk for file ${originalFile.file_id} (${originalFile.filename}) at ${cutPosition.x},${cutPosition.y}`, {
+        modelUrl,
+    });
 
-                // log("queen detection response from clarifai", response)
+    const response = await fetch(modelUrl, {
+        method: 'POST',
+        body: formData,
+        headers: formData.getHeaders(),
+    });
 
-                // Since we have one input, one output will exist here
-                const output = response.outputs[0];
+    if (!response.ok) {
+        const errorBody = await response.text().catch(() => 'Unable to read error body');
+        logger.error(`Queen detector API request failed for file ${originalFile.file_id}, chunk ${cutPosition.x},${cutPosition.y}`, {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorBody,
+            modelUrl,
+        });
+        throw new Error(`Queen detector API request failed, status: ${response.status} ${response.statusText}`);
+    }
 
-                // log('queen detection result from clarifai', output)
-                const regions = output.data.regions
+    const body = await response.json() as QueenDetectorResponse;
+    const detections = Array.isArray(body.result) ? body.result : [];
+    const result: DetectedObject[] = [];
 
-                for (let i = 0; i < regions.length; i++) {
-                    const c = regions[i].value; // confidence
-                    if (c > minConfidence) {
-                        // Use the renamed coordinate transformation function
-                        const transformedCoords = transformSubImageCoordsToOriginal(
-                            regions[i].region_info.bounding_box,
-                            cutPosition
-                        );
+    for (const detection of detections) {
+        const confidence = Number(detection?.confidence);
+        if (!Number.isFinite(confidence) || confidence < minConfidence) {
+            continue;
+        }
 
-                        if (transformedCoords) { // Check if transformation was successful
-                            result.push({
-                                n: '3', // Assuming '3' signifies queen
-                                c: roundToDecimal(c, 2),
-                                ...transformedCoords
-                            });
-                        } else {
-                            logger.warn(`askClarifai (queen): Failed to transform coordinates for region in chunk ${cutPosition.x},${cutPosition.y}`, { region: regions[i], cutPosition });
-                            result.push(null); // Add null placeholder if coords fail
-                        }
-                    }
-                }
-                logger.info(`Queen result for chunk ${cutPosition.x},${cutPosition.y}: Found ${result.filter(r => r !== null).length} potential queens above threshold.`);
-                logger.debug('Queen result details (including nulls):', result);
-                resolve(result)
-            }
+        const normalizedDetection = normalizeQueenDetection(detection, cutPosition, originalFile);
+        if (normalizedDetection) {
+            result.push(normalizedDetection);
+        }
+    }
 
-        );
-    })
+    logger.info(`Queen result for chunk ${cutPosition.x},${cutPosition.y}: Found ${result.length} potential queens above threshold.`, {
+        detectorMessage: body.message,
+        rawDetectionCount: detections.length,
+    });
+    logger.debug('Queen result details:', result);
+
+    return result;
 }

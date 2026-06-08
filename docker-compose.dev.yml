@@ -10,6 +10,7 @@ services:
       - OTEL_SERVICE_NAME=image-splitter
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev,service.namespace=gratheon
       - HYPERDX_API_KEY=${HYPERDX_API_KEY:-local-gratheon-clickstack}
+      - QUEEN_BEE_DETECTOR_URL=${QUEEN_BEE_DETECTOR_URL:-http://models-queen-bee-detector:8710/detect}
     tty: true
     ports:
       - 8800:8800

@@ -17,6 +17,9 @@ export default {
     // url of the yolo_v5 model
     yolo_v5_url: "http://models-bee-detector:8700/",
 
+    // url of the models-queen-bee-detector service
+    models_queen_bee_detector_url: process.env.QUEEN_BEE_DETECTOR_URL || "http://127.0.0.1:8710/detect",
+
     // url of the models-frame-resources service
     models_frame_resources_url: "http://models-frame-resources:8540/",
 
@@ -63,9 +66,6 @@ export default {
     clarifai: {
         PAT: "",
         varroa_app: {
-            PAT: ""
-        },
-        queen_app: {
             PAT: ""
         },
         cup_app: {

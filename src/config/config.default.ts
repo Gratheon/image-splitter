@@ -20,6 +20,9 @@ export default {
     // url of the models-drone-bees service
     models_drone_bees_url: "http://models-drone-bees:8751/",
 
+    // url of the models-queen-bee-detector service
+    models_queen_bee_detector_url: process.env.QUEEN_BEE_DETECTOR_URL || "http://127.0.0.1:8710/detect",
+
     // url of the models-frame-resources service
     models_frame_resources_url: "http://models-frame-resources:8540/",
 
@@ -70,9 +73,6 @@ export default {
     clarifai: {
         varroa_app: {
           PAT: "",
-        },
-        queen_app: {
-            PAT: ""
         },
         cup_app: {
             PAT: ""

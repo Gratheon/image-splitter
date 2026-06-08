@@ -520,7 +520,7 @@ const frameSideModel = {
             sql`UPDATE files_frame_side_rel
                 SET detected_queens=${JSON.stringify(exQueens)},
                     queen_count    = IFNULL(queen_count, 0) + ${queens.length},
-                    queen_detected = ${aiFoundQueen}
+                    queen_detected = (queen_detected OR ${aiFoundQueen})
                     ${(aiFoundQueen && isCurrentlyConfirmed === false) ? sql`, is_queen_confirmed = TRUE` : sql``}
                 WHERE file_id = ${fileId}
                   AND frame_side_id = ${frameSideId}
