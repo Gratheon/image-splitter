@@ -133,11 +133,16 @@ export function mapVarroaDetectionToOriginal(
   };
 }
 
-async function detectVarroaOnBeeCrop(cropBytes: Buffer): Promise<VarroaServiceDetection[]> {
+async function detectVarroaOnBeeCrop(cropBytes: Buffer, minConfidence: number): Promise<VarroaServiceDetection[]> {
   const formData = new FormData();
   formData.append("file", cropBytes, { filename: "bee_crop.jpg" });
 
-  const response = await fetch(config.models.varroaOnBeeUrl, {
+  // Ask the model to apply the same user threshold that image-splitter uses.
+  // This keeps model logs/counts aligned with what we finally store and publish.
+  const modelUrl = new URL(config.models.varroaOnBeeUrl);
+  modelUrl.searchParams.set("conf", String(minConfidence));
+
+  const response = await fetch(modelUrl.toString(), {
     method: "POST",
     body: formData,
   });
@@ -221,9 +226,18 @@ export async function detectVarroa(ref_id: number, payload: any) {
         .jpeg()
         .toBuffer();
 
-      const cropDetections = await detectVarroaOnBeeCrop(cropBytes);
+      const cropDetections = await detectVarroaOnBeeCrop(cropBytes, minConfidence);
+
+      logger.debug("detectVarroaOnBees - received bee crop detections", {
+        fileId: file.file_id,
+        beeIndex: index,
+        detections: cropDetections.length,
+        minConfidence,
+      });
 
       for (const detection of cropDetections) {
+        // Keep caller-side filtering for safe rolling deploys where an older model
+        // container may still ignore the conf query parameter.
         if (Number(detection.confidence) < minConfidence) {
           continue;
         }
