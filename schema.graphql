@@ -115,6 +115,7 @@ type FrameSideFile {
 
 	detectedVarroa: JSON
 	varroaCount: Int
+	isVarroaDetectionComplete: Boolean
 }
 
 """ BoxFile connects uploaded images to hive boxes (e.g., bottom board for varroa monitoring) """

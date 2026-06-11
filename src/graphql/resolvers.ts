@@ -276,6 +276,13 @@ const baseResolvers = {
         varroaCount: async (parent, _, {uid}) => {
             return frameSideModel.getVarroaCount(parent.frameSideId, uid)
         },
+        isVarroaDetectionComplete: async (parent, _, {uid}) => {
+            const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
+            if (!fileId) {
+                return false;
+            }
+            return jobs.isComplete(TYPE_VARROA, fileId)
+        },
         detectedWorkerBeeCount: async (parent, _, {uid}) => {
             return frameSideModel.getWorkerBeeCount(parent.frameSideId, uid)
         },

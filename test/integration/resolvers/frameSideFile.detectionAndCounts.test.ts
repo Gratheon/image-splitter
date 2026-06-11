@@ -7,7 +7,7 @@ jest.mock('graphql-upload/GraphQLUpload.mjs', () => ({
 
 import { resolvers } from '../../../src/graphql/resolvers';
 import fileModel from '../../../src/models/file';
-import { TYPE_CUPS, TYPE_DRONES, TYPE_QUEENS } from '../../../src/models/jobs';
+import { TYPE_CUPS, TYPE_DRONES, TYPE_QUEENS, TYPE_VARROA } from '../../../src/models/jobs';
 import { sql, storage } from '../../../src/models/storage';
 import { insertJobForTest, nextId, registerResolverIntegrationLifecycle } from './helpers';
 
@@ -48,6 +48,7 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
     await insertJobForTest(TYPE_DRONES, fileId, 'NOW');
     await insertJobForTest(TYPE_QUEENS, fileId, 'NOW');
     await insertJobForTest(TYPE_CUPS, fileId, 'NOW');
+    await insertJobForTest(TYPE_VARROA, fileId, 'NOW');
 
     const parent = { frameSideId, fileId };
 
@@ -63,6 +64,7 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
       isDroneDetectionComplete,
       isQueenDetectionComplete,
       isQueenCupsDetectionComplete,
+      isVarroaDetectionComplete,
     ] = await Promise.all([
       resolvers.FrameSideFile.detectedBees(parent, {}, { uid: String(uid) }),
       resolvers.FrameSideFile.detectedVarroa(parent, {}, { uid: String(uid) }),
@@ -75,6 +77,7 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
       resolvers.FrameSideFile.isDroneDetectionComplete(parent, {}, { uid: String(uid) }),
       resolvers.FrameSideFile.isQueenDetectionComplete(parent, {}, { uid: String(uid) }),
       resolvers.FrameSideFile.isQueenCupsDetectionComplete(parent, {}, { uid: String(uid) }),
+      resolvers.FrameSideFile.isVarroaDetectionComplete(parent, {}, { uid: String(uid) }),
     ]);
 
     expect(Array.isArray(detectedBees)).toBe(true);
@@ -88,5 +91,6 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
     expect(isDroneDetectionComplete).toBe(true);
     expect(isQueenDetectionComplete).toBe(true);
     expect(isQueenCupsDetectionComplete).toBe(true);
+    expect(isVarroaDetectionComplete).toBe(true);
   });
 });
