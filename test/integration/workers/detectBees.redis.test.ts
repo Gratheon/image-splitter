@@ -17,6 +17,7 @@ jest.mock('../../../src/models/jobs', () => ({
   __esModule: true,
   TYPE_BEES: 'bees',
   NOTIFY_JOB: 'notify',
+  TYPE_VARROA: 'varroa',
   default: {
     addJob: jest.fn(),
   },
@@ -148,6 +149,15 @@ describe('detectWorkerBees Redis integration', () => {
         },
       },
       1,
+    );
+
+    expect(jobs.addJob).toHaveBeenCalledWith(
+      'varroa',
+      mockFile.file_id,
+      {
+        detectionThresholds: { bees: 0.6 },
+      },
+      5,
     );
 
     await redisClient.unsubscribe(partialChannel);

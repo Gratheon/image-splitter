@@ -12,7 +12,7 @@ import frameSideModel, {
 
 import { generateChannelName, publisher } from "../redisPubSub";
 import { downloadS3FileToLocalTmp } from "./common/downloadFile";
-import jobs, { TYPE_BEES, NOTIFY_JOB } from "../models/jobs";
+import jobs, { NOTIFY_JOB, TYPE_VARROA } from "../models/jobs";
 import { splitIn9ImagesAndDetect, roundToDecimal } from "./common/common"; // Added roundToDecimal
 import { resolveThresholdFromPayload } from "../models/detectionSettings";
 
@@ -93,6 +93,8 @@ export async function detectWorkerBees(ref_id: number, payload: any) { // Revert
       isBeeDetectionComplete: true,
     },
   }, 1); // High priority for user notifications
+
+  await jobs.addJob(TYPE_VARROA, file.file_id, payload, 5);
 }
 
 // Updated function signature to accept correct arguments

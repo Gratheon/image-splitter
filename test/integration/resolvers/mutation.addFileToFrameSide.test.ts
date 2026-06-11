@@ -7,7 +7,7 @@ jest.mock('graphql-upload/GraphQLUpload.mjs', () => ({
 
 import { resolvers } from '../../../src/graphql/resolvers';
 import fileModel from '../../../src/models/file';
-import { TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_DRONES, TYPE_QUEENS, TYPE_VARROA } from '../../../src/models/jobs';
+import { TYPE_BEES, TYPE_CELLS, TYPE_CUPS, TYPE_DRONES, TYPE_QUEENS } from '../../../src/models/jobs';
 import jobs from '../../../src/models/jobs';
 import { sql, storage } from '../../../src/models/storage';
 import { nextId, registerResolverIntegrationLifecycle } from './helpers';
@@ -66,7 +66,7 @@ describe('Mutation.addFileToFrameSide resolver (integration)', () => {
       expect(frameCups.length).toBe(1);
 
       const createdJobNames = new Set(addJobSpy.mock.calls.map((call) => call[0]));
-      expect(createdJobNames).toEqual(new Set([TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA]));
+      expect(createdJobNames).toEqual(new Set([TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS]));
     } finally {
       addJobSpy.mockRestore();
     }

@@ -398,8 +398,7 @@ const baseResolvers = {
                 jobs.addJob(TYPE_DRONES, normalizedFileId, detectionPayload, 3),
                 jobs.addJob(TYPE_CELLS, normalizedFileId, detectionPayload, 3),
                 jobs.addJob(TYPE_CUPS, normalizedFileId, detectionPayload, 5),
-                jobs.addJob(TYPE_QUEENS, normalizedFileId, detectionPayload, 5),
-                jobs.addJob(TYPE_VARROA, normalizedFileId, detectionPayload, 5)
+                jobs.addJob(TYPE_QUEENS, normalizedFileId, detectionPayload, 5)
             ]);
 
             return true
