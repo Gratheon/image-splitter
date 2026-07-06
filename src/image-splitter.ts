@@ -281,7 +281,13 @@ async function repopulateRedisQueue() {
     // Register fastify-multipart (still without attachFieldsToBody)
     app.register(fastifyMultipart);
 
-    app.addHook("onRequest", async (request) => {
+    app.addHook("onRequest", async (request, reply) => {
+        const contentType = request.headers["content-type"];
+
+        if (typeof contentType === "string" && contentType.includes("\t")) {
+            return reply.code(400).send({error: "Invalid Content-Type header"});
+        }
+
         requestStartTimes.set(request.raw, process.hrtime.bigint());
     });
 
