@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `image-splitter` microservice is a core component of the Gratheon platform responsible for processing images of beehive frames uploaded by users. Its primary function is to orchestrate the analysis of these images by invoking various internal and external machine learning models to detect key elements like bees (workers, drones, queens), brood cells, pollen, honey, queen cups, and varroa mites.
+The `image-splitter` microservice is a core component of the Gratheon platform responsible for processing images of beehive frames uploaded by users. Its primary function is to orchestrate the analysis of these images by invoking internal machine learning models to detect key elements like bees (workers, drones, queens), brood cells, pollen, honey, and varroa mites.
 
 It receives uploaded images, stores them, manages a queue of analysis jobs, calls detection models, aggregates the results, and makes them available via the platform's federated GraphQL API. It also generates resized versions (thumbnails) of the original images.
 
@@ -12,8 +12,8 @@ It receives uploaded images, stores them, manages a queue of analysis jobs, call
 
 *   Accepting direct image uploads (frame sides).
 *   Storing original images and generated thumbnails in object storage (AWS S3/Minio).
-*   Managing an asynchronous job queue (using MySQL + Redis Pub/Sub) for various detection tasks (resizing, bees, cells, queen cups, varroa, queens).
-*   Orchestrating calls to internal ML models (`models-bee-detector`, `models-frame-resources`) and external services (Clarifai) for specific detections.
+*   Managing an asynchronous job queue (using MySQL + Redis Pub/Sub) for various detection tasks (resizing, bees, cells, varroa, queens).
+*   Orchestrating calls to internal ML models (`models-bee-detector`, `models-frame-resources`, `models-varroa-*`, `models-queen-bee-detector`) for detections.
 *   Storing detection results (bounding boxes, counts, percentages) in the database.
 *   Publishing processing status updates via Redis Pub/Sub for real-time notifications.
 *   Exposing processed data and initiating actions (like AI advice generation) through a federated GraphQL API.
@@ -58,7 +58,8 @@ graph LR
             direction TB
             BeeDetector("<a href='https://github.com/Gratheon/models-bee-detector'>models-bee-detector</a>")
             FrameResources("<a href='https://github.com/Gratheon/models-frame-resources'>models-frame-resources</a>")
-            Clarifai(Clarifai API)
+            VarroaModels(models-varroa-*)
+            QueenDetector(models-queen-bee-detector)
         end
     end
 
@@ -78,7 +79,8 @@ graph LR
 
     ImageSplitter -- Detect Bees --> BeeDetector
     ImageSplitter -- Detect Cells --> FrameResources
-    ImageSplitter -- Detect Varroa/Queens/Cups --> Clarifai
+    ImageSplitter -- Detect Varroa --> VarroaModels
+    ImageSplitter -- Detect Queens --> QueenDetector
 
     style ImageSplitter fill:#f9f,stroke:#333,stroke-width:2px
 ```
@@ -93,7 +95,7 @@ graph LR
 *   **Cache/PubSub:** Redis (`ioredis`)
 *   **Object Storage:** AWS S3 / Minio (`@aws-sdk/client-s3`)
 *   **Image Processing:** Sharp, webp-converter
-*   **ML Integrations:** Clarifai gRPC (`clarifai-nodejs-grpc`), Internal REST APIs
+*   **ML Integrations:** Internal REST APIs
 *   **Containerization:** Docker, Docker Compose
 *   **Monitoring:** Sentry (`@sentry/node`)
 *   **Testing:** Jest
@@ -119,7 +121,7 @@ The service exposes a GraphQL endpoint, typically accessed via the federated `gr
 *   `filesStrokeEditMutation(files: [FilesUpdateInput]): Boolean`: Saves user-drawn annotations on an image.
 *   `updateFrameSideCells(cells: FrameSideCellsInput!): Boolean!`: Allows manual correction of detected cell percentages.
 *   `confirmFrameSideQueen(frameSideId: ID!, isConfirmed: Boolean!): Boolean!`: Manually confirms or denies the presence of a queen on a frame side.
-*   `generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String`: Triggers a call to an external AI (e.g., GPT-4 via Clarifai) to generate advice based on hive data.
+*   `generateHiveAdvice(hiveID: ID, adviceContext: JSON, langCode: String): String`: Triggers a Gemini call to generate advice based on hive data.
 *   `cloneFramesForInspection(frameSideIDs: [ID], inspectionId: ID!): Boolean!`: Creates copies of frame side data associated with a new inspection record.
 
 ### Key Queries
@@ -278,9 +280,9 @@ The service utilizes a hybrid MySQL + Redis Pub/Sub job queue for handling time-
 |----------|-----------|------------|----------|
 | 1 (High) | `resize`, `notify` | None | User-blocking operations |
 | 3 (Medium) | `bees`, `drones`, `cells` | 100ms | Local AI processing |
-| 5 (Low) | `varroa`, `varroa_bottom`, `queens`, `cups` | 2000ms | External API calls (Clarifai) |
+| 5 (Low) | `varroa`, `varroa_bottom`, `queens` | 2000ms | Rate-limited model calls |
 
-**Rate Limiting**: External API jobs are limited to 30 calls/minute (2000ms between jobs) to prevent quota exhaustion.
+**Rate Limiting**: Heavier model jobs are limited to 30 calls/minute (2000ms between jobs) to avoid overloading model services.
 
 ### Workflow
 
@@ -309,11 +311,11 @@ The service utilizes a hybrid MySQL + Redis Pub/Sub job queue for handling time-
     - `resizeOriginalToThumbnails` for resize jobs
     - `detectWorkerBees` for bee detection
     - `analyzeCells` for cell detection
-    - `detectVarroa`, `detectQueens`, `analyzeQueenCups` for Clarifai jobs
+    - `detectVarroa`, `detectVarroaBottom`, `detectQueens` for rate-limited model jobs
 
 6.  **External Calls:** Handlers download images from S3/Minio and call ML services:
     - Internal models: `models-bee-detector`, `models-frame-resources`
-    - External API: Clarifai (varroa, queens, cups)
+    - Internal REST models: varroa and queen detection services
 
 7.  **Result Storage:** Results stored in database tables:
     - `files_resized` for thumbnails
@@ -539,7 +541,7 @@ Configuration is managed via files in `src/config/` (`config.default.ts`, `confi
 *   `mysql`: Database connection details (host, port, user, password, database).
 *   `aws`: S3/Minio configuration (bucket, key, secret, endpoint, public URL).
 *   `jwt.privateKey`: Secret key for JWT verification (must match `user-cycle` service).
-*   `clarifai`: API Keys (PATs) for different Clarifai applications (varroa, queen, cups, beekeeper AI).
+*   `gemini`: API key and model for hive advice generation.
 
 Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, testing, prod) influence which configuration values are used.
 
@@ -568,7 +570,7 @@ Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, te
     
     Update `config.dev.ts` with:
     - AWS/Minio credentials (use Minio for local dev)
-    - Clarifai PATs (optional, for testing external APIs)
+    - Gemini API key (optional, for hive advice)
     - MySQL connection (defaults work with Docker Compose)
     - Redis connection (defaults work with Docker Compose)
 
@@ -900,7 +902,6 @@ docker exec image-splitter nslookup models-bee-detector
 | `Redis connection timeout` | Redis not running or unreachable | Start Redis container |
 | `Failed to acquire lock on job` | Concurrent processing attempt | Normal, worker will retry |
 | `File not found in S3` | Missing or deleted file | Check S3/Minio bucket |
-| `clarifai.StatusCodeException` | API quota exceeded or invalid PAT | Check Clarifai dashboard |
 | `Cannot read property 'width' of null` | File metadata missing | Re-upload file |
 | `Out of memory` | Image too large or memory limit too low | Increase memory limit |
 
@@ -919,12 +920,11 @@ docker exec image-splitter nslookup models-bee-detector
 - **Internal ML Services**: 
   - `models-bee-detector` (bee/drone detection)
   - `models-frame-resources` (cell detection)
-- **External APIs**: Clarifai API keys (varroa, queens, cups, AI advice)
 
 **Environment Configuration:**
 - `ENV_ID=prod` to use production configuration
 - Valid Sentry DSN for error monitoring
-- Clarifai Personal Access Tokens (PATs)
+- Gemini API key for hive advice
 - AWS S3 credentials (or Minio endpoint for self-hosted)
 - MySQL connection details
 - Redis connection details
@@ -1000,7 +1000,7 @@ docker exec image-splitter nslookup models-bee-detector
 - Redis pub/sub message rate
 - S3 request count and latency
 - Memory usage (track for OOM issues)
-- External API quota usage (Clarifai)
+- Internal model request latency and error rate
 
 **Alerts to Configure**:
 - Job queue backed up (>100 pending jobs)

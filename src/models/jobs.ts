@@ -6,7 +6,6 @@ import { measureProcessingStep } from "../metrics";
 
 export const TYPE_RESIZE = "resize";
 
-export const TYPE_CUPS = "cups";
 export const TYPE_CELLS = "cells";
 export const TYPE_QUEENS = "queens";
 export const TYPE_VARROA = "varroa";

@@ -31,7 +31,7 @@ describe('transformSubImageCoordsToOriginal', () => {
         right_col: 0.9
     };
 
-    test('converts Clarifai coordinates with cutPosition having maxCutsX and maxCutsY > 0', () => {
+    test('converts sub-image coordinates with cutPosition having maxCutsX and maxCutsY > 0', () => {
         const cutPosition: CutPosition = {
             maxCutsX: 2,
             maxCutsY: 3,

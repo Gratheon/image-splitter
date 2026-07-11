@@ -7,7 +7,7 @@ jest.mock('graphql-upload/GraphQLUpload.mjs', () => ({
 
 import { resolvers } from '../../../src/graphql/resolvers';
 import fileModel from '../../../src/models/file';
-import { TYPE_CUPS, TYPE_DRONES, TYPE_QUEENS, TYPE_VARROA } from '../../../src/models/jobs';
+import { TYPE_DRONES, TYPE_QUEENS, TYPE_VARROA } from '../../../src/models/jobs';
 import { sql, storage } from '../../../src/models/storage';
 import { insertJobForTest, nextId, registerResolverIntegrationLifecycle } from './helpers';
 
@@ -47,7 +47,6 @@ describe('FrameSideFile detection and count resolvers (integration)', () => {
 
     await insertJobForTest(TYPE_DRONES, fileId, 'NOW');
     await insertJobForTest(TYPE_QUEENS, fileId, 'NOW');
-    await insertJobForTest(TYPE_CUPS, fileId, 'NOW');
     await insertJobForTest(TYPE_VARROA, fileId, 'NOW');
 
     const parent = { frameSideId, fileId };

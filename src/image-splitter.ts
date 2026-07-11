@@ -26,7 +26,6 @@ import { publisher } from "./redisPubSub";
 import {
     TYPE_BEES,
     TYPE_CELLS,
-    TYPE_CUPS,
     TYPE_DRONES,
     TYPE_QUEENS,
     TYPE_RESIZE,
@@ -214,7 +213,6 @@ async function repopulateRedisQueue() {
         TYPE_BEES,
         TYPE_DRONES,
         TYPE_CELLS,
-        TYPE_CUPS,
         TYPE_QUEENS,
         TYPE_VARROA,
         TYPE_VARROA_BOTTOM,

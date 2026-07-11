@@ -67,21 +67,5 @@ export default {
     gemini: {
         apiKey: process.env.GEMINI_API_KEY || "",
         model: process.env.GEMINI_HIVE_MODEL || process.env.GEMINI_MODEL || "gemini-3.1-pro",
-    },
-
-    // please set own Clarifai API credentials
-    clarifai: {
-        varroa_app: {
-          PAT: "",
-        },
-        cup_app: {
-            PAT: ""
-        },
-        beekeeper_app: {
-            PAT: "",
-            USER_ID: "openai",
-            APP_ID: "chat-completion",
-            MODEL_ID: "GPT-4"
-        }
     }
 }

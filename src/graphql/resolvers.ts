@@ -14,7 +14,7 @@ import detectionSettingsModel from '../models/detectionSettings';
 import { sendPopulationMetrics } from '../models/telemetryClient';
 
 import uploadFrameSide, { uploadApiaryPhoto } from "./upload-frame-side";
-import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_CUPS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
+import jobs, {TYPE_BEES, TYPE_DRONES, TYPE_CELLS, TYPE_QUEENS, TYPE_VARROA, TYPE_VARROA_BOTTOM} from "../models/jobs";
 import { wrapGraphqlResolversWithMetrics } from "../metrics";
 
 const OWNER_LOOKUP_RETRY_DELAYS_MS = [0, 100, 250, 500, 1000];
@@ -246,10 +246,7 @@ const baseResolvers = {
         },
         isQueenCupsDetectionComplete: async (parent, _, {uid}) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
-            if (!fileId) {
-                 return false;
-            }
-            return jobs.isComplete(TYPE_CUPS, fileId)
+            return Boolean(fileId)
         },
         isQueenDetectionComplete: async (parent, _, {uid}) => {
             const fileId = await resolvers.FrameSideFile._resolveFileIdForCompletion(parent, uid);
@@ -385,7 +382,6 @@ const baseResolvers = {
 
             await fileModel.addFrameRelation(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
             await frameSideCellsModel.addFrameCells(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
-            await frameSideQueenCupsModel.addFrameCups(normalizedFileId, normalizedFrameSideId, effectiveUidNumber);
 
             await fileModel.addHiveRelation(normalizedFileId, normalizedHiveId, effectiveUidNumber);
             const detectionPayload = await detectionSettingsModel.getJobPayloadForUser(effectiveUidNumber);
@@ -397,7 +393,6 @@ const baseResolvers = {
                 jobs.addJob(TYPE_BEES, normalizedFileId, detectionPayload, 3),
                 jobs.addJob(TYPE_DRONES, normalizedFileId, detectionPayload, 3),
                 jobs.addJob(TYPE_CELLS, normalizedFileId, detectionPayload, 3),
-                jobs.addJob(TYPE_CUPS, normalizedFileId, detectionPayload, 5),
                 jobs.addJob(TYPE_QUEENS, normalizedFileId, detectionPayload, 5)
             ]);
 

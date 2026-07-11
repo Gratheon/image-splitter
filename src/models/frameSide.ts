@@ -587,7 +587,7 @@ export function convertDetectedBeesStorageFormat(txt: string, cutPosition: CutPo
         }
 
         // skip queen detections coming from models-bee-detector
-        // we run a separate model for queen detection in clarifai
+        // queen detection is handled by a dedicated queen detector service
         if (n !== typeMap.BEE_QUEEN) {
             result.push({
                 n,
