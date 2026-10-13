@@ -29,7 +29,7 @@ services:
 #      replicas: 3
 
   minio:
-    image: minio/minio
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     environment:
       MINIO_ROOT_USER: minio-admin
       MINIO_ROOT_PASSWORD: minio-admin
@@ -47,7 +47,7 @@ services:
       retries: 5
 
   create-bucket:
-    image: minio/mc:latest
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     container_name: create-minio-bucket-dev
     environment:
       MINIO_HOST: minio

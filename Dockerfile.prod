@@ -1,4 +1,4 @@
-FROM platformatic/node-caged:25-slim AS build
+FROM platformatic/node-caged:26-slim AS build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN npm install -g pnpm@10.29.2 \
   && npm cache clean --force \
   && rm -rf /root/.local/share/pnpm/store /tmp/*
 
-FROM platformatic/node-caged:25-slim
+FROM platformatic/node-caged:26-slim
 
 WORKDIR /app
 

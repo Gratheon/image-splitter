@@ -29,8 +29,8 @@ services:
         condition: service_completed_successfully
 
   mysql-test:
-    image: mysql:8.2
-    command: mysqld --default-authentication-plugin=mysql_native_password --skip-mysqlx --sort_buffer_size=512K
+    image: mysql:8.4
+    command: mysqld --mysql-native-password=ON --skip-mysqlx --sort_buffer_size=512K
     environment:
       MYSQL_USER: test
       MYSQL_PASSWORD: test
@@ -50,7 +50,7 @@ services:
       start_period: 10s # Give it some time to start before checking
 
   minio:
-    image: minio/minio
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     ports:
       - 19000:19000
       - 9001:9001
@@ -68,7 +68,7 @@ services:
       retries: 5
 
   create-bucket:
-    image: minio/mc:latest
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     container_name: create-minio-bucket
     environment:
       MINIO_HOST: minio
