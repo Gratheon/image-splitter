@@ -21,7 +21,7 @@ import {createLoaders} from "./graphql/dataloader";
 import config from "./config/index";
 import {fastifyLogger, logger} from "./logger";
 import "./sentry";
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 import { publisher } from "./redisPubSub";
 import {
     TYPE_BEES,
@@ -227,7 +227,7 @@ async function repopulateRedisQueue() {
                 sql`SELECT id, ref_id, priority FROM jobs
                     WHERE name = ${jobType}
                       AND process_end_time IS NULL
-                      AND (process_start_time IS NULL OR process_start_time <= NOW() - INTERVAL 1 MINUTE)
+                      AND (process_start_time IS NULL OR process_start_time <= NOW() - INTERVAL '1 minute')
                       AND calls < 3
                     ORDER BY priority ASC, id ASC`
             );
@@ -310,7 +310,7 @@ async function repopulateRedisQueue() {
     app.get('/healthz', async (request, reply) => {
       return {
         status: 'ok',
-        mysql: isStorageConnected() ? 'connected' : 'disconnected'
+        postgres: isStorageConnected() ? 'connected' : 'disconnected'
       };
     });
 

@@ -27,8 +27,8 @@ describe('Query.varroaBottomDetections resolver (integration)', () => {
     `);
     await storage().query(sql`
       INSERT INTO varroa_bottom_detections (file_id, box_id, user_id, varroa_count, detections)
-      VALUES (${fileId}, ${boxId}, ${uid}, 5, JSON_ARRAY())
-      ON DUPLICATE KEY UPDATE varroa_count = VALUES(varroa_count)
+      VALUES (${fileId}, ${boxId}, ${uid}, 5, '[]'::jsonb)
+      ON CONFLICT (file_id) DO UPDATE SET varroa_count = EXCLUDED.varroa_count
     `);
 
     const row = await resolvers.Query.varroaBottomDetections(

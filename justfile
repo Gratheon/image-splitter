@@ -16,7 +16,6 @@ test-unit:
 test-integration:
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
-	rm -rf ./test/mysql82
 	rm -rf ./test/minio
 	source $HOME/.nvm/nvm.sh && nvm use && pnpm install && pnpm run build
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml up -d
@@ -24,10 +23,9 @@ test-integration:
 	ENV_ID=testing pnpm run test:integration
 
 test-integration-ci:
-	# Ensure clean environment: stop, remove containers, and remove the mysql volume
+	# Ensure clean environment: stop and remove containers (Postgres data lives in tmpfs)
 	COMPOSE_PROJECT_NAME=gratheon-test docker compose -f docker-compose.test.yml down --volumes
 	rm -rf ./app
-	rm -rf ./test/mysql82
 	rm -rf ./test/minio
 	pnpm install && pnpm run build
 	# Start fresh, forcing a rebuild to include latest code changes

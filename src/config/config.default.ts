@@ -30,12 +30,14 @@ export default {
     telemetry_api_url: "http://telemetry-api:4000/graphql",
 
     // DB connection details, used also for migrations
-    mysql: {
-        host: process.env.NATIVE ? 'localhost': 'mysql',
-        port: process.env.NATIVE ? '60003' :'3306',
-        user: 'root',
-        password: 'test',
-        database: 'image-splitter',
+    postgres: {
+        host: process.env.DB_HOST || (process.env.NATIVE ? 'localhost' : 'postgres'),
+        port: process.env.DB_PORT || '5432',
+        user: process.env.DB_USER || 'test',
+        password: process.env.DB_PASSWORD || 'test',
+        database: process.env.DB_NAME || 'image_splitter',
+        // disable | prefer | require | no-verify
+        ssl: process.env.DB_SSL || 'prefer',
     },
 
     // please set own AWS S3 bucket credentials

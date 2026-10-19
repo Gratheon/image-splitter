@@ -10,7 +10,7 @@ describe('service endpoints', () => {
 
         const body = await response.json();
         expect(body).toHaveProperty('status', 'ok');
-        expect(body).toHaveProperty('mysql');
+        expect(body).toHaveProperty('postgres');
     });
 
     it('does not expose job stats', async () => {

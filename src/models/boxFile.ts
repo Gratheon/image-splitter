@@ -1,4 +1,4 @@
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 import { storage } from "./storage";
 import { logger } from "../logger";
 import config from "../config/index";
@@ -31,7 +31,7 @@ export default {
                        WHERE fbr.box_id = ${boxId} 
                          AND fbr.user_id = ${userId} 
                          AND fbr.inspection_id = ${inspectionId}
-                       ORDER BY fbr.added_time DESC`
+                       ORDER BY fbr.added_time DESC NULLS LAST`
                 )
                 : await storage().query(
                     sql`SELECT fbr.box_id, fbr.file_id, fbr.user_id, fbr.inspection_id, fbr.added_time,
@@ -43,7 +43,7 @@ export default {
                        WHERE fbr.box_id = ${boxId} 
                          AND fbr.user_id = ${userId} 
                          AND fbr.inspection_id IS NULL
-                       ORDER BY fbr.added_time DESC`
+                       ORDER BY fbr.added_time DESC NULLS LAST`
                 );
 
             return result.map(row => ({
@@ -94,9 +94,9 @@ export default {
                 sql`INSERT INTO varroa_bottom_detections 
                     (file_id, box_id, user_id, varroa_count, detections)
                     VALUES (${fileId}, ${boxId}, ${userId}, ${count}, ${JSON.stringify(detections)})
-                    ON DUPLICATE KEY UPDATE
-                    varroa_count = VALUES(varroa_count),
-                    detections = VALUES(detections),
+                    ON CONFLICT (file_id) DO UPDATE SET
+                    varroa_count = EXCLUDED.varroa_count,
+                    detections = EXCLUDED.detections,
                     processed_at = NOW()`
             );
             logger.info('Updated varroa bottom detections', {fileId, boxId, userId, count});
@@ -116,7 +116,7 @@ export default {
                     WHERE vbd.box_id = ${boxId}
                       AND vbd.user_id = ${userId}
                       AND fbr.inspection_id ${inspectionId ? sql`= ${inspectionId}` : sql`IS NULL`}
-                    ORDER BY vbd.processed_at DESC
+                    ORDER BY vbd.processed_at DESC NULLS LAST -- MySQL sorted NULLs last in DESC, Postgres first
                     LIMIT 1`
             );
 

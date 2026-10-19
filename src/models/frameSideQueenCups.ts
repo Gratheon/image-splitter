@@ -1,4 +1,4 @@
-import {sql} from "@databases/mysql";
+import {sql} from "@databases/pg";
 
 import * as imageModel from "../models/image";
 import {storage} from "./storage";
@@ -68,8 +68,8 @@ export default {
     addFrameCups: async function (file_id: number, frame_side_id: number, user_id: number) {
         await storage().query(sql`
             INSERT INTO files_frame_side_queen_cups (file_id, frame_side_id, user_id)
-            SELECT ${file_id}, ${frame_side_id}, ${user_id}
-            FROM DUAL
+            -- casts: untyped params in an INSERT ... SELECT list would resolve to text
+      SELECT ${file_id}::int, ${frame_side_id}::int, ${user_id}::int
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM files_frame_side_queen_cups
@@ -87,7 +87,7 @@ export default {
             sql`UPDATE files_frame_side_queen_cups
                 SET inspection_id=${inspectionId}
                 WHERE inspection_id IS NULL
-                  AND frame_side_id IN (${frameSideIDs})
+                  AND frame_side_id = ANY(${frameSideIDs}::int[])
                   AND user_id = ${uid}`
         );
 

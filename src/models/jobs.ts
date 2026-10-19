@@ -1,6 +1,6 @@
 import { logger } from "../logger";
 import { storage } from "./storage";
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 import { publisher, subscriber } from "../redisPubSub";
 import { measureProcessingStep } from "../metrics";
 
@@ -48,11 +48,14 @@ const jobsModel = {
       sql`SELECT *
                 FROM jobs
                 WHERE name = ${name}
-                  AND ( (process_start_time <= NOW() - INTERVAL 1 MINUTE) OR process_start_time IS NULL)
+                  AND ( (process_start_time <= NOW() - INTERVAL '1 minute') OR process_start_time IS NULL)
                   AND process_end_time IS NULL
                   AND (calls < 3)
                 ORDER BY priority ASC, id ASC
-                LIMIT 1`,
+                LIMIT 1
+                -- concurrent checkAndProcessJob() calls (Redis message + setImmediate) skip a job
+                -- that another transaction is already claiming instead of processing it twice
+                FOR UPDATE SKIP LOCKED`,
     );
 
     if (jobs.length === 0) {
@@ -63,25 +66,10 @@ const jobsModel = {
   },
 
   addJob: async function (name: string, refId: number, resizePayload = {}, priority = 5) {
-    try {
-      await storage().query(
-        sql`INSERT INTO jobs (name, ref_id, payload, priority)
-        VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)}, ${priority})`,
-      );
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-
-      // Backward compatibility: some DBs may still be missing `priority`.
-      if (errorMessage.includes("Unknown column 'priority'")) {
-        logger.warn("jobs.priority column missing, falling back to legacy insert");
-        await storage().query(
-          sql`INSERT INTO jobs (name, ref_id, payload)
-          VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)})`,
-        );
-      } else {
-        throw e;
-      }
-    }
+    await storage().query(
+      sql`INSERT INTO jobs (name, ref_id, payload, priority)
+      VALUES (${name}, ${refId}, ${JSON.stringify(resizePayload)}, ${priority})`,
+    );
     
     // Notify workers via Redis that a new job is available
     try {
@@ -129,6 +117,9 @@ const jobsModel = {
                 FROM jobs
                 WHERE name = ${name}
                   AND ref_id = ${refId}
+                -- a file can have several jobs of one type (reprocessing): report the newest one,
+                -- Postgres has no stable implicit row order for LIMIT without ORDER BY
+                ORDER BY id DESC
                 LIMIT 1`,
     );
 

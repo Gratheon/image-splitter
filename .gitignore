@@ -14,4 +14,3 @@ src/config/config.prod.ts
 .DS_Store
 minio
 test/minio
-test/mysql82

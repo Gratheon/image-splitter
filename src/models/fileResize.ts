@@ -1,4 +1,4 @@
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 
 import { storage } from "./storage";
 import config from "../config/index";
@@ -8,8 +8,8 @@ export default {
 		// @ts-ignore
 		return (await storage().query(sql`
 			INSERT INTO files_resized (file_id, max_dimension_px) 
-			VALUES (${file_id}, ${max_dimension_px});
-			SELECT LAST_INSERT_ID() as id;
+			VALUES (${file_id}, ${max_dimension_px})
+			RETURNING id;
 		`))[0].id;
 	},
 
