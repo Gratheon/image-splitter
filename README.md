@@ -12,7 +12,7 @@ It receives uploaded images, stores them, manages a queue of analysis jobs, call
 
 *   Accepting direct image uploads (frame sides).
 *   Storing original images and generated thumbnails in object storage (AWS S3/Minio).
-*   Managing an asynchronous job queue (using MySQL + Redis Pub/Sub) for various detection tasks (resizing, bees, cells, varroa, queens).
+*   Managing an asynchronous job queue (using Postgres + Redis Pub/Sub) for various detection tasks (resizing, bees, cells, varroa, queens).
 *   Orchestrating calls to internal ML models (`models-bee-detector`, `models-frame-resources`, `models-varroa-*`, `models-queen-bee-detector`) for detections.
 *   Storing detection results (bounding boxes, counts, percentages) in the database.
 *   Publishing processing status updates via Redis Pub/Sub for real-time notifications.
@@ -50,7 +50,7 @@ graph LR
         ImageSplitter["<b>image-splitter</b><br/>(This Service)"]
         subgraph Storage
             direction TB
-            MySQL[(MySQL DB)]
+            Postgres[(Postgres DB)]
             Redis[(Redis)]
             S3(Object Storage<br/>AWS S3 / Minio)
         end
@@ -73,7 +73,7 @@ graph LR
     WebApp -- Direct Image Upload --> ImageSplitter
 
     ImageSplitter -- Register Schema --> SchemaRegistry
-    ImageSplitter -- Store/Retrieve Jobs & Results --> MySQL
+    ImageSplitter -- Store/Retrieve Jobs & Results --> Postgres
     ImageSplitter -- Publish Events --> Redis
     ImageSplitter -- Store/Retrieve Images --> S3
 
@@ -90,8 +90,8 @@ graph LR
 *   **Language:** TypeScript
 *   **Framework:** Fastify
 *   **API:** GraphQL (Apollo Server v3, Apollo Federation v1)
-*   **Database:** MySQL (`@databases/mysql`)
-*   **Job Queue:** Hybrid MySQL + Redis Pub/Sub (custom implementation)
+*   **Database:** Postgres (`@databases/pg`)
+*   **Job Queue:** Hybrid Postgres + Redis Pub/Sub (custom implementation)
 *   **Cache/PubSub:** Redis (`ioredis`)
 *   **Object Storage:** AWS S3 / Minio (`@aws-sdk/client-s3`)
 *   **Image Processing:** Sharp, webp-converter
@@ -139,7 +139,7 @@ sequenceDiagram
     participant Client
     participant ImageSplitter
     participant S3 [Object Storage]
-    participant DB [(MySQL DB)]
+    participant DB [(Postgres DB)]
 
     Client->>+ImageSplitter: POST /graphql (multipart/form-data)\nMutation: uploadFrameSide(file: Upload!)
     ImageSplitter->>ImageSplitter: Authenticate (JWT)
@@ -156,7 +156,7 @@ sequenceDiagram
 
 ## Database Schema
 
-The service uses a MySQL database to store file metadata, job queue information, and detection results.
+The service uses a Postgres database to store file metadata, job queue information, and detection results.
 
 **Key Tables:**
 
@@ -258,12 +258,12 @@ erDiagram
 
 ## Asynchronous Processing
 
-The service utilizes a hybrid MySQL + Redis Pub/Sub job queue for handling time-consuming image analysis tasks asynchronously. This architecture eliminates database polling, reduces database load by 90-95%, and provides near-instant job processing.
+The service utilizes a hybrid Postgres + Redis Pub/Sub job queue for handling time-consuming image analysis tasks asynchronously. This architecture eliminates database polling, reduces database load by 90-95%, and provides near-instant job processing.
 
 ### Architecture Overview
 
 **Job Queue Design:**
-- **MySQL Database**: Source of truth for job persistence, auditing, and recovery
+- **Postgres Database**: Source of truth for job persistence, auditing, and recovery
 - **Redis Pub/Sub**: Instant notification system to wake up workers when jobs are added
 - **Workers**: Subscribe to Redis channels and process jobs on-demand
 
@@ -415,9 +415,9 @@ Worker bee and drone detection split images into chunks for processing:
    - Includes `isBeeDetectionComplete: true` and final counts
    
 **Atomic Updates:**
-- Uses MySQL's `JSON_MERGE_PRESERVE` to avoid race conditions
+- Uses Postgres jsonb array concatenation (`detected_bees || $new`) to avoid race conditions
 - Each chunk's detections are appended atomically
-- Counters incremented with `IFNULL(count, 0) + newCount`
+- Counters incremented with `COALESCE(count, 0) + newCount`
 - No read-modify-write cycles that could lose data
 
 **Memory & Performance:**
@@ -433,7 +433,7 @@ sequenceDiagram
     participant Client
     participant GraphQL as "GraphQL Mutation"
     participant JobsModel
-    participant DB [(MySQL DB)]
+    participant DB [(Postgres DB)]
     participant Redis
     participant Worker as "Worker (subscribed)"
     participant S3 [Object Storage]
@@ -502,7 +502,7 @@ The general pattern for the Redis channel is: `{uid}.frame_side.{frame_side_id}.
 sequenceDiagram
     participant Worker as "Worker (e.g., detectWorkerBees)"
     participant JobsModel
-    participant DB [(MySQL DB)]
+    participant DB [(Postgres DB)]
     participant notifyViaRedis as "notifyViaRedis Worker"
     participant Redis
 
@@ -538,7 +538,7 @@ Configuration is managed via files in `src/config/` (`config.default.ts`, `confi
 *   `selfUrl`: Publicly accessible URL of this service for the registry.
 *   `yolo_v5_url`: Endpoint for the internal bee detection model.
 *   `models_frame_resources_url`: Endpoint for the internal cell detection model.
-*   `mysql`: Database connection details (host, port, user, password, database).
+*   `postgres`: Database connection details (host, port, user, password, database, `ssl`: `disable` | `prefer` | `require` | `no-verify`; production uses `require`). Can be overridden with `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`.
 *   `aws`: S3/Minio configuration (bucket, key, secret, endpoint, public URL).
 *   `jwt.privateKey`: Secret key for JWT verification (must match `user-cycle` service).
 *   `gemini`: API key and model for hive advice generation.
@@ -549,10 +549,10 @@ Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, te
 
 ### Prerequisites
 
-*   **Node.js** v18+ (check with `node --version`)
+*   **Node.js** v26+ (see `.nvmrc`)
 *   **Docker** and **Docker Compose** (for running services)
 *   **Just** command runner (optional but recommended: `brew install just`)
-*   **MySQL Client** (for manual database operations)
+*   **psql** (for manual database operations)
 *   **Redis CLI** (for debugging pub/sub)
 
 ### Setup
@@ -571,7 +571,7 @@ Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, te
     Update `config.dev.ts` with:
     - AWS/Minio credentials (use Minio for local dev)
     - Gemini API key (optional, for hive advice)
-    - MySQL connection (defaults work with Docker Compose)
+    - Postgres connection (defaults expect a `postgres` host on the shared dev network)
     - Redis connection (defaults work with Docker Compose)
 
 3.  **Install Dependencies**:
@@ -588,7 +588,6 @@ Environment variables like `NATIVE` (for local vs. Docker) and `ENV_ID` (dev, te
     
     This starts:
     - `image-splitter` service (port 8800)
-    - MySQL database (port 5100)
     - Minio object storage (port 19000, console: 19001)
     - Redis (port 6379)
 
@@ -630,11 +629,11 @@ docker-compose -f docker-compose.dev.yml logs -f | grep "Processing job"
 
 **Database Access**:
 ```bash
-# Connect to MySQL
-docker exec -it image-splitter-mysql-1 mysql -u root -ptest image-splitter
+# Test environment Postgres (docker-compose.test.yml)
+docker exec -it gratheon-test-postgres-test-1 psql -U test image_splitter
 
 # Or via local client
-mysql -h 127.0.0.1 -P 5100 -u root -ptest image-splitter
+psql -h 127.0.0.1 -p 5101 -U test image_splitter
 ```
 
 **Redis Monitoring**:
@@ -664,10 +663,12 @@ just logs            # Tail service logs
 
 ### Database Migrations
 
-Migrations are plain SQL files located in the `migrations/` directory. They are applied automatically on service startup using `@databases/mysql`.
+Migrations are plain Postgres SQL files located in the `migrations/` directory. They are applied automatically on service startup using `@databases/pg`, each one in a transaction; a failing migration keeps the service reporting the DB as disconnected.
 
-*   **Adding Migrations:** Create a new SQL file in `migrations/` following the naming convention (e.g., `020-new-feature.sql`). The service will apply it on the next restart.
-*   **Schema Generation:** You can generate TypeScript types from the DB schema using `pnpm run generate-db-schema` (ensure DB is running).
+*   **Baseline:** `001-baseline.sql` is the full schema at the time of the MySQL -> Postgres move. The old MySQL migrations remain in git history.
+*   **Adding Migrations:** Create a new SQL file in `migrations/` following the naming convention (e.g., `002-new-feature.sql`). The service will apply it on the next restart. Applied migrations are matched by filename or hash, so never edit an applied file - add a new one.
+*   **Quoting:** Postgres folds unquoted identifiers to lower case. Quote camelCase aliases (`AS "fileId"`) and the `"strokeHistory"` column.
+*   **One-off MySQL data copy:** `scripts/migrate-mysql-to-postgres.js` (see its header for usage).
 
 ## Testing
 
@@ -701,8 +702,8 @@ just test-integration
 
 **What it does:**
 1. Spins up test environment via `docker-compose.test.yml`:
-   - MySQL database (port 5100)
-   - Redis (port 6379)
+   - Postgres 18 database (port 5101)
+   - Redis (port 16379)
    - Minio object storage (port 19000)
 2. Runs database migrations
 3. Executes test suite against running services
@@ -836,23 +837,14 @@ docker exec -it image-splitter-redis-1 redis-cli
 **Check:**
 ```bash
 # Check active queries
-docker exec -it image-splitter-mysql-1 mysql -u root -ptest -e "SHOW PROCESSLIST;"
-
-# Check slow queries
-docker exec -it image-splitter-mysql-1 mysql -u root -ptest -e "SELECT * FROM mysql.slow_log LIMIT 10;"
+psql -c "SELECT pid, now() - query_start AS duration, state, query FROM pg_stat_activity WHERE datname = current_database();"
 
 # Check table sizes
-docker exec -it image-splitter-mysql-1 mysql -u root -ptest image-splitter -e "
-SELECT 
-  table_name, 
-  ROUND(data_length/1024/1024, 2) AS 'Data Size (MB)',
-  table_rows 
-FROM information_schema.tables 
-WHERE table_schema='image-splitter';"
+psql -c "SELECT relname, pg_size_pretty(pg_total_relation_size(relid)) AS total_size, n_live_tup FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC;"
 ```
 
 **Solutions**:
-- Add missing indexes (check migration 023-job-priorities.sql)
+- Add missing indexes (see `migrations/001-baseline.sql`)
 - Archive old completed jobs
 - Optimize `files_frame_side_rel` table (large JSON columns)
 
@@ -914,7 +906,7 @@ docker exec image-splitter nslookup models-bee-detector
 ### Production Requirements
 
 **Infrastructure:**
-- **MySQL Database**: For job persistence and data storage
+- **Postgres Database**: For job persistence and data storage
 - **Redis**: For job notifications and real-time pub/sub events
 - **S3-compatible Object Storage**: AWS S3 (production) or Minio (dev/test)
 - **Internal ML Services**: 
@@ -926,7 +918,7 @@ docker exec image-splitter nslookup models-bee-detector
 - Valid Sentry DSN for error monitoring
 - Gemini API key for hive advice
 - AWS S3 credentials (or Minio endpoint for self-hosted)
-- MySQL connection details
+- Postgres connection details (`ssl: 'require'` for managed Postgres)
 - Redis connection details
 - JWT private key (shared with `user-cycle` service)
 - Router signature (shared with `graphql-router`)
@@ -938,7 +930,7 @@ docker exec image-splitter nslookup models-bee-detector
    # Migrations are auto-applied on service startup
    # Or manually apply:
    for file in migrations/*.sql; do
-     mysql -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME < $file
+     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f "$file"
    done
    ```
 
@@ -949,7 +941,7 @@ docker exec image-splitter nslookup models-bee-detector
 
 3. **Deploy Container**:
    - Listens on port 8800 internally
-   - Requires network access to MySQL, Redis, S3, and ML services
+   - Requires network access to Postgres, Redis, S3, and ML services
    - Set memory limit to at least 4GB (`--memory=4g`)
    - Set CPU limit based on expected load
 
@@ -984,7 +976,7 @@ docker exec image-splitter nslookup models-bee-detector
 
 - **Storage**: AWS S3 instead of Minio
 - **Redis**: Production Redis instance with persistence
-- **Database**: Production MySQL with replication/backups
+- **Database**: Managed Postgres with replication/backups
 - **Monitoring**: Sentry integration enabled
 - **ML Services**: Production endpoints with higher quotas
 - **SSL/TLS**: Handled by ingress/load balancer
@@ -1016,7 +1008,7 @@ docker exec image-splitter nslookup models-bee-detector
 *   **Error Reporting:** Integrated with Sentry (`sentryDsn` must be configured).
 *   **Logging:** Uses custom logger (`@gratheon/log-lib`) with dual output:
     - Console output for container logs (stdout/stderr)
-    - MySQL persistence for log history and debugging
+    - OTLP export (logs and traces) for log history and debugging
 
 ### Database Connection Pool Stability
 
@@ -1062,7 +1054,7 @@ docker logs image-splitter -f | grep "Active connections"
 docker logs image-splitter | grep "Timed out waiting"
 
 # Monitor slow queries
-docker exec image-splitter-mysql-1 mysql -u root -ptest -e "SHOW PROCESSLIST;"
+psql -c "SELECT pid, state, query FROM pg_stat_activity WHERE datname = current_database();"
 ```
 
 **Tuning Guidelines:**
@@ -1079,7 +1071,7 @@ The service exposes several HTTP endpoints for monitoring:
     ```json
     {
       "status": "ok",
-      "mysql": "connected"  // or "disconnected"
+      "postgres": "connected"  // or "disconnected"
     }
     ```
 

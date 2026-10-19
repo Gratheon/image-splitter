@@ -6,7 +6,7 @@
   "dependencies": {
     "@apollo/federation": "0.38.1",
     "@aws-sdk/client-s3": "3.1000.0",
-    "@databases/mysql": "^7.0.0",
+    "@databases/pg": "^5.5.0",
     "@gratheon/log-lib": "4.1.2",
     "@sendgrid/mail": "^8.1.6",
     "@sentry/node": "7.120.3",
@@ -41,8 +41,7 @@
     "test:integration": "jest --config ./test/integration/jest.coverage.json --detectOpenHandles --forceExit",
     "test:integration:coverage": "jest --config ./test/integration/jest.coverage.json --detectOpenHandles --forceExit --coverage --coverageDirectory=coverage/integration",
     "dev": "NATIVE=1 ENV_ID=dev tsc-watch --project ./src/config/tsconfig.json --onSuccess \"node ./app/image-splitter.js\"",
-    "dev-in-docker": "tsc-watch --project ./src/config/tsconfig.json --onSuccess \"node --max-old-space-size=4096 ./app/image-splitter.js\"",
-    "generate-db-schema": "pnpm exec @databases/mysql-schema-cli --database mysql://root:test@localhost:5100/ --schemaName image-splitter --directory app/models/__generated__"
+    "dev-in-docker": "tsc-watch --project ./src/config/tsconfig.json --onSuccess \"node --max-old-space-size=4096 ./app/image-splitter.js\""
   },
   "repository": {
     "type": "git",

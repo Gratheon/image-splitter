@@ -24,12 +24,14 @@ export default {
     models_frame_resources_url: "http://models-frame-resources:8540/",
 
     // DB connection details, used also for migrations
-    mysql: {
-        host: process.env.MYSQL_HOST || (process.env.NATIVE ? 'localhost' : 'mysql-test'),
-        port: process.env.MYSQL_PORT || (process.env.NATIVE ? '5101' : '3306'),
-        user: process.env.MYSQL_USER || 'test',
-        password: process.env.MYSQL_PASSWORD || 'test',
-        database: process.env.MYSQL_DATABASE || 'image-splitter',
+    postgres: {
+        host: process.env.DB_HOST || (process.env.NATIVE ? 'localhost' : 'postgres-test'),
+        port: process.env.DB_PORT || (process.env.NATIVE ? '5101' : '5432'),
+        user: process.env.DB_USER || 'test',
+        password: process.env.DB_PASSWORD || 'test',
+        database: process.env.DB_NAME || 'image_splitter',
+        // local test container runs without TLS
+        ssl: process.env.DB_SSL || 'disable',
     },
 
     // please set own AWS S3 bucket credentials

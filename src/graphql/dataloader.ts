@@ -1,5 +1,5 @@
 const DataLoader = require('dataloader');
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 import { storage } from "../models/storage";
 import { logger } from "../logger";
 
@@ -49,7 +49,7 @@ function createFrameSideCellsLoader(uid: number): any {
                         ON t1.file_id = t3.file_id
                     WHERE
                         t1.user_id = ${uid} AND 
-                        t1.frame_side_id IN (${frameSideIdNumbers}) AND 
+                        t1.frame_side_id = ANY(${frameSideIdNumbers}::int[]) AND 
                         t1.inspection_id IS NULL`
                 );
 

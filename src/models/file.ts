@@ -1,4 +1,4 @@
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 
 import { storage } from "./storage";
 import config from "../config/index";
@@ -43,7 +43,7 @@ const fileModel = {
 
   getByFrameSideAndInspectionId: async function (id, inspectionId, uid) {
     const result = await storage().query(
-      sql`SELECT t1.user_id, t2.filename, t1.strokeHistory, t1.detected_bees, 
+      sql`SELECT t1.user_id, t2.filename, t1."strokeHistory", t1.detected_bees, 
       t2.id, t2.width, t2.height, t2.url_version, t2.ext, t2.hash, t2.user_id,
       t3.cells
 
@@ -83,17 +83,17 @@ const fileModel = {
   getHiveStatistics: async function (hiveId, uid) {
     const frameSideStats = await storage().query(
       sql`SELECT 
-        COALESCE(SUM(t2.worker_bee_count), 0) as workerBeeCount,
-        COALESCE(SUM(t2.drone_count), 0) as droneCount,
-        COALESCE(SUM(t2.queen_count), 0) as queenCount,
-        COALESCE(SUM(t2.varroa_count), 0) as varroaCountFrames
+        COALESCE(SUM(t2.worker_bee_count), 0) as "workerBeeCount",
+        COALESCE(SUM(t2.drone_count), 0) as "droneCount",
+        COALESCE(SUM(t2.queen_count), 0) as "queenCount",
+        COALESCE(SUM(t2.varroa_count), 0) as "varroaCountFrames"
 				FROM files_hive_rel t1
 				INNER JOIN files_frame_side_rel t2 ON t2.file_id = t1.file_id
 				WHERE t1.user_id = ${uid} AND t1.hive_id=${hiveId} AND t2.inspection_id IS NULL`
     );
 
     const bottomVarroaStats = await storage().query(
-      sql`SELECT COALESCE(SUM(vbd.varroa_count), 0) as varroaCountBottom
+      sql`SELECT COALESCE(SUM(vbd.varroa_count), 0) as "varroaCountBottom"
         FROM varroa_bottom_detections vbd
         WHERE vbd.user_id = ${uid} 
           AND vbd.box_id IN (
@@ -119,7 +119,7 @@ const fileModel = {
   getByHiveId: async function (hiveId, uid) {
     const files = await storage().query(
       sql`SELECT t2.id, t2.user_id, t2.filename, t2.url_version, t2.hash, t2.ext,
-        t3.frame_side_id, t3.strokeHistory
+        t3.frame_side_id, t3."strokeHistory"
       FROM files t2
       INNER JOIN files_frame_side_rel t3 ON t3.file_id = t2.id AND t3.inspection_id IS NULL
       WHERE t2.id IN (
@@ -204,16 +204,16 @@ const fileModel = {
     // @ts-ignore
     return (await storage().query(sql`
     INSERT INTO files (user_id, filename, hash, ext, width, height, url_version) 
-    VALUES (${user_id}, ${filename}, ${hash}, ${ext}, ${width}, ${height}, 2);
-    SELECT LAST_INSERT_ID() as id;
+    VALUES (${user_id}, ${filename}, ${hash}, ${ext}, ${width}, ${height}, 2)
+    RETURNING id;
     `))[0].id;
   },
 
   addHiveRelation: async function (file_id, hive_id, user_id) {
     await storage().query(sql`
       INSERT INTO files_hive_rel (file_id, hive_id, user_id)
-      SELECT ${file_id}, ${hive_id}, ${user_id}
-      FROM DUAL
+      -- casts: untyped params in an INSERT ... SELECT list would resolve to text
+      SELECT ${file_id}::int, ${hive_id}::int, ${user_id}::int
       WHERE NOT EXISTS (
         SELECT 1
         FROM files_hive_rel
@@ -228,8 +228,8 @@ const fileModel = {
   addFrameRelation: async function (file_id, frame_side_id, user_id) {
     await storage().query(sql`
       INSERT INTO files_frame_side_rel (file_id, frame_side_id, user_id)
-      SELECT ${file_id}, ${frame_side_id}, ${user_id}
-      FROM DUAL
+      -- casts: untyped params in an INSERT ... SELECT list would resolve to text
+      SELECT ${file_id}::int, ${frame_side_id}::int, ${user_id}::int
       WHERE NOT EXISTS (
         SELECT 1
         FROM files_frame_side_rel

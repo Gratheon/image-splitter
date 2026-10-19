@@ -1,4 +1,4 @@
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 import { storage } from "./storage";
 import { logger } from "../logger";
 import config from "../config/index";
@@ -94,9 +94,9 @@ export default {
                 sql`INSERT INTO varroa_bottom_detections 
                     (file_id, box_id, user_id, varroa_count, detections)
                     VALUES (${fileId}, ${boxId}, ${userId}, ${count}, ${JSON.stringify(detections)})
-                    ON DUPLICATE KEY UPDATE
-                    varroa_count = VALUES(varroa_count),
-                    detections = VALUES(detections),
+                    ON CONFLICT (file_id) DO UPDATE SET
+                    varroa_count = EXCLUDED.varroa_count,
+                    detections = EXCLUDED.detections,
                     processed_at = NOW()`
             );
             logger.info('Updated varroa bottom detections', {fileId, boxId, userId, count});

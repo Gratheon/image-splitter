@@ -19,7 +19,7 @@ services:
       - ./tmp:/app/tmp
     restart: always
     depends_on:
-      mysql-test: # Wait for mysql-test to be healthy
+      postgres-test: # Wait for postgres-test to be healthy
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -28,22 +28,23 @@ services:
       create-bucket: # Wait for the bucket creation task to complete
         condition: service_completed_successfully
 
-  mysql-test:
-    image: mysql:8.4
-    command: mysqld --mysql-native-password=ON --skip-mysqlx --sort_buffer_size=512K
+  postgres-test:
+    image: postgres:18
     environment:
-      MYSQL_USER: test
-      MYSQL_PASSWORD: test
-      MYSQL_ROOT_PASSWORD: test
-      MYSQL_DATABASE: image-splitter # Let entrypoint handle only this one
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: image_splitter
+      # mirror production: Postgres session time zone is UTC
+      TZ: UTC
+      PGTZ: UTC
     mem_limit: 1G
     ports:
-      - 5101:3306
-    volumes:
-      - ./test/mysql82:/var/lib/mysql
-      - ./test/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql # Mount init script
+      - 5101:5432
+    # throwaway data: tests start from an empty database every run
+    tmpfs:
+      - /var/lib/postgresql
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U test -d image_splitter"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -95,5 +96,3 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-volumes:
-  mysql82:

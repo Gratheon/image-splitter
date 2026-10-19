@@ -30,7 +30,7 @@ describe('Mutation.filesStrokeEditMutation resolver (integration)', () => {
     expect(ok).toBe(true);
 
     const rows = await storage().query(sql`
-      SELECT strokeHistory FROM files_frame_side_rel
+      SELECT "strokeHistory" FROM files_frame_side_rel
       WHERE file_id = ${fileId} AND frame_side_id = ${frameSideId} AND user_id = ${uid} AND inspection_id IS NULL
       LIMIT 1
     `);

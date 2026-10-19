@@ -1,11 +1,12 @@
 process.env.ENV_ID = process.env.ENV_ID || 'testing';
 process.env.NATIVE = process.env.NATIVE || '1';
 
-process.env.MYSQL_HOST = process.env.MYSQL_HOST || 'localhost';
-process.env.MYSQL_PORT = process.env.MYSQL_PORT || '5101';
-process.env.MYSQL_USER = process.env.MYSQL_USER || 'test';
-process.env.MYSQL_PASSWORD = process.env.MYSQL_PASSWORD || 'test';
-process.env.MYSQL_DATABASE = process.env.MYSQL_DATABASE || 'image-splitter';
+process.env.DB_HOST = process.env.DB_HOST || 'localhost';
+process.env.DB_PORT = process.env.DB_PORT || '5101';
+process.env.DB_USER = process.env.DB_USER || 'test';
+process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'test';
+process.env.DB_NAME = process.env.DB_NAME || 'image_splitter';
+process.env.DB_SSL = process.env.DB_SSL || 'disable';
 
 process.env.AWS_TARGET_UPLOAD_ENDPOINT = process.env.AWS_TARGET_UPLOAD_ENDPOINT || 'http://localhost:19000/';
 process.env.AWS_PUBLIC_URL = process.env.AWS_PUBLIC_URL || 'http://localhost:19000/gratheon-test/';

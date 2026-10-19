@@ -1,4 +1,4 @@
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 
 import { storage } from "./storage";
 
@@ -106,14 +106,14 @@ const detectionSettingsModel = {
   getByUserId: async (uid: number): Promise<UserDetectionSettings> => {
     const rows = await storage().query(sql`
       SELECT
-        user_id as userId,
-        min_confidence_percent as minConfidencePercent,
+        user_id as "userId",
+        min_confidence_percent as "minConfidencePercent",
         bees_confidence_percent as bees,
         drones_confidence_percent as drones,
         queens_confidence_percent as queens,
-        queen_cups_confidence_percent as queenCups,
+        queen_cups_confidence_percent as "queenCups",
         varroa_confidence_percent as varroa,
-        varroa_bottom_confidence_percent as varroaBottom
+        varroa_bottom_confidence_percent as "varroaBottom"
       FROM user_detection_settings
       WHERE user_id = ${uid}
       LIMIT 1
@@ -164,15 +164,15 @@ const detectionSettingsModel = {
         ${normalized.varroa},
         ${normalized.varroaBottom}
       )
-      ON DUPLICATE KEY UPDATE
-        min_confidence_percent = VALUES(min_confidence_percent),
-        bees_confidence_percent = VALUES(bees_confidence_percent),
-        drones_confidence_percent = VALUES(drones_confidence_percent),
-        queens_confidence_percent = VALUES(queens_confidence_percent),
-        queen_cups_confidence_percent = VALUES(queen_cups_confidence_percent),
-        varroa_confidence_percent = VALUES(varroa_confidence_percent),
-        varroa_bottom_confidence_percent = VALUES(varroa_bottom_confidence_percent),
-        updated_at = CURRENT_TIMESTAMP
+      ON CONFLICT (user_id) DO UPDATE SET
+        min_confidence_percent = EXCLUDED.min_confidence_percent,
+        bees_confidence_percent = EXCLUDED.bees_confidence_percent,
+        drones_confidence_percent = EXCLUDED.drones_confidence_percent,
+        queens_confidence_percent = EXCLUDED.queens_confidence_percent,
+        queen_cups_confidence_percent = EXCLUDED.queen_cups_confidence_percent,
+        varroa_confidence_percent = EXCLUDED.varroa_confidence_percent,
+        varroa_bottom_confidence_percent = EXCLUDED.varroa_bottom_confidence_percent,
+        updated_at = NOW()
     `);
 
     return detectionSettingsModel.getByUserId(uid);

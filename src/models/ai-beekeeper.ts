@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { sql } from "@databases/mysql";
+import { sql } from "@databases/pg";
 
 import { storage } from "./storage";
 import config from '../config/index'
@@ -146,8 +146,8 @@ export default {
         // @ts-ignore
         return (await storage().query(sql`
     INSERT INTO hive_advice (user_id, hive_id, question, answer) 
-    VALUES (${user_id}, ${hive_id}, ${question}, ${answer});
-    SELECT LAST_INSERT_ID() as id;
+    VALUES (${user_id}, ${hive_id}, ${question}, ${answer})
+    RETURNING id;
     `))[0].id;
     },
 

@@ -1,4 +1,4 @@
-import {sql} from "@databases/mysql";
+import {sql} from "@databases/pg";
 
 import {logger} from '../logger';
 import {storage} from "./storage";
@@ -67,18 +67,18 @@ const frameSideModel = {
 
         if (frameSideIds.length === 0) {
             result = await storage().query(
-                sql`SELECT t1.inspection_id as inspectionId,
-                           t1.frame_side_id as frameSideId
+                sql`SELECT t1.inspection_id as "inspectionId",
+                           t1.frame_side_id as "frameSideId"
                     FROM files_frame_side_rel t1
                     WHERE t1.user_id = ${uid}
                       AND t1.inspection_id = ${inspectionId}`
             );
         } else {
             result = await storage().query(
-                sql`SELECT t1.inspection_id as inspectionId,
-                           t1.frame_side_id as frameSideId
+                sql`SELECT t1.inspection_id as "inspectionId",
+                           t1.frame_side_id as "frameSideId"
                     FROM files_frame_side_rel t1
-                    WHERE t1.frame_side_id IN (${frameSideIds})
+                    WHERE t1.frame_side_id = ANY(${frameSideIds}::int[])
                       AND t1.user_id = ${uid}
                       AND t1.inspection_id = ${inspectionId}`
             );
@@ -123,13 +123,13 @@ const frameSideModel = {
         //t1.detected_bees
         const result = await storage().query(
             sql`SELECT t1.user_id,
-                       t1.strokeHistory,
+                       t1."strokeHistory",
                        t1.queen_detected,
                        t1.is_queen_confirmed, -- Fetch the new column
                        t2.filename,
                        t2.width,
                        t2.height,
-                       t2.id as fileId,
+                       t2.id as "fileId",
                        t4.cups
                 FROM files_frame_side_rel t1
                          LEFT JOIN files t2 ON t1.file_id = t2.id
@@ -168,19 +168,15 @@ const frameSideModel = {
         const workerBeeCount = frameSideModel.countDetectedWorkerBees(detectedBees)
         const detectedDrones = frameSideModel.countDetectedDrones(detectedBees)
 
-        // Update detected bees atomically using JSON_MERGE_PRESERVE
+        // Append detected bees atomically with jsonb array concatenation (||).
         // This avoids the read-modify-write race condition between concurrent part processors.
-        // Note: Requires MySQL 5.7.22+ or 8.0.3+
-        // If using older MySQL, might need JSON_EXTRACT + JSON_ARRAY_APPEND approach.
         await storage().query(sql`
             UPDATE files_frame_side_rel
             SET
-                detected_bees = JSON_MERGE_PRESERVE(
-                    COALESCE(detected_bees, JSON_ARRAY()), -- Ensure target is a JSON array, default to [] if NULL
-                    ${JSON.stringify(detectedBees)}       -- Array of new bees to append
-                ),
-                worker_bee_count = IFNULL(worker_bee_count, 0) + ${workerBeeCount},
-                drone_count      = IFNULL(drone_count, 0) + ${detectedDrones}
+                -- COALESCE: start from [] when nothing was stored yet
+                detected_bees = COALESCE(detected_bees, '[]'::jsonb) || ${JSON.stringify(detectedBees)}::jsonb,
+                worker_bee_count = COALESCE(worker_bee_count, 0) + ${workerBeeCount},
+                drone_count      = COALESCE(drone_count, 0) + ${detectedDrones}
             WHERE file_id = ${fileId}
               AND frame_side_id = ${frameSideId}
               AND user_id = ${uid}
@@ -212,15 +208,15 @@ const frameSideModel = {
         const result = await storage().query(sql`
             UPDATE files_frame_side_rel
             SET
-                detected_drones = JSON_MERGE_PRESERVE(
-                    COALESCE(detected_drones, JSON_ARRAY()),
-                    ${JSON.stringify(detectedDrones)}
-                ),
-                drone_count = IFNULL(drone_count, 0) + ${droneCount}
+                detected_drones = COALESCE(detected_drones, '[]'::jsonb) || ${JSON.stringify(detectedDrones)}::jsonb,
+                drone_count = COALESCE(drone_count, 0) + ${droneCount}
             WHERE file_id = ${fileId}
               AND frame_side_id = ${frameSideId}
               AND user_id = ${uid}
+            RETURNING file_id
         `);
+        // Postgres reports no affectedRows for a query, so the updated rows are returned instead
+        const affectedRows = result.length;
 
         logger.info(`Atomically updated detected drones in DB`, {
             fileId,
@@ -228,10 +224,10 @@ const frameSideModel = {
             uid,
             newDronesCount: detectedDrones.length,
             droneCount,
-            affectedRows: result.affectedRows
+            affectedRows
         });
 
-        if (result.affectedRows === 0) {
+        if (affectedRows === 0) {
             logger.warn(`No rows updated when storing drones - record may not exist`, {
                 fileId,
                 frameSideId,
@@ -450,7 +446,7 @@ const frameSideModel = {
         for (let file of fileRels) {
             await storage().query(
                 sql`UPDATE files_frame_side_rel
-                    SET strokeHistory=${JSON.stringify(file.strokeHistory)}
+                    SET "strokeHistory"=${JSON.stringify(file.strokeHistory)}
                     WHERE file_id = ${file.fileId}
                       AND frame_side_id = ${file.frameSideId}
                       AND user_id = ${uid}`
@@ -470,15 +466,20 @@ const frameSideModel = {
             return false; // Or throw an error
         }
 
-        // Update only the latest record for the frame side using correct columns
+        // Update only the latest record for the frame side.
+        // Postgres has no UPDATE ... ORDER BY ... LIMIT, so the row is picked by its primary key in a subquery
         await storage().query(
             sql`UPDATE files_frame_side_rel
                 SET is_queen_confirmed=${isConfirmed}
-                WHERE frame_side_id = ${frameSideIdNum}
-                  AND user_id = ${userIdNum}
-                  AND inspection_id IS NULL
-                ORDER BY added_time DESC
-                LIMIT 1`
+                WHERE (frame_side_id, file_id) = (
+                    SELECT frame_side_id, file_id
+                    FROM files_frame_side_rel
+                    WHERE frame_side_id = ${frameSideIdNum}
+                      AND user_id = ${userIdNum}
+                      AND inspection_id IS NULL
+                    ORDER BY added_time DESC
+                    LIMIT 1
+                )`
         );
         // Removed Redis publish for manual confirmation update
         return true;
@@ -519,7 +520,7 @@ const frameSideModel = {
         await storage().query(
             sql`UPDATE files_frame_side_rel
                 SET detected_queens=${JSON.stringify(exQueens)},
-                    queen_count    = IFNULL(queen_count, 0) + ${queens.length},
+                    queen_count    = COALESCE(queen_count, 0) + ${queens.length},
                     queen_detected = (queen_detected OR ${aiFoundQueen})
                     ${(aiFoundQueen && isCurrentlyConfirmed === false) ? sql`, is_queen_confirmed = TRUE` : sql``}
                 WHERE file_id = ${fileId}
@@ -535,7 +536,7 @@ const frameSideModel = {
             sql`UPDATE files_frame_side_rel
                 SET inspection_id=${inspectionId}
                 WHERE inspection_id IS NULL
-                  AND frame_side_id IN (${frameSideIDs})
+                  AND frame_side_id = ANY(${frameSideIDs}::int[])
                   AND user_id = ${uid}`
         );
         return true
@@ -550,7 +551,7 @@ const frameSideModel = {
             sql`SELECT DISTINCT t1.hive_id
                 FROM files_hive_rel t1
                 INNER JOIN files_frame_side_rel t2 ON t2.file_id = t1.file_id
-                WHERE t2.frame_side_id IN (${frameSideIDs})
+                WHERE t2.frame_side_id = ANY(${frameSideIDs}::int[])
                   AND t1.user_id = ${uid}
                 LIMIT 1`
         );

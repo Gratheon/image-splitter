@@ -1,4 +1,4 @@
-import createConnectionPool, {sql, SQLQuery} from "@databases/mysql";
+import createConnectionPool, {sql, SQLQuery} from "@databases/pg";
 import * as fs from "fs";
 import * as crypto from "crypto";
 
@@ -47,25 +47,36 @@ export function isStorageConnected(): boolean {
   return isConnected;
 }
 
+let connecting = false;
+
 async function tryConnect(logger): Promise<boolean> {
+  // Reconnect attempts can outlive the 10s interval (connect timeout + migrations): never overlap them
+  if (connecting) {
+    return false;
+  }
+  connecting = true;
+
+  let pool;
   try {
-    const dsn = `mysql://${config.mysql.user}:${config.mysql.password}@${config.mysql.host}:${config.mysql.port}/`
-    const conn = createConnectionPool(dsn);
+    const { user, password, host, port, database, ssl } = config.postgres;
 
-    await conn.query(sql`CREATE DATABASE IF NOT EXISTS \`image-splitter\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`);
-    await conn.dispose();
-
+    // WHY: unlike MySQL, Postgres has no CREATE DATABASE IF NOT EXISTS, and the prod
+    // database lives on a managed cluster where it is provisioned manually.
     const startTimes = new Map<SQLQuery, bigint>();
     let connectionsCount = 0;
 
-    db = createConnectionPool({
-      connectionString: `${dsn}${config.mysql.database}`,
-      // Connection pool limits to prevent exhaustion
+    pool = createConnectionPool({
+      connectionString: `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`,
+      // DigitalOcean managed Postgres requires TLS ("require" in prod); "prefer" also works with a local container without TLS
+      ssl: ssl as any,
       bigIntMode: 'number',
-      poolSize: 20, // Maximum number of connections (default is 10)
+      poolSize: 20, // workers + resolvers share the pool
       queueTimeoutMilliseconds: 10000, // Wait max 10s for a connection (default is 60s)
       idleTimeoutMilliseconds: 60000, // Close idle connections after 60s (default is 30s)
       maxUses: 5000, // Recycle connections after 5000 uses to prevent leaks
+      onError: (err) => {
+        logger.error(`Postgres connection pool error: ${err.message}`);
+      },
       onQueryError: (query, { text }, err) => {
         const start = startTimes.get(query);
         startTimes.delete(query);
@@ -113,30 +124,23 @@ async function tryConnect(logger): Promise<boolean> {
         }
       },
       onConnectionOpened: () => {
-        logger.info(
+        logger.debug(
             `Opened connection. Active connections = ${++connectionsCount}`,
         );
       },
       onConnectionClosed: () => {
-        logger.info(
+        logger.debug(
             `Closed connection. Active connections = ${--connectionsCount}`,
         );
       },
     });
 
-    process.once('SIGTERM', () => {
-      if (reconnectInterval) {
-        clearInterval(reconnectInterval);
-      }
-      db.dispose().catch((ex) => {
-        logger.error(ex);
-      });
-    });
+    await migrate(pool, logger);
 
-    await migrate(logger);
-
+    // Published only after migrations succeeded, so requests never see a half-migrated schema
+    db = pool;
     isConnected = true;
-    logger.info('MySQL connection established successfully');
+    logger.info('Postgres connection established successfully');
 
     if (reconnectInterval) {
       clearInterval(reconnectInterval);
@@ -146,79 +150,80 @@ async function tryConnect(logger): Promise<boolean> {
     return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to connect to MySQL: ${errorMessage}`);
+    logger.error(`Failed to connect to Postgres: ${errorMessage}`);
     isConnected = false;
+    // Drop the failed pool so periodic retries do not leak connections
+    await pool?.dispose().catch(() => {});
     return false;
+  } finally {
+    connecting = false;
   }
 }
 
 export async function initStorage(logger) {
+  process.once('SIGTERM', () => {
+    if (reconnectInterval) {
+      clearInterval(reconnectInterval);
+    }
+    db?.dispose().catch((ex) => {
+      logger.error(ex);
+    });
+  });
+
   const connected = await tryConnect(logger);
 
   if (!connected) {
-    logger.warn('Initial MySQL connection failed. Will retry every 10 seconds...');
+    logger.warn('Initial Postgres connection failed. Will retry every 10 seconds...');
 
     reconnectInterval = setInterval(async () => {
-      logger.info('Attempting to reconnect to MySQL...');
+      logger.info('Attempting to reconnect to Postgres...');
       await tryConnect(logger);
     }, 10000);
   }
 }
 
-async function migrate(logger) {
-  try {
-    await db.query(sql`CREATE TABLE IF NOT EXISTS _db_migrations (
-		hash VARCHAR(255),
-		filename VARCHAR(255),
-		executionTime DATETIME
-	  );
-`);
+async function migrate(db, logger) {
+  await db.query(sql`CREATE TABLE IF NOT EXISTS _db_migrations (
+    hash VARCHAR(255),
+    filename VARCHAR(255),
+    execution_time TIMESTAMPTZ
+  );`);
 
-    // List the directory containing the .sql files
-    const files = await fs.promises.readdir("./migrations");
+  const files = await fs.promises.readdir("./migrations");
 
-    // Filter and sort migration files to guarantee deterministic execution order
-    const sqlFiles = files
-      .filter((file) => file.endsWith(".sql"))
-      .sort((a, b) => a.localeCompare(b));
+  // Sorted so that migrations run in a deterministic order (readdir order is not guaranteed)
+  const sqlFiles = files
+    .filter((file) => file.endsWith(".sql"))
+    .sort((a, b) => a.localeCompare(b));
 
-    // Read each .sql file and execute the SQL statements
-    for (const file of sqlFiles) {
-      logger.info(`Processing DB migration ${file}`);
-      const sqlStatement = await fs.promises.readFile(
-        `./migrations/${file}`,
-        "utf8"
-      );
+  for (const file of sqlFiles) {
+    logger.info(`Processing DB migration ${file}`);
+    const sqlStatement = await fs.promises.readFile(`./migrations/${file}`, "utf8");
 
-      // Hash the SQL statements
-      const hash = crypto
-        .createHash("sha256")
-        .update(sqlStatement)
-        .digest("hex");
+    const hash = crypto
+      .createHash("sha256")
+      .update(sqlStatement)
+      .digest("hex");
 
-      // Check if the SQL has already been executed by checking the hashes in the dedicated table
-      const rows = await db.query(
-        sql`SELECT * FROM _db_migrations WHERE hash = ${hash}`
-      );
+    // Matched by filename too: editing an applied migration does NOT re-run it, add a new file instead
+    const rows = await db.query(
+      sql`SELECT * FROM _db_migrations WHERE filename = ${file} OR hash = ${hash} LIMIT 1`
+    );
 
-      // If the hash is not in the table, execute the SQL and store the hash in the table
-      if (rows.length === 0) {
-        await db.tx(async (dbi) => {
-          await dbi.query(sql.file(`./migrations/${file}`));
-        })
-
-        logger.info(`Successfully executed SQL from ${file}.`);
-
-        // Store the hash in the dedicated table
-        await db.query(
-          sql`INSERT INTO _db_migrations (hash, filename, executionTime) VALUES (${hash}, ${file}, NOW())`
+    if (rows.length === 0) {
+      // Postgres supports transactional DDL, so a failed migration leaves no partial schema behind
+      await db.tx(async (dbi) => {
+        await dbi.query(sql.file(`./migrations/${file}`));
+        await dbi.query(
+          sql`INSERT INTO _db_migrations (hash, filename, execution_time) VALUES (${hash}, ${file}, NOW())`
         );
-        logger.info(`Successfully stored hash in executed_sql_hashes table.`);
-      } else {
-        logger.info(`SQL from ${file} has already been executed. Skipping.`);
-      }
+      });
+
+      logger.info(`Successfully executed SQL from ${file}.`);
+    } else {
+      logger.info(`SQL from ${file} has already been executed. Skipping.`);
     }
-  } catch (err) {
-    logger.error(err);
   }
+  // Errors propagate to tryConnect(): the service reports the DB as disconnected and retries,
+  // instead of serving requests against a half-migrated schema
 }

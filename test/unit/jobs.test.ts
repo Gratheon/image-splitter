@@ -47,16 +47,20 @@ describe('jobs model', () => {
     expect(mockPublish).toHaveBeenCalledWith('jobs:new:bees', JSON.stringify({ refId: 123, priority: 3 }));
   });
 
-  test('addJob falls back to legacy insert and continues when publish fails', async () => {
-    mockQuery
-      .mockRejectedValueOnce(new Error("Unknown column 'priority' in 'field list'"))
-      .mockResolvedValueOnce(undefined);
+  test('addJob continues when publish fails', async () => {
+    mockQuery.mockResolvedValueOnce(undefined);
     mockPublish.mockRejectedValueOnce(new Error('redis down'));
 
     await expect(jobsModel.addJob('cells', 7, { p: true }, 5)).resolves.toBeUndefined();
-    expect(mockQuery).toHaveBeenCalledTimes(2);
-    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
+  test('addJob propagates insert errors', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('connection refused'));
+
+    await expect(jobsModel.addJob('cells', 7, {}, 5)).rejects.toThrow('connection refused');
+    expect(mockPublish).not.toHaveBeenCalled();
   });
 
   test('isComplete returns false when no row, true when process_end_time exists', async () => {
