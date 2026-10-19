@@ -25,6 +25,7 @@ const fileModel = {
 			FROM files_frame_side_rel t1
 			LEFT JOIN files t2 ON t1.file_id = t2.id
 			WHERE t1.frame_side_id = ${id} AND t1.user_id = ${uid} AND t1.inspection_id IS NULL
+			ORDER BY t1.file_id ASC -- deterministic pick when a frame side has several active files: same order InnoDB used (PK frame_side_id, file_id)
 			LIMIT 1`
     );
 
@@ -52,6 +53,7 @@ const fileModel = {
       LEFT JOIN files_frame_side_cells t3 ON t1.file_id=t3.file_id AND t1.inspection_id = t3.inspection_id
 			WHERE t1.frame_side_id = ${id} and t1.user_id = ${uid}
         AND t1.inspection_id = ${inspectionId}
+			ORDER BY t1.file_id ASC -- deterministic pick when a frame side has several active files: same order InnoDB used (PK frame_side_id, file_id)
 			LIMIT 1`
     );
 

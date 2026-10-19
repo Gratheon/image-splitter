@@ -31,7 +31,7 @@ export default {
                        WHERE fbr.box_id = ${boxId} 
                          AND fbr.user_id = ${userId} 
                          AND fbr.inspection_id = ${inspectionId}
-                       ORDER BY fbr.added_time DESC`
+                       ORDER BY fbr.added_time DESC NULLS LAST`
                 )
                 : await storage().query(
                     sql`SELECT fbr.box_id, fbr.file_id, fbr.user_id, fbr.inspection_id, fbr.added_time,
@@ -43,7 +43,7 @@ export default {
                        WHERE fbr.box_id = ${boxId} 
                          AND fbr.user_id = ${userId} 
                          AND fbr.inspection_id IS NULL
-                       ORDER BY fbr.added_time DESC`
+                       ORDER BY fbr.added_time DESC NULLS LAST`
                 );
 
             return result.map(row => ({
@@ -116,7 +116,7 @@ export default {
                     WHERE vbd.box_id = ${boxId}
                       AND vbd.user_id = ${userId}
                       AND fbr.inspection_id ${inspectionId ? sql`= ${inspectionId}` : sql`IS NULL`}
-                    ORDER BY vbd.processed_at DESC
+                    ORDER BY vbd.processed_at DESC NULLS LAST -- MySQL sorted NULLs last in DESC, Postgres first
                     LIMIT 1`
             );
 

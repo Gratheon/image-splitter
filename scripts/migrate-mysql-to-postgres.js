@@ -82,9 +82,10 @@ function convertValue(column, value) {
     return null;
   }
   if (JSON_COLUMNS.has(column)) {
-    // mysql2 already parses JSON columns; stringify explicitly because node-pg would
-    // turn a JS array (all detection columns are arrays) into a Postgres array literal
-    return typeof value === "string" ? value : JSON.stringify(value);
+    // mysql2 already parses JSON columns, so always re-serialize: node-pg would turn a JS array
+    // (all detection columns are arrays) into a Postgres array literal, and a JSON string scalar
+    // arrives as a plain JS string that would otherwise be sent unquoted
+    return JSON.stringify(value);
   }
   if (BOOLEAN_COLUMNS.has(column)) {
     return Number(value) !== 0;

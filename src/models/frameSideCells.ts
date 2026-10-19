@@ -186,6 +186,7 @@ const cellModel = {
 				t1.user_id = ${uid} AND 
 				t1.frame_side_id = ${frameSideId} AND 
 				t1.inspection_id IS NULL
+			ORDER BY t1.file_id ASC -- deterministic pick when a frame side has several active files: same order InnoDB used (PK frame_side_id, file_id)
 			LIMIT 1`
 		);
 
@@ -224,6 +225,7 @@ const cellModel = {
 				t1.frame_side_id = ${frameSideId} AND 
 				t1.user_id = ${uid} AND 
 				t1.inspection_id = ${inspectionId}
+			ORDER BY t1.file_id ASC -- deterministic pick when a frame side has several active files: same order InnoDB used (PK frame_side_id, file_id)
 			LIMIT 1`
 		);
 

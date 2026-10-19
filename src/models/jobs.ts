@@ -117,6 +117,9 @@ const jobsModel = {
                 FROM jobs
                 WHERE name = ${name}
                   AND ref_id = ${refId}
+                -- a file can have several jobs of one type (reprocessing): report the newest one,
+                -- Postgres has no stable implicit row order for LIMIT without ORDER BY
+                ORDER BY id DESC
                 LIMIT 1`,
     );
 
