@@ -70,9 +70,11 @@ async function tryConnect(logger): Promise<boolean> {
       // DigitalOcean managed Postgres requires TLS ("require" in prod); "prefer" also works with a local container without TLS
       ssl: ssl as any,
       bigIntMode: 'number',
-      poolSize: 20, // workers + resolvers share the pool
+      // WHY: the shared DO Postgres cluster has only 22 non-superuser slots for all services;
+      // a pool of 20 held 12+ idle slots and starved swarm-api (SQLSTATE 53300).
+      poolSize: 6, // workers + resolvers share the pool
       queueTimeoutMilliseconds: 10000, // Wait max 10s for a connection (default is 60s)
-      idleTimeoutMilliseconds: 60000, // Close idle connections after 60s (default is 30s)
+      idleTimeoutMilliseconds: 10000, // Release idle slots quickly, the cluster is shared
       maxUses: 5000, // Recycle connections after 5000 uses to prevent leaks
       onError: (err) => {
         logger.error(`Postgres connection pool error: ${err.message}`);
