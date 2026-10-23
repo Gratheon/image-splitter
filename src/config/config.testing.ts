@@ -32,6 +32,9 @@ export default {
         database: process.env.DB_NAME || 'image_splitter',
         // local test container runs without TLS
         ssl: process.env.DB_SSL || 'disable',
+        // optional pool limits, defaults live in src/models/storage.ts
+        poolSize: process.env.DB_POOL_SIZE,
+        idleTimeoutMilliseconds: process.env.DB_IDLE_TIMEOUT_MS,
     },
 
     // please set own AWS S3 bucket credentials

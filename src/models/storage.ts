@@ -3,10 +3,16 @@ import * as fs from "fs";
 import * as crypto from "crypto";
 
 import config from "../config/index";
+
 import { recordDbQuery } from "../metrics";
 
-export { sql };
+// WHY: config.prod.ts replaces the whole postgres section, so pool limits are read with env and default fallbacks here
+function positiveInt(value: unknown, fallback: number): number {
+  const parsed = Math.floor(Number(value));
+  return parsed >= 1 ? parsed : fallback;
+}
 
+export { sql };
 
 let db;
 let isConnected = false;
@@ -72,9 +78,10 @@ async function tryConnect(logger): Promise<boolean> {
       bigIntMode: 'number',
       // WHY: the shared DO Postgres cluster has only 22 non-superuser slots for all services;
       // a pool of 20 held 12+ idle slots and starved swarm-api (SQLSTATE 53300).
-      poolSize: 6, // workers + resolvers share the pool
+      poolSize: positiveInt(config.postgres.poolSize ?? process.env.DB_POOL_SIZE, 4), // workers + resolvers share the pool
       queueTimeoutMilliseconds: 10000, // Wait max 10s for a connection (default is 60s)
-      idleTimeoutMilliseconds: 10000, // Release idle slots quickly, the cluster is shared
+      // Release idle slots quickly, the cluster is shared
+      idleTimeoutMilliseconds: positiveInt(config.postgres.idleTimeoutMilliseconds ?? process.env.DB_IDLE_TIMEOUT_MS, 10000),
       maxUses: 5000, // Recycle connections after 5000 uses to prevent leaks
       onError: (err) => {
         logger.error(`Postgres connection pool error: ${err.message}`);
