@@ -7,7 +7,6 @@ jest.mock('graphql-upload/GraphQLUpload.mjs', () => ({
 
 import { resolvers } from '../../../src/graphql/resolvers';
 import fileModel from '../../../src/models/file';
-import frameSideCellsModel from '../../../src/models/frameSideCells';
 import { sql, storage } from '../../../src/models/storage';
 import { nextId, registerResolverIntegrationLifecycle } from './helpers';
 

@@ -1,5 +1,4 @@
 // @ts-ignore
-import Jimp from 'jimp';
 // @ts-ignore
 import fs from 'fs';
 // @ts-ignore
@@ -11,7 +10,6 @@ import sharp from 'sharp';
 import URL from '../../url'
 
 import { logger } from '../../logger';
-import fileModel from '../../models/file';
 import {Path} from "../../path";
 import config from "../../config";
 

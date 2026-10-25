@@ -9,7 +9,6 @@ import {MIN_VARROA_CONFIDENCE} from "../workers/detectVarroa";
 import {roundToDecimal} from "../workers/common/common";
 import {Path} from "../path";
 import URL from "../url";
-import { generateChannelName, publisher } from '../redisPubSub';
 
 
 let typeMap = {
@@ -32,7 +31,7 @@ export type CutPosition = {
 }
 
 export type DetectedObject = {
-    n: String, // class. 10 - queen cup. 11 - varroa
+    n: string, // class. 10 - queen cup. 11 - varroa
     x: number
     y: number
     w: number

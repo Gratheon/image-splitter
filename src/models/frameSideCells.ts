@@ -4,7 +4,6 @@ import { storage } from "./storage";
 import { logger } from "../logger";
 import fileModel from './file';
 import * as imageModel from "./image";
-import config from "../config";
 
 // Beehive frame has sides
 // For every side, we try to detect types of cells

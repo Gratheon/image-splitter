@@ -5,9 +5,7 @@ import { logger } from "../logger";
 import config from "../config";
 
 import frameSideModel, {
-  convertDetectedBeesStorageFormat,
   CutPosition,
-  DetectedObject,
 } from "../models/frameSide";
 
 import { generateChannelName, publisher } from "../redisPubSub";
