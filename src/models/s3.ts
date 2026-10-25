@@ -3,8 +3,7 @@ import {
     PutObjectCommand,
     S3Client,
     HeadBucketCommand, // Import HeadBucketCommand
-    CreateBucketCommand, // Import CreateBucketCommand
-    NoSuchBucket // Import NoSuchBucket error type
+    CreateBucketCommand // Import CreateBucketCommand
 } from "@aws-sdk/client-s3";
 // @ts-ignore
 import fs from "fs";

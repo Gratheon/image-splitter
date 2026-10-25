@@ -1,4 +1,3 @@
-import { convertDetectedBeesStorageFormat } from './frameSide';
 import cellModel from './frameSideCells'
 import { storage } from './storage'
 

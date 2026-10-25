@@ -16,8 +16,6 @@ export const TYPE_DRONES = "drones";
 export const NOTIFY_JOB = "notify";
 
 const ERROR_TIME_RETRY_MS = 30 * 1000;
-const IDLE_TIME_RETRY_MS = 10 * 1000;
-const WORK_TIME_RETRY_MS = 10;
 
 type Job = {
   id: number;

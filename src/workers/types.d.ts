@@ -7,7 +7,7 @@ export type DetectedFrameResource = [
 ]
 
 export type DetectedRectangle = {
-	n: String, // class
+	n: string, // class
 	// 10 - queen cup
 	x: number
 	y: number
